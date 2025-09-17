@@ -492,3 +492,83 @@ Content (post, comment, group, tags) + user behavior (like, comment, save, follo
 - Moderation: AI NLP filters toxic/spam, helps mods avoid overload.
 - Search: AI semantic search + typo correction, supports Vietnamese.
 - Newsfeed: AI recommender combines friends + subject tags + behavior → personalized feed.
+
+
+# Tech-stack
+
+## 1. Frontend
+
+- Framework: React or Next.js (SSR/SEO, good for feed & search).
+
+- Language: TypeScript (safe, scalable code).
+
+- UI/Styling: TailwindCSS + shadcn/ui (easy to customize, modern).
+
+- State Management: Zustand or Redux Toolkit (manage user/profile, feed, chat state).
+
+- Realtime: Socket.IO client or WebSocket API.
+
+- Editor: TipTap/Quill.js + Markdown + LaTeX support (MathJax/KaTeX).
+
+- Build tool: Vite (fast, well integrated with TS/React).
+
+## 2. Backend
+
+- Framework: 🚀 Spring Boot
+
+  - Web: Spring Web / Spring MVC (REST API).
+
+  - Auth & Security: Spring Security + JWT + OAuth2 (Google/Facebook login).
+
+  - Database Access: Spring Data JPA + Hibernate.
+
+  - Realtime: Spring WebSocket / STOMP for chat & notification.
+
+  - Validation: Hibernate Validator (handle registration, post forms).
+
+- Database:
+
+  - Relational: PostgreSQL (store user, post, comment, friends, groups).
+
+  - Vector DB: PostgreSQL + pgvector or Milvus (for semantic search & recommender).
+
+- Cache & session: Redis (cache feed, notification, ranking).
+
+- File storage: AWS S3 / GCP Cloud Storage / MinIO (images, PDF).
+
+- Search engine: Elasticsearch or Meilisearch (full-text search, Vietnamese analyzer).
+
+## 3. AI & Machine Learning
+
+- Moderation (filter toxic comments):
+
+  - OpenAI Moderation API, Perspective API or Detoxify (on-prem).
+
+- Semantic Search:
+
+  - Embedding model: text-embedding-3-small (OpenAI) or PhoBERT/viBERT (on-prem).
+
+  - Vector DB: pgvector or Milvus.
+
+- Recommendation (Personalized Newsfeed):
+
+  - Candidate generation: get posts from friends, groups, trending.
+
+  - Ranking model: LightGBM or neural network from behavior (click, vote, bookmark).
+
+  - Graph-based: PageRank on friend graph.
+
+## 4. DevOps & Infrastructure
+
+- Containerization: Docker.
+
+- Orchestration: Kubernetes (scale microservices: auth, chat, recommend).
+
+- CI/CD: GitHub Actions / GitLab CI.
+
+- Monitoring: Prometheus + Grafana.
+
+- Logging: ELK Stack (Elasticsearch, Logstash, Kibana).
+
+- Notification Service: Firebase Cloud Messaging (mobile push), WebPush (desktop).
+
