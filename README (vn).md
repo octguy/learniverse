@@ -492,3 +492,81 @@ Nội dung (post, comment, group, tags) + hành vi người dùng (like, comment
 - Moderation: AI NLP lọc toxic/spam, giúp mod không quá tải.
 - Search: AI semantic search + typo correction, phù hợp tiếng Việt.
 - Newsfeed: AI recommender kết hợp bạn bè + tags môn + hành vi → feed cá nhân hóa.
+
+# Tech-stack
+
+## 1. Frontend
+
+- Framework: React hoặc Next.js (SSR/SEO, tốt cho feed & search).
+
+- Ngôn ngữ: TypeScript (giúp code an toàn, dễ mở rộng).
+
+- UI/Styling: TailwindCSS + shadcn/ui (dễ custom, hiện đại).
+
+- State Management: Zustand hoặc Redux Toolkit (quản lý user/profile, feed, chat state).
+
+- Realtime: Socket.IO client hoặc WebSocket API.
+
+- Editor: TipTap/Quill.js + hỗ trợ Markdown + LaTeX (MathJax/KaTeX).
+
+- Build tool: Vite (nhanh, tích hợp tốt với TS/React).
+
+## 2. Backend
+
+- Framework: 🚀 Spring Boot
+
+  - Web: Spring Web / Spring MVC (REST API).
+
+  - Auth & Security: Spring Security + JWT + OAuth2 (Google/Facebook login).
+
+  - Database Access: Spring Data JPA + Hibernate.
+
+  - Realtime: Spring WebSocket / STOMP cho chat & notification.
+
+  - Validation: Hibernate Validator (xử lý form đăng ký, bài viết).
+
+- Database:
+
+  - Quan hệ: PostgreSQL (lưu user, bài viết, comment, bạn bè, nhóm).
+
+  - Vector DB: PostgreSQL + pgvector hoặc Milvus (cho semantic search & recommender).
+
+- Cache & session: Redis (cache feed, notification, ranking).
+
+- File storage: AWS S3 / GCP Cloud Storage / MinIO (ảnh, PDF).
+
+- Search engine: Elasticsearch hoặc Meilisearch (full-text search, Vietnamese analyzer).
+
+## 3. AI & Machine Learning
+
+- Moderation (lọc bình luận xấu):
+
+  - OpenAI Moderation API, Perspective API hoặc Detoxify (on-prem).
+
+- Semantic Search:
+
+  - Embedding model: text-embedding-3-small (OpenAI) hoặc PhoBERT/viBERT (on-prem).
+
+  - Vector DB: pgvector hoặc Milvus.
+
+- Recommendation (Newsfeed cá nhân hóa):
+
+  - Candidate generation: lấy post từ bạn bè, nhóm, trending.
+
+  - Ranking model: LightGBM hoặc neural network từ hành vi (click, vote, bookmark).
+
+  - Graph-based: PageRank trên graph bạn bè.
+
+## 4. DevOps & Hạ tầng
+
+- Containerization: Docker.
+
+- Orchestration: Kubernetes (scale microservices: auth, chat, recommend).
+
+- CI/CD: GitHub Actions / GitLab CI.
+
+- Monitoring: Prometheus + Grafana.
+
+- Logging: ELK Stack (Elasticsearch, Logstash, Kibana).
+
+- Notification Service: Firebase Cloud Messaging (mobile push), WebPush (desktop).
