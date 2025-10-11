@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { format } from "date-fns";
-import { Mail } from "lucide-react";
+import {Facebook, Mail} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,9 +15,19 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {AuthButton} from "@/components/auth/auth-button";
+import {OTPVerificationDialog} from "@/components/auth/OTP-verification-dialog"
+import {AvatarUploader} from "@/components/auth/avatar-uploader";
+import {ProfileProgressBar} from "@/components/auth/profile-progress-bar";
+import {TagSelector} from "@/components/auth/tag-selector";
+import {useState} from "react";
+import {ProfileCard} from "@/components/auth/profile-card";
+import {ProfileEditForm} from "@/components/auth/profile-edit-form";
+
 export default function ComponentTestPage() {
   const [date, setDate] = React.useState<Date>();
-  
+    const [mockSelected, setMockSelected] = useState<string[]>(["Toán học", "Vật lý"])
+
   return (
     <div className="dark mx-auto p-4 md:p-10">
       <h1 className="text-3xl font-bold mb-6">Shadcn/UI Component Playground</h1>
@@ -27,6 +37,7 @@ export default function ComponentTestPage() {
           <TabsTrigger value="cards">Cards & Buttons</TabsTrigger>
           <TabsTrigger value="forms">Form Elements</TabsTrigger>
           <TabsTrigger value="advanced">Advanced</TabsTrigger>
+            <TabsTrigger value="khai">Khải</TabsTrigger>
         </TabsList>
         
         {/* Tab 1: Cards & Buttons */}
@@ -149,6 +160,41 @@ export default function ComponentTestPage() {
                 </CardContent>
             </Card>
         </TabsContent>
+
+          <TabsContent value="khai">
+              <CardHeader>
+                  <CardTitle>Test</CardTitle>
+                  <CardDescription></CardDescription>
+              </CardHeader>
+              <Card className="mt-6">
+                  <AuthButton provider={"facebook"}/>
+                  <AuthButton provider={"google"}/>
+                  <AuthButton provider={"logout"}/>
+                  <AuthButton provider={"login"}/>
+                  <AuthButton provider={"register"}/>
+              </Card>
+
+              <Card className="mt-6">
+                  <OTPVerificationDialog/>
+              </Card>
+
+              <Card>
+                  <ProfileProgressBar value={50}/>
+              </Card>
+
+              <Card>
+                  <TagSelector mode={"onboarding"} selectedTags={mockSelected} onChange={setMockSelected}/>
+                  <TagSelector mode={"profile"} selectedTags={mockSelected} onChange={setMockSelected}/>
+              </Card>
+
+              <Card>
+                  <ProfileCard displayName={"Nguyễn Quang Khải"}/>
+              </Card>
+
+              <Card>
+                  <ProfileEditForm/>
+              </Card>
+          </TabsContent>
       </Tabs>
     </div>
   );
