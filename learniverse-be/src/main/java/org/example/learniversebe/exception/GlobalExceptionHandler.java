@@ -11,13 +11,49 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(EmailNotVerifiedException.class)
+    public ResponseEntity<ApiResponse<?>> handleEmailNotVerifiedException(EmailNotVerifiedException ex) {
+        ApiResponse<?> response = new ApiResponse<>(
+                HttpStatus.FORBIDDEN,
+                ex.getMessage(),
+                null,
+                "EMAIL_NOT_VERIFIED"
+        );
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
+    @ExceptionHandler(InvalidVerificationCodeException.class)
+    public ResponseEntity<ApiResponse<?>> handleInvalidVerificationCodeException(InvalidVerificationCodeException ex) {
+        ApiResponse<?> response = new ApiResponse<>(
+                HttpStatus.BAD_REQUEST,
+                ex.getMessage(),
+                null,
+                "INVALID_VERIFICATION_CODE"
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<ApiResponse<?>> handleUserNotFoundException(UserNotFoundException ex) {
+        ApiResponse<?> response = new ApiResponse<>(
+                HttpStatus.NOT_FOUND,
+                ex.getMessage(),
+                null,
+                "USER_NOT_FOUND"
+        );
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiResponse<?>> handleResourceNotFoundException(ResourceNotFoundException ex) {
         ApiResponse<?> response = new ApiResponse<>(
                 HttpStatus.NOT_FOUND,
                 ex.getMessage(),
                 null,
-                "NOT_FOUND"
+                "RESOURCE_NOT_FOUND"
         );
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);

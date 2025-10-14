@@ -38,3 +38,9 @@ out/
 
 ### env files ###
 .env
+
+### gradle files ###
+/gradle
+
+### MacOS ###
+.DS_Store

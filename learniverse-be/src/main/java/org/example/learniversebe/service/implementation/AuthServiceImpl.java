@@ -5,6 +5,10 @@ import org.example.learniversebe.dto.request.LoginRequest;
 import org.example.learniversebe.dto.request.RegisterRequest;
 import org.example.learniversebe.dto.request.VerifyUserRequest;
 import org.example.learniversebe.dto.response.AuthResponse;
+import org.example.learniversebe.exception.BadRequestException;
+import org.example.learniversebe.exception.EmailNotVerifiedException;
+import org.example.learniversebe.exception.InvalidVerificationCodeException;
+import org.example.learniversebe.exception.UserNotFoundException;
 import org.example.learniversebe.jwt.JwtUtil;
 import org.example.learniversebe.model.User;
 import org.example.learniversebe.repository.UserRepository;
@@ -51,7 +55,7 @@ public class AuthServiceImpl implements IAuthService {
         User user = userRepository.findByEmail(request.getEmail()).orElseThrow(() -> new RuntimeException("User not found"));
 
         if (!user.isEnabled()) {
-            throw new RuntimeException("User not verified. Please verify your email.");
+            throw new EmailNotVerifiedException("User not verified. Please verify your email.");
         }
 
         Authentication authentication = authenticationManager.authenticate(
@@ -62,7 +66,6 @@ public class AuthServiceImpl implements IAuthService {
         );
 
         user.setLastLoginAt(LocalDateTime.now());
-
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
 
         return AuthResponse.builder()
@@ -101,12 +104,12 @@ public class AuthServiceImpl implements IAuthService {
         Optional<User> user = userRepository.findByEmail(request.getEmail());
 
         if (user.isEmpty()) {
-            throw new RuntimeException("User not found");
+            throw new UserNotFoundException("User not found");
         }
 
         User userDetails = user.get();
         if (userDetails.getVerificationExpiration().isBefore(LocalDateTime.now())) {
-            throw new RuntimeException("Verification code expired");
+            throw new InvalidVerificationCodeException("Verification code expired");
         }
 
         if (request.getVerificationCode().equals(userDetails.getVerificationCode())) {
@@ -115,7 +118,7 @@ public class AuthServiceImpl implements IAuthService {
             userDetails.setVerificationExpiration(null);
             userRepository.save(userDetails);
         } else {
-            throw new RuntimeException("Invalid verification code");
+            throw new InvalidVerificationCodeException("Invalid verification code");
         }
 
     }
@@ -125,12 +128,12 @@ public class AuthServiceImpl implements IAuthService {
         Optional<User> user = userRepository.findByEmail(email);
 
         if (user.isEmpty()) {
-            throw new RuntimeException("User not found");
+            throw new UserNotFoundException("User not found");
         }
 
         User userDetails = user.get();
         if (userDetails.isEnabled()) {
-            throw new RuntimeException("User already verified");
+            throw new BadRequestException("User already verified");
         } else {
             userDetails.setVerificationCode(generateVerificationCode());
             userDetails.setVerificationExpiration(LocalDateTime.now().plusMinutes(15));
