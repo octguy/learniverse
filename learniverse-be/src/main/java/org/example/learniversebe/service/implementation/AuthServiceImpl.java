@@ -20,6 +20,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -79,7 +80,12 @@ public class AuthServiceImpl implements IAuthService {
     }
 
     @Override
+    @Transactional
     public AuthResponse register(RegisterRequest request) {
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new BadRequestException("Email already in use");
+        }
+
         User user = new User();
         user.setId(UUID.randomUUID());
         user.setEmail(request.getEmail());
@@ -102,6 +108,7 @@ public class AuthServiceImpl implements IAuthService {
     }
 
     @Override
+    @Transactional
     public void verifyUser(VerifyUserRequest request) {
         Optional<User> user = userRepository.findByEmail(request.getEmail());
 
@@ -126,6 +133,7 @@ public class AuthServiceImpl implements IAuthService {
     }
 
     @Override
+    @Transactional
     public void resendVerificationCode(String email) {
         Optional<User> user = userRepository.findByEmail(email);
 
