@@ -66,6 +66,8 @@ public class AuthServiceImpl implements IAuthService {
         );
 
         user.setLastLoginAt(LocalDateTime.now());
+        userRepository.save(user);
+
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
 
         return AuthResponse.builder()
