@@ -3,6 +3,7 @@ package org.example.learniversebe.model;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.example.learniversebe.enums.UserStatus;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
@@ -39,11 +40,18 @@ public class User implements UserDetails {
     @Column(name="verification_expiration")
     private LocalDateTime verificationExpiration;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name="status", nullable = false)
+    private UserStatus status;
+
     @Column(name="last_login_at")
     private LocalDateTime lastLoginAt;
 
     @Column(name="created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @Column(name="deleted_at", nullable = true)
+    private LocalDateTime deletedAt;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
