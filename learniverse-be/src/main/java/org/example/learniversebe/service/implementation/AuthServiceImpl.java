@@ -5,12 +5,15 @@ import org.example.learniversebe.dto.request.LoginRequest;
 import org.example.learniversebe.dto.request.RegisterRequest;
 import org.example.learniversebe.dto.request.VerifyUserRequest;
 import org.example.learniversebe.dto.response.AuthResponse;
+import org.example.learniversebe.enums.UserStatus;
 import org.example.learniversebe.exception.BadRequestException;
 import org.example.learniversebe.exception.EmailNotVerifiedException;
 import org.example.learniversebe.exception.InvalidVerificationCodeException;
 import org.example.learniversebe.exception.UserNotFoundException;
 import org.example.learniversebe.jwt.JwtUtil;
+import org.example.learniversebe.model.AuthCredential;
 import org.example.learniversebe.model.User;
+import org.example.learniversebe.repository.AuthCredentialRepository;
 import org.example.learniversebe.repository.UserRepository;
 import org.example.learniversebe.service.IAuthService;
 import org.example.learniversebe.service.IEmailService;
@@ -32,6 +35,8 @@ public class AuthServiceImpl implements IAuthService {
 
     private final UserRepository userRepository;
 
+    private final AuthCredentialRepository authCredentialRepository;
+
     private final PasswordEncoder passwordEncoder;
 
     private final JwtUtil jwtUtil;
@@ -43,7 +48,8 @@ public class AuthServiceImpl implements IAuthService {
 
     public AuthServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder,
                            JwtUtil jwtUtil, IEmailService emailService,
-                           AuthenticationManager authenticationManager) {
+                           AuthenticationManager authenticationManager, AuthCredentialRepository authCredentialRepository) {
+        this.authCredentialRepository = authCredentialRepository;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
@@ -86,18 +92,30 @@ public class AuthServiceImpl implements IAuthService {
             throw new BadRequestException("Email already in use");
         }
 
+        // Create a new record of user
         User user = new User();
         user.setId(UUID.randomUUID());
         user.setEmail(request.getEmail());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setUsername(request.getUsername());
-        user.setVerificationCode(generateVerificationCode());
-        user.setVerificationExpiration(LocalDateTime.now().plusMinutes(15));
         user.setEnabled(false);
+        user.setStatus(UserStatus.PENDING_VERIFICATION);
         user.setCreatedAt(LocalDateTime.now());
-        sendVerificationEmail(user);
-
+        user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
+
+        // Create a new record of auth credentials
+        AuthCredential authCredential = new AuthCredential();
+        authCredential.setId(UUID.randomUUID());
+        authCredential.setUser(user);
+        authCredential.setPassword(passwordEncoder.encode(request.getPassword()));
+        String verificationCode = generateVerificationCode();
+        authCredential.setVerificationCode(verificationCode);
+        authCredential.setVerificationExpiration(LocalDateTime.now().plusMinutes(15));
+        authCredential.setCreatedAt(LocalDateTime.now());
+        authCredential.setUpdatedAt(LocalDateTime.now());
+        authCredentialRepository.save(authCredential);
+
+        sendVerificationEmail(user.getEmail(), verificationCode);
 
         return AuthResponse.builder()
                 .id(user.getId())
@@ -117,15 +135,20 @@ public class AuthServiceImpl implements IAuthService {
         }
 
         User userDetails = user.get();
-        if (userDetails.getVerificationExpiration().isBefore(LocalDateTime.now())) {
+        AuthCredential authCredential = authCredentialRepository.findByUser(userDetails)
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+
+        if (authCredential.getVerificationExpiration().isBefore(LocalDateTime.now())) {
             throw new InvalidVerificationCodeException("Verification code expired");
         }
 
-        if (request.getVerificationCode().equals(userDetails.getVerificationCode())) {
+        if (request.getVerificationCode().equals(authCredential.getVerificationCode())) {
             userDetails.setEnabled(true);
-            userDetails.setVerificationCode(null);
-            userDetails.setVerificationExpiration(null);
+            userDetails.setStatus(UserStatus.ACTIVE);
+            authCredential.setVerificationCode(null);
+            authCredential.setVerificationExpiration(null);
             userRepository.save(userDetails);
+            authCredentialRepository.save(authCredential);
         } else {
             throw new InvalidVerificationCodeException("Invalid verification code");
         }
@@ -145,16 +168,18 @@ public class AuthServiceImpl implements IAuthService {
         if (userDetails.isEnabled()) {
             throw new BadRequestException("User already verified");
         } else {
-            userDetails.setVerificationCode(generateVerificationCode());
-            userDetails.setVerificationExpiration(LocalDateTime.now().plusMinutes(15));
-            sendVerificationEmail(userDetails);
-            userRepository.save(userDetails);
+            AuthCredential authCredential = authCredentialRepository.findByUser(userDetails)
+                    .orElseThrow(() -> new UserNotFoundException("User not found"));
+            authCredential.setVerificationCode(generateVerificationCode());
+            authCredential.setVerificationExpiration(LocalDateTime.now().plusMinutes(15));
+            authCredentialRepository.save(authCredential);
+            sendVerificationEmail(userDetails.getEmail(), authCredential.getVerificationCode());
         }
     }
 
-    public void sendVerificationEmail(User user) {
+    public void sendVerificationEmail(String email, String code) {
         String subject = "Account Verification";
-        String verificationCode = "VERIFICATION CODE " + user.getVerificationCode();
+        String verificationCode = "VERIFICATION CODE " + code;
         String htmlMessage = "<html>"
                 + "<body style=\"font-family: Arial, sans-serif;\">"
                 + "<div style=\"background-color: #f5f5f5; padding: 20px;\">"
@@ -169,7 +194,7 @@ public class AuthServiceImpl implements IAuthService {
                 + "</html>";
 
         try {
-            emailService.sendEmail(user.getEmail(), subject, htmlMessage);
+            emailService.sendEmail(email, subject, htmlMessage);
         } catch (MessagingException e) {
             // Handle email sending exception
             e.printStackTrace();
