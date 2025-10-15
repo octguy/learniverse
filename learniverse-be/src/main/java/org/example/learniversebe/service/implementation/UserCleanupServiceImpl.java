@@ -1,6 +1,5 @@
 package org.example.learniversebe.service.implementation;
 
-import org.example.learniversebe.exception.UserNotFoundException;
 import org.example.learniversebe.model.AuthCredential;
 import org.example.learniversebe.model.User;
 import org.example.learniversebe.repository.AuthCredentialRepository;
@@ -14,13 +13,13 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
-public class UserCleanupService implements IUserCleanupService {
+public class UserCleanupServiceImpl implements IUserCleanupService {
 
     private final UserRepository userRepository;
 
     private final AuthCredentialRepository authCredentialRepository;
 
-    public UserCleanupService(UserRepository userRepository, AuthCredentialRepository authCredentialRepository) {
+    public UserCleanupServiceImpl(UserRepository userRepository, AuthCredentialRepository authCredentialRepository) {
         this.authCredentialRepository = authCredentialRepository;
         this.userRepository = userRepository;
     }

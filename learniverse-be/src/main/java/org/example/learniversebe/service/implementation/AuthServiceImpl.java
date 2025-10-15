@@ -12,11 +12,13 @@ import org.example.learniversebe.exception.InvalidVerificationCodeException;
 import org.example.learniversebe.exception.UserNotFoundException;
 import org.example.learniversebe.jwt.JwtUtil;
 import org.example.learniversebe.model.AuthCredential;
+import org.example.learniversebe.model.RefreshToken;
 import org.example.learniversebe.model.User;
 import org.example.learniversebe.repository.AuthCredentialRepository;
 import org.example.learniversebe.repository.UserRepository;
 import org.example.learniversebe.service.IAuthService;
 import org.example.learniversebe.service.IEmailService;
+import org.example.learniversebe.service.IRefreshTokenService;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -37,6 +39,8 @@ public class AuthServiceImpl implements IAuthService {
 
     private final AuthCredentialRepository authCredentialRepository;
 
+    private final IRefreshTokenService refreshTokenService;
+
     private final PasswordEncoder passwordEncoder;
 
     private final JwtUtil jwtUtil;
@@ -48,7 +52,10 @@ public class AuthServiceImpl implements IAuthService {
 
     public AuthServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder,
                            JwtUtil jwtUtil, IEmailService emailService,
-                           AuthenticationManager authenticationManager, AuthCredentialRepository authCredentialRepository) {
+                           AuthenticationManager authenticationManager,
+                           AuthCredentialRepository authCredentialRepository,
+                           IRefreshTokenService refreshTokenService) {
+        this.refreshTokenService = refreshTokenService;
         this.authCredentialRepository = authCredentialRepository;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
@@ -76,12 +83,16 @@ public class AuthServiceImpl implements IAuthService {
         userRepository.save(user);
 
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+        String accessToken = jwtUtil.generateToken(userDetails);
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
+        String token = refreshToken.getToken();
 
         return AuthResponse.builder()
                 .id(user.getId())
                 .email(user.getEmail())
                 .username(user.getUsername())
-                .accessToken(jwtUtil.generateToken(userDetails))
+                .accessToken(accessToken)
+                .refreshToken(token)
                 .build();
     }
 
@@ -122,6 +133,7 @@ public class AuthServiceImpl implements IAuthService {
                 .email(user.getEmail())
                 .username(user.getUsername())
                 .accessToken(null)
+                .refreshToken(null)
                 .build();
     }
 
@@ -145,14 +157,17 @@ public class AuthServiceImpl implements IAuthService {
         if (request.getVerificationCode().equals(authCredential.getVerificationCode())) {
             userDetails.setEnabled(true);
             userDetails.setStatus(UserStatus.ACTIVE);
+            userDetails.setUpdatedAt(LocalDateTime.now());
+
             authCredential.setVerificationCode(null);
             authCredential.setVerificationExpiration(null);
+            authCredential.setUpdatedAt(LocalDateTime.now());
+
             userRepository.save(userDetails);
             authCredentialRepository.save(authCredential);
         } else {
             throw new InvalidVerificationCodeException("Invalid verification code");
         }
-
     }
 
     @Override
@@ -172,6 +187,7 @@ public class AuthServiceImpl implements IAuthService {
                     .orElseThrow(() -> new UserNotFoundException("User not found"));
             authCredential.setVerificationCode(generateVerificationCode());
             authCredential.setVerificationExpiration(LocalDateTime.now().plusMinutes(15));
+            authCredential.setUpdatedAt(LocalDateTime.now());
             authCredentialRepository.save(authCredential);
             sendVerificationEmail(userDetails.getEmail(), authCredential.getVerificationCode());
         }
