@@ -1,5 +1,6 @@
 package org.example.learniversebe.config;
 
+import org.example.learniversebe.enums.UserRole;
 import org.example.learniversebe.jwt.JwtAuthenticationEntryPoint;
 import org.example.learniversebe.jwt.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
@@ -42,6 +43,7 @@ public class SecurityConfig {
         http.csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers("api/v1/dummy/**").hasRole("USER")
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(authenticationEntryPoint))
