@@ -5,6 +5,7 @@ import org.example.learniversebe.dto.request.LoginRequest;
 import org.example.learniversebe.dto.request.RegisterRequest;
 import org.example.learniversebe.dto.request.VerifyUserRequest;
 import org.example.learniversebe.dto.response.AuthResponse;
+import org.example.learniversebe.enums.UserRole;
 import org.example.learniversebe.enums.UserStatus;
 import org.example.learniversebe.exception.BadRequestException;
 import org.example.learniversebe.exception.EmailNotVerifiedException;
@@ -13,8 +14,11 @@ import org.example.learniversebe.exception.UserNotFoundException;
 import org.example.learniversebe.jwt.JwtUtil;
 import org.example.learniversebe.model.AuthCredential;
 import org.example.learniversebe.model.RefreshToken;
+import org.example.learniversebe.model.Role;
 import org.example.learniversebe.model.User;
+import org.example.learniversebe.model.composite_key.RoleUserId;
 import org.example.learniversebe.repository.AuthCredentialRepository;
+import org.example.learniversebe.repository.RoleRepository;
 import org.example.learniversebe.repository.UserRepository;
 import org.example.learniversebe.service.IAuthService;
 import org.example.learniversebe.service.IEmailService;
@@ -39,6 +43,8 @@ public class AuthServiceImpl implements IAuthService {
 
     private final AuthCredentialRepository authCredentialRepository;
 
+    private final RoleRepository roleRepository;
+
     private final IRefreshTokenService refreshTokenService;
 
     private final PasswordEncoder passwordEncoder;
@@ -54,7 +60,9 @@ public class AuthServiceImpl implements IAuthService {
                            JwtUtil jwtUtil, IEmailService emailService,
                            AuthenticationManager authenticationManager,
                            AuthCredentialRepository authCredentialRepository,
-                           IRefreshTokenService refreshTokenService) {
+                           IRefreshTokenService refreshTokenService,
+                           RoleRepository roleRepository) {
+        this.roleRepository = roleRepository;
         this.refreshTokenService = refreshTokenService;
         this.authCredentialRepository = authCredentialRepository;
         this.userRepository = userRepository;
@@ -112,6 +120,12 @@ public class AuthServiceImpl implements IAuthService {
         user.setStatus(UserStatus.PENDING_VERIFICATION);
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
+
+        Role role = roleRepository.findByName(UserRole.ROLE_USER)
+                .orElseThrow(() -> new RuntimeException("Role not found"));
+
+        // Assign role to user
+        user.addRole(role); // role user will be added (cascade = CascadeType.ALL)
         userRepository.save(user);
 
         // Create a new record of auth credentials

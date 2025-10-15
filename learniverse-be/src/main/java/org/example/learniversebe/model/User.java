@@ -8,10 +8,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDateTime;
-import java.util.Collection;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 @Entity
 @Table(name="\"user\"")
@@ -40,5 +37,17 @@ public class User extends BaseEntity {
     private LocalDateTime lastLoginAt;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<RoleUser> roleUsers;
+    private Set<RoleUser> roleUsers = new HashSet<>();
+
+    public void addRole(Role role) {
+//        System.out.println("User ID = " + this.getId());
+//        System.out.println("Role ID = " + role.getId());
+        RoleUser roleUser = new RoleUser();
+        roleUser.setRole(role);
+        roleUser.setUser(this);
+        roleUser.setCreatedAt(LocalDateTime.now());
+        roleUser.setUpdatedAt(LocalDateTime.now());
+        this.roleUsers.add(roleUser);
+        // not necessary to set roleUserId here, it will be set automatically (thanks to @MapsId) :D
+    }
 }

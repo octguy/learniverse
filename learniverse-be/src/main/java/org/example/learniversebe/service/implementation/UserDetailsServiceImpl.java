@@ -29,6 +29,6 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                 .orElseThrow(() -> new UserNotFoundException("User with email " + email + " not found"));
         AuthCredential authCredential = authCredentialRepository.findByUser(user)
                 .orElseThrow(() -> new UserNotFoundException("Credentials for user with email " + email + " not found"));
-        return new CustomUserDetails(user, authCredential.getPassword(), List.of());
+        return new CustomUserDetails(user, authCredential.getPassword());
     }
 }
