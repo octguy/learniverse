@@ -1,6 +1,5 @@
 package org.example.learniversebe.service;
 
-import org.example.learniversebe.dto.request.RefreshTokenRequest;
 import org.example.learniversebe.model.RefreshToken;
 import org.example.learniversebe.model.User;
 

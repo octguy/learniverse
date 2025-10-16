@@ -6,7 +6,9 @@ import org.example.learniversebe.dto.request.RefreshTokenRequest;
 import org.example.learniversebe.dto.request.RegisterRequest;
 import org.example.learniversebe.dto.request.VerifyUserRequest;
 import org.example.learniversebe.dto.response.AuthResponse;
+import org.example.learniversebe.model.ApiResponse;
 import org.example.learniversebe.service.IAuthService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,32 +23,67 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@RequestBody @Valid RegisterRequest registerRequest) {
+    public ResponseEntity<ApiResponse<AuthResponse>> register(@RequestBody @Valid RegisterRequest registerRequest) {
         AuthResponse authResponse = authService.register(registerRequest);
-        return ResponseEntity.ok(authResponse);
+
+        ApiResponse<AuthResponse> apiResponse = new ApiResponse<>(
+                HttpStatus.CREATED,
+                "User registered successfully",
+                authResponse,
+                null
+        );
+        return ResponseEntity.status(HttpStatus.CREATED).body(apiResponse);
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@RequestBody @Valid LoginRequest loginRequest) {
+    public ResponseEntity<ApiResponse<AuthResponse>> login(@RequestBody @Valid LoginRequest loginRequest) {
         AuthResponse authResponse = authService.login(loginRequest);
-        return ResponseEntity.ok(authResponse);
+
+        ApiResponse<AuthResponse> apiResponse = new ApiResponse<>(
+                HttpStatus.OK,
+                "User logged in successfully",
+                authResponse,
+                null
+        );
+        return ResponseEntity.ok(apiResponse);
     }
 
     @PostMapping("/verify")
-    public ResponseEntity<String> verifyUser(@RequestBody @Valid VerifyUserRequest request) {
+    public ResponseEntity<ApiResponse<String>> verifyUser(@RequestBody @Valid VerifyUserRequest request) {
         authService.verifyUser(request);
-        return ResponseEntity.ok("User verified successfully");
+
+        ApiResponse<String> apiResponse = new ApiResponse<>(
+                HttpStatus.OK,
+                "User verified successfully",
+                "User verified successfully",
+                null
+        );
+        return ResponseEntity.ok(apiResponse);
     }
 
     @PostMapping("/resend-verification")
-    public ResponseEntity<String> resendVerificationCode(@RequestParam String email) {
+    public ResponseEntity<ApiResponse<String>> resendVerificationCode(@RequestParam String email) {
         authService.resendVerificationCode(email);
-        return ResponseEntity.ok("Verification code resent successfully");
+
+        ApiResponse<String> apiResponse = new ApiResponse<>(
+                HttpStatus.OK,
+                "Verification code resent successfully",
+                "Verification code resent successfully",
+                null
+        );
+        return ResponseEntity.ok(apiResponse);
     }
 
     @PostMapping("/refresh-token")
-    public ResponseEntity<AuthResponse> refreshToken(@RequestBody @Valid RefreshTokenRequest refreshTokenRequest) {
+    public ResponseEntity<ApiResponse<AuthResponse>> refreshToken(@RequestBody @Valid RefreshTokenRequest refreshTokenRequest) {
         AuthResponse authResponse = authService.refreshToken(refreshTokenRequest);
-        return ResponseEntity.ok(authResponse);
+
+        ApiResponse<AuthResponse> apiResponse = new ApiResponse<>(
+                HttpStatus.OK,
+                "Token refreshed successfully",
+                authResponse,
+                null
+        );
+        return ResponseEntity.ok(apiResponse);
     }
 }

@@ -14,7 +14,6 @@ import org.example.learniversebe.model.AuthCredential;
 import org.example.learniversebe.model.RefreshToken;
 import org.example.learniversebe.model.Role;
 import org.example.learniversebe.model.User;
-import org.example.learniversebe.model.composite_key.RoleUserId;
 import org.example.learniversebe.repository.AuthCredentialRepository;
 import org.example.learniversebe.repository.RoleRepository;
 import org.example.learniversebe.repository.UserRepository;

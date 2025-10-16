@@ -5,7 +5,6 @@ import org.example.learniversebe.dto.request.RefreshTokenRequest;
 import org.example.learniversebe.dto.request.RegisterRequest;
 import org.example.learniversebe.dto.request.VerifyUserRequest;
 import org.example.learniversebe.dto.response.AuthResponse;
-import org.example.learniversebe.model.User;
 
 public interface IAuthService {
 
