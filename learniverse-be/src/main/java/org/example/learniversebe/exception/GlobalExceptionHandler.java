@@ -11,6 +11,19 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<ApiResponse<?>> handleUnauthorizedException(UnauthorizedException ex) {
+        ApiResponse<?> response = new ApiResponse<>(
+                HttpStatus.UNAUTHORIZED,
+                ex.getMessage(),
+                null,
+                "UNAUTHORIZED"
+        );
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+    }
+
+
     @ExceptionHandler(EmailNotVerifiedException.class)
     public ResponseEntity<ApiResponse<?>> handleEmailNotVerifiedException(EmailNotVerifiedException ex) {
         ApiResponse<?> response = new ApiResponse<>(
@@ -90,12 +103,12 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(BadCredentialsException.class)
-    public ResponseEntity<ApiResponse<?>> handleUnauthorized(BadCredentialsException ex) {
+    public ResponseEntity<ApiResponse<?>> handleBadCredentialsException(BadCredentialsException ex) {
         ApiResponse<?> apiResponse = new ApiResponse<>(
                 HttpStatus.UNAUTHORIZED,
                 ex.getMessage(),
                 null,
-                "UNAUTHORIZED"
+                "BAD_CREDENTIALS"
         );
 
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)

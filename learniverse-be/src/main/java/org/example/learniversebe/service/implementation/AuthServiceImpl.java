@@ -2,15 +2,13 @@ package org.example.learniversebe.service.implementation;
 
 import jakarta.mail.MessagingException;
 import org.example.learniversebe.dto.request.LoginRequest;
+import org.example.learniversebe.dto.request.RefreshTokenRequest;
 import org.example.learniversebe.dto.request.RegisterRequest;
 import org.example.learniversebe.dto.request.VerifyUserRequest;
 import org.example.learniversebe.dto.response.AuthResponse;
 import org.example.learniversebe.enums.UserRole;
 import org.example.learniversebe.enums.UserStatus;
-import org.example.learniversebe.exception.BadRequestException;
-import org.example.learniversebe.exception.EmailNotVerifiedException;
-import org.example.learniversebe.exception.InvalidVerificationCodeException;
-import org.example.learniversebe.exception.UserNotFoundException;
+import org.example.learniversebe.exception.*;
 import org.example.learniversebe.jwt.JwtUtil;
 import org.example.learniversebe.model.AuthCredential;
 import org.example.learniversebe.model.RefreshToken;
@@ -55,13 +53,17 @@ public class AuthServiceImpl implements IAuthService {
 
     private final AuthenticationManager authenticationManager;
 
+    private final UserDetailsServiceImpl userDetailsService;
+
 
     public AuthServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder,
                            JwtUtil jwtUtil, IEmailService emailService,
                            AuthenticationManager authenticationManager,
                            AuthCredentialRepository authCredentialRepository,
                            IRefreshTokenService refreshTokenService,
-                           RoleRepository roleRepository) {
+                           RoleRepository roleRepository,
+                           UserDetailsServiceImpl userDetailsService) {
+        this.userDetailsService = userDetailsService;
         this.roleRepository = roleRepository;
         this.refreshTokenService = refreshTokenService;
         this.authCredentialRepository = authCredentialRepository;
@@ -206,6 +208,31 @@ public class AuthServiceImpl implements IAuthService {
             authCredentialRepository.save(authCredential);
             sendVerificationEmail(userDetails.getEmail(), authCredential.getVerificationCode());
         }
+    }
+
+    @Override
+    public AuthResponse refreshToken(RefreshTokenRequest request) {
+        String token = request.getRefreshToken();
+        RefreshToken refreshToken = refreshTokenService.findByToken(token);
+
+        if (refreshTokenService.verifyExpiration(refreshToken)) {
+            refreshTokenService.delete(refreshToken);
+            throw new UnauthorizedException("Refresh token expired. Please login again.");
+            // Return 401 http, frontend should catch this and redirect to login
+        }
+
+        User user = refreshToken.getUser();
+        UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
+        String accessToken = jwtUtil.generateToken(userDetails);
+        String newRefreshToken = refreshTokenService.createRefreshToken(user).getToken();
+
+        return AuthResponse.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .username(user.getUsername())
+                .accessToken(accessToken)
+                .refreshToken(newRefreshToken)
+                .build();
     }
 
     public void sendVerificationEmail(String email, String code) {

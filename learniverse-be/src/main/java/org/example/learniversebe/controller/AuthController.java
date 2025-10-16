@@ -2,6 +2,7 @@ package org.example.learniversebe.controller;
 
 import jakarta.validation.Valid;
 import org.example.learniversebe.dto.request.LoginRequest;
+import org.example.learniversebe.dto.request.RefreshTokenRequest;
 import org.example.learniversebe.dto.request.RegisterRequest;
 import org.example.learniversebe.dto.request.VerifyUserRequest;
 import org.example.learniversebe.dto.response.AuthResponse;
@@ -41,5 +42,11 @@ public class AuthController {
     public ResponseEntity<String> resendVerificationCode(@RequestParam String email) {
         authService.resendVerificationCode(email);
         return ResponseEntity.ok("Verification code resent successfully");
+    }
+
+    @PostMapping("/refresh-token")
+    public ResponseEntity<AuthResponse> refreshToken(@RequestBody @Valid RefreshTokenRequest refreshTokenRequest) {
+        AuthResponse authResponse = authService.refreshToken(refreshTokenRequest);
+        return ResponseEntity.ok(authResponse);
     }
 }

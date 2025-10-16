@@ -48,6 +48,7 @@ public class User extends BaseEntity {
         roleUser.setCreatedAt(LocalDateTime.now());
         roleUser.setUpdatedAt(LocalDateTime.now());
         this.roleUsers.add(roleUser);
-        // not necessary to set roleUserId here, it will be set automatically (thanks to @MapsId) :D
+        // not necessary to set roleUserId here, it will be set automatically (thanks to @MapsId)
+        // only if it was initialized, otherwise BUMP  :D
     }
 }
