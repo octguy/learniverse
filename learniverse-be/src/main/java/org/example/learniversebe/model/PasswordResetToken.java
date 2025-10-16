@@ -26,7 +26,4 @@ public class PasswordResetToken extends BaseEntity {
 
     @Column(name="expiration", nullable = false)
     private LocalDateTime expiration;
-
-    @Column(name="is_used", nullable = false)
-    private boolean isUsed;
 }
