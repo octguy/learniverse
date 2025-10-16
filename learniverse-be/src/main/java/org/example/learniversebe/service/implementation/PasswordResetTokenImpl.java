@@ -1,5 +1,6 @@
 package org.example.learniversebe.service.implementation;
 
+import org.example.learniversebe.exception.BadRequestException;
 import org.example.learniversebe.model.PasswordResetToken;
 import org.example.learniversebe.model.User;
 import org.example.learniversebe.repository.PasswordResetTokenRepository;
@@ -50,10 +51,10 @@ public class PasswordResetTokenImpl implements IPasswordResetTokenService {
     @Override
     public PasswordResetToken validateToken(String token) {
         PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(token)
-                .orElseThrow(() -> new RuntimeException("Invalid token"));
+                .orElseThrow(() -> new BadRequestException("Invalid token"));
 
         if (resetToken.getExpiration().isBefore(LocalDateTime.now())) {
-            throw new RuntimeException("Token expired");
+            throw new BadRequestException("Token expired");
         }
 
         return resetToken;
