@@ -8,10 +8,10 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name="refresh_token")
+@Table(name="password_reset_token")
 @Getter
 @Setter
-public class RefreshToken extends BaseEntity {
+public class PasswordResetToken extends BaseEntity {
 
     @Id
     @Column(columnDefinition = "uuid", updatable = false, nullable = false)
@@ -27,6 +27,6 @@ public class RefreshToken extends BaseEntity {
     @Column(name="expiration", nullable = false)
     private LocalDateTime expiration;
 
-    @Column(name="is_revoked", nullable = false)
-    private boolean isRevoked;
+    @Column(name="is_used", nullable = false)
+    private boolean isUsed;
 }

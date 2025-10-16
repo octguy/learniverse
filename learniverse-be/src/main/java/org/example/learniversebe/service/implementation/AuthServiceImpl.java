@@ -1,24 +1,19 @@
 package org.example.learniversebe.service.implementation;
 
 import jakarta.mail.MessagingException;
-import org.example.learniversebe.dto.request.LoginRequest;
-import org.example.learniversebe.dto.request.RefreshTokenRequest;
-import org.example.learniversebe.dto.request.RegisterRequest;
-import org.example.learniversebe.dto.request.VerifyUserRequest;
+import org.example.learniversebe.dto.request.*;
 import org.example.learniversebe.dto.response.AuthResponse;
 import org.example.learniversebe.enums.UserRole;
 import org.example.learniversebe.enums.UserStatus;
 import org.example.learniversebe.exception.*;
 import org.example.learniversebe.jwt.JwtUtil;
-import org.example.learniversebe.model.AuthCredential;
-import org.example.learniversebe.model.RefreshToken;
-import org.example.learniversebe.model.Role;
-import org.example.learniversebe.model.User;
+import org.example.learniversebe.model.*;
 import org.example.learniversebe.repository.AuthCredentialRepository;
 import org.example.learniversebe.repository.RoleRepository;
 import org.example.learniversebe.repository.UserRepository;
 import org.example.learniversebe.service.IAuthService;
 import org.example.learniversebe.service.IEmailService;
+import org.example.learniversebe.service.IPasswordResetTokenService;
 import org.example.learniversebe.service.IRefreshTokenService;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -54,6 +49,8 @@ public class AuthServiceImpl implements IAuthService {
 
     private final UserDetailsServiceImpl userDetailsService;
 
+    private final IPasswordResetTokenService passwordResetTokenService;
+
 
     public AuthServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder,
                            JwtUtil jwtUtil, IEmailService emailService,
@@ -61,7 +58,9 @@ public class AuthServiceImpl implements IAuthService {
                            AuthCredentialRepository authCredentialRepository,
                            IRefreshTokenService refreshTokenService,
                            RoleRepository roleRepository,
-                           UserDetailsServiceImpl userDetailsService) {
+                           UserDetailsServiceImpl userDetailsService,
+                           IPasswordResetTokenService passwordResetTokenService) {
+        this.passwordResetTokenService = passwordResetTokenService;
         this.userDetailsService = userDetailsService;
         this.roleRepository = roleRepository;
         this.refreshTokenService = refreshTokenService;
@@ -210,6 +209,7 @@ public class AuthServiceImpl implements IAuthService {
     }
 
     @Override
+    @Transactional
     public AuthResponse refreshToken(RefreshTokenRequest request) {
         String token = request.getRefreshToken();
         RefreshToken refreshToken = refreshTokenService.findByToken(token);
@@ -234,7 +234,55 @@ public class AuthServiceImpl implements IAuthService {
                 .build();
     }
 
-    public void sendVerificationEmail(String email, String code) {
+    @Override
+    @Transactional
+    public void requestPasswordReset(ForgotPasswordRequest request) {
+        User user = userRepository.findByEmail(request.getEmail()).orElseThrow(() -> new UserNotFoundException("User not found"));
+        PasswordResetToken token = passwordResetTokenService.create(user);
+        sendForgetPasswordEmail(user.getEmail(), token.getToken());
+    }
+
+    @Override
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        PasswordResetToken resetToken = passwordResetTokenService.validateToken(request.getToken());
+
+        User user = resetToken.getUser();
+        AuthCredential authCredential = authCredentialRepository.findByUser(user)
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+
+        authCredential.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        authCredential.setUpdatedAt(LocalDateTime.now());
+        authCredential.setLastPasswordChangeAt(LocalDateTime.now());
+        authCredentialRepository.save(authCredential);
+
+        passwordResetTokenService.markTokenAsUsed(resetToken);
+    }
+
+
+    private void sendForgetPasswordEmail(String email, String token) {
+        String subject = "Password Reset Request";
+        String resetLink = "http://localhost:8080/reset-password?token=" + token; // Replace with your frontend URL
+        String htmlMessage = "<html>"
+                + "<body style=\"font-family: Arial, sans-serif;\">"
+                + "<div style=\"background-color: #f5f5f5; padding: 20px;\">"
+                + "<h2 style=\"color: #333;\">Password Reset Request</h2>"
+                + "<p style=\"font-size: 16px;\">We received a request to reset your password. Click the link below to reset it:</p>"
+                + "<a href=\"" + resetLink + "\" style=\"display: inline-block; padding: 10px 20px; font-size: 16px; color: #fff; background-color: #007bff; text-decoration: none; border-radius: 5px;\">Reset Password</a>"
+                + "<p style=\"font-size: 14px; color: #777; margin-top: 20px;\">If you did not request a password reset, please ignore this email.</p>"
+                + "</div>"
+                + "</body>"
+                + "</html>";
+
+        try {
+            emailService.sendEmail(email, subject, htmlMessage);
+        } catch (MessagingException e) {
+            // Handle email sending exception
+            e.printStackTrace();
+        }
+    }
+
+    private void sendVerificationEmail(String email, String code) {
         String subject = "Account Verification";
         String verificationCode = "VERIFICATION CODE " + code;
         String htmlMessage = "<html>"

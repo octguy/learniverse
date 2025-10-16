@@ -1,10 +1,7 @@
 package org.example.learniversebe.controller;
 
 import jakarta.validation.Valid;
-import org.example.learniversebe.dto.request.LoginRequest;
-import org.example.learniversebe.dto.request.RefreshTokenRequest;
-import org.example.learniversebe.dto.request.RegisterRequest;
-import org.example.learniversebe.dto.request.VerifyUserRequest;
+import org.example.learniversebe.dto.request.*;
 import org.example.learniversebe.dto.response.AuthResponse;
 import org.example.learniversebe.model.ApiResponse;
 import org.example.learniversebe.service.IAuthService;
@@ -84,6 +81,34 @@ public class AuthController {
                 authResponse,
                 null
         );
+        return ResponseEntity.ok(apiResponse);
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<String>> forgetPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        authService.requestPasswordReset(request);
+
+        ApiResponse<String> apiResponse = new ApiResponse<>(
+                HttpStatus.OK,
+                "Password reset link sent successfully",
+                "Password reset link sent successfully",
+                null
+        );
+
+        return ResponseEntity.ok(apiResponse);
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<String>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request);
+
+        ApiResponse<String> apiResponse = new ApiResponse<>(
+                HttpStatus.OK,
+                "Password reset successfully",
+                "Password reset successfully",
+                null
+        );
+
         return ResponseEntity.ok(apiResponse);
     }
 }

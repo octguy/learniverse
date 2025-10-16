@@ -1,9 +1,6 @@
 package org.example.learniversebe.service;
 
-import org.example.learniversebe.dto.request.LoginRequest;
-import org.example.learniversebe.dto.request.RefreshTokenRequest;
-import org.example.learniversebe.dto.request.RegisterRequest;
-import org.example.learniversebe.dto.request.VerifyUserRequest;
+import org.example.learniversebe.dto.request.*;
 import org.example.learniversebe.dto.response.AuthResponse;
 
 public interface IAuthService {
@@ -17,5 +14,9 @@ public interface IAuthService {
     void resendVerificationCode(String email);
 
     AuthResponse refreshToken(RefreshTokenRequest request);
+
+    void requestPasswordReset(ForgotPasswordRequest request);
+
+    void resetPassword(ResetPasswordRequest request);
 }
 
