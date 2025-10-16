@@ -5,6 +5,7 @@ import org.example.learniversebe.model.RefreshToken;
 import org.example.learniversebe.model.User;
 import org.example.learniversebe.repository.RefreshTokenRepository;
 import org.example.learniversebe.service.IRefreshTokenService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -13,6 +14,9 @@ import java.util.UUID;
 
 @Service
 public class RefreshTokenServiceImpl implements IRefreshTokenService {
+
+    @Value("${spring.refresh-token.expiration}")
+    private Long expiration;
 
     private final RefreshTokenRepository refreshTokenRepository;
 
@@ -33,7 +37,7 @@ public class RefreshTokenServiceImpl implements IRefreshTokenService {
         if (existingToken.isPresent()) { // if a token already exists for the user, update it
             RefreshToken refreshToken = existingToken.get();
             refreshToken.setToken(UUID.randomUUID().toString());
-            refreshToken.setExpiration(LocalDateTime.now().plusMinutes(4)); // Extend expiration to 7 days
+            refreshToken.setExpiration(LocalDateTime.now().plusMinutes(expiration)); // Extend expiration to 7 days
             refreshToken.setUpdatedAt(LocalDateTime.now());
             refreshTokenRepository.save(refreshToken);
             return refreshToken;
@@ -43,7 +47,7 @@ public class RefreshTokenServiceImpl implements IRefreshTokenService {
         refreshToken.setId(UUID.randomUUID());
         refreshToken.setUser(user);
         refreshToken.setToken(UUID.randomUUID().toString());
-        refreshToken.setExpiration(LocalDateTime.now().plusMinutes(4));
+        refreshToken.setExpiration(LocalDateTime.now().plusMinutes(expiration));
         refreshToken.setCreatedAt(LocalDateTime.now());
         refreshToken.setUpdatedAt(LocalDateTime.now());
         refreshTokenRepository.save(refreshToken);

@@ -15,6 +15,7 @@ import org.example.learniversebe.service.IAuthService;
 import org.example.learniversebe.service.IEmailService;
 import org.example.learniversebe.service.IPasswordResetTokenService;
 import org.example.learniversebe.service.IRefreshTokenService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -30,6 +31,9 @@ import java.util.UUID;
 
 @Service
 public class AuthServiceImpl implements IAuthService {
+
+    @Value("${spring.verification-code.expiration}")
+    private Long expiration;
 
     private final UserRepository userRepository;
 
@@ -136,7 +140,7 @@ public class AuthServiceImpl implements IAuthService {
         authCredential.setPassword(passwordEncoder.encode(request.getPassword()));
         String verificationCode = generateVerificationCode();
         authCredential.setVerificationCode(verificationCode);
-        authCredential.setVerificationExpiration(LocalDateTime.now().plusMinutes(15));
+        authCredential.setVerificationExpiration(LocalDateTime.now().plusMinutes(expiration));
         authCredential.setCreatedAt(LocalDateTime.now());
         authCredential.setUpdatedAt(LocalDateTime.now());
         authCredentialRepository.save(authCredential);
@@ -201,7 +205,7 @@ public class AuthServiceImpl implements IAuthService {
             AuthCredential authCredential = authCredentialRepository.findByUser(userDetails)
                     .orElseThrow(() -> new UserNotFoundException("User not found"));
             authCredential.setVerificationCode(generateVerificationCode());
-            authCredential.setVerificationExpiration(LocalDateTime.now().plusMinutes(15));
+            authCredential.setVerificationExpiration(LocalDateTime.now().plusMinutes(expiration));
             authCredential.setUpdatedAt(LocalDateTime.now());
             authCredentialRepository.save(authCredential);
             sendVerificationEmail(userDetails.getEmail(), authCredential.getVerificationCode());
@@ -215,7 +219,6 @@ public class AuthServiceImpl implements IAuthService {
         RefreshToken refreshToken = refreshTokenService.findByToken(token);
 
         if (refreshTokenService.verifyExpiration(refreshToken)) {
-            refreshTokenService.delete(refreshToken);
             throw new UnauthorizedException("Refresh token expired. Please login again.");
             // Return 401 http, frontend should catch this and redirect to login
         }
