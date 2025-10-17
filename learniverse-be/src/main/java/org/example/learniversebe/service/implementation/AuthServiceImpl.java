@@ -277,8 +277,12 @@ public class AuthServiceImpl implements IAuthService {
         // if not authenticated, the object will be AnonymousAuthenticationToken (if not .authenticated() in SecurityConfig)
 
 //        System.out.println(authentication.isAuthenticated()); // always true
-        System.out.println(authentication.getClass());
 
+        if (authentication.getPrincipal() instanceof String) {
+            System.out.println("Invalid token or expired token");
+        }
+
+        System.out.println(authentication.getClass());
         System.out.println(authentication.getPrincipal().toString());
         System.out.println(authentication.getCredentials());
 
