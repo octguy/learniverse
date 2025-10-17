@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -262,6 +263,28 @@ public class AuthServiceImpl implements IAuthService {
         passwordResetTokenService.markTokenAsUsed(resetToken);
     }
 
+    @Override
+    @Transactional
+    public void logout() {
+        User currentUser = getCurrentUser();
+        System.out.println(currentUser.getEmail());
+        refreshTokenService.deleteByUser(currentUser);
+    }
+
+    private User getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        // the code above always return an object of type UsernamePasswordAuthenticationToken
+        // if not authenticated, the object will be AnonymousAuthenticationToken (if not .authenticated() in SecurityConfig)
+
+//        System.out.println(authentication.isAuthenticated()); // always true
+        System.out.println(authentication.getClass());
+
+        System.out.println(authentication.getPrincipal().toString());
+        System.out.println(authentication.getCredentials());
+
+        CustomUserDetails customUserDetails = (CustomUserDetails) authentication.getPrincipal();
+        return customUserDetails.getUser();
+    }
 
     private void sendForgetPasswordEmail(String email, String token) {
         String subject = "Password Reset Request";

@@ -12,4 +12,6 @@ public interface IRefreshTokenService {
     boolean verifyExpiration(RefreshToken token);
 
     void delete(RefreshToken token);
+
+    void deleteByUser(User user);
 }

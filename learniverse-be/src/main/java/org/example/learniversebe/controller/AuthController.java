@@ -111,4 +111,18 @@ public class AuthController {
 
         return ResponseEntity.ok(apiResponse);
     }
+
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<String>> logout() {
+        authService.logout();
+
+        ApiResponse<String> apiResponse = new ApiResponse<>(
+                HttpStatus.OK,
+                "User logged out successfully",
+                "User logged out successfully",
+                null
+        );
+
+        return ResponseEntity.ok(apiResponse);
+    }
 }

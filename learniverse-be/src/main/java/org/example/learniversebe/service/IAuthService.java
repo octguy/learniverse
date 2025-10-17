@@ -2,6 +2,7 @@ package org.example.learniversebe.service;
 
 import org.example.learniversebe.dto.request.*;
 import org.example.learniversebe.dto.response.AuthResponse;
+import org.example.learniversebe.model.User;
 
 public interface IAuthService {
 
@@ -18,5 +19,7 @@ public interface IAuthService {
     void requestPasswordReset(ForgotPasswordRequest request);
 
     void resetPassword(ResetPasswordRequest request);
+
+    void logout();
 }
 
