@@ -20,8 +20,6 @@ export function AuthButton({ provider, onClick, loading }: AuthButtonProps) {
                 return <FcGoogle className="size-5" />
             case "facebook":
                 return <FaFacebook className="text-[#1877F2] size-5" />
-            case "login":
-                return <LogInIcon className="size-5 text-white" />
         }
     }
 
