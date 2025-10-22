@@ -9,6 +9,7 @@ import { Eye, EyeOff } from "lucide-react"
 import { useState } from "react"
 import { AuthButton } from "@/components/auth/auth-button"
 import * as React from "react"
+import { authService } from "@/lib/api/authService";
 
 export default function LoginPage() {
     const [showPassword, setShowPassword] = useState(false)
@@ -17,6 +18,26 @@ export default function LoginPage() {
         password: "",
         remember: false,
     })
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
+    const handleLogin = async () => {
+        setError("");
+        setLoading(true);
+        try {
+        const response = await authService.login(formData);
+        const { accessToken, refreshToken, user } = response.result;
+
+        localStorage.setItem("accessToken", accessToken);
+        localStorage.setItem("refreshToken", refreshToken);
+
+        console.log("Đăng nhập thành công:", user);
+        window.location.href = "/";
+        } catch (err) {
+        if (err instanceof Error) setError(err.message);
+        } finally {
+        setLoading(false);
+        }
+  };
 
     return (
         <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
@@ -106,7 +127,7 @@ export default function LoginPage() {
                         </Link>
                     </div>
 
-                    <AuthButton provider={"login"} />
+                    <AuthButton provider={"login"} onClick={handleLogin} loading={loading}/>
 
                     <div className="flex items-center my-4">
                         <div className="flex-grow border-t border-gray-300" />
