@@ -1,5 +1,5 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
-
+console.log("API_URL = ", API_URL);
 async function handleResponse<T>(response: Response): Promise<T> {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -12,7 +12,7 @@ export const authService = {
   async register(payload: {
     email: string;
     password: string;
-    fullName: string;
+    username: string;
   }) {
     const res = await fetch(`${API_URL}/auth/register`, {
       method: "POST",
@@ -36,7 +36,7 @@ export const authService = {
 
   async verifyUser(payload: {
     email: string;
-    code: string;
+    verificationCode: string;
   }) {
     const res = await fetch(`${API_URL}/auth/verify`, {
       method: "POST",

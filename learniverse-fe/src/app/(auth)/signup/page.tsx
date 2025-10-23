@@ -7,38 +7,87 @@ import Link from "next/link"
 import { Eye, EyeOff } from "lucide-react"
 import { useState } from "react"
 import { AuthButton } from "@/components/auth/auth-button"
-import * as React from "react"
+import { authService } from "@/lib/api/authService"
+import { OTPVerificationDialog } from "@/components/auth/OTP-verification-dialog"
 
 export default function SignupPage() {
     const [showPassword, setShowPassword] = useState(false)
     const [showConfirmPassword, setShowConfirmPassword] = useState(false)
     const [formData, setFormData] = useState({
-        fullName: "",
+        username: "",
         email: "",
         password: "",
         confirmPassword: "",
     })
+    const [loading, setLoading] = useState(false)
+    const [error, setError] = useState("")
+
+    const validateEmail = (email: string) => {
+        const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        return regex.test(email)
+    }
+
+    const validatePassword = (password: string) => {
+        // Ít nhất 8 ký tự, 1 chữ hoa, 1 chữ thường, 1 số
+        const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/
+        return regex.test(password)
+    }
+
+    const [showOTPDialog, setShowOTPDialog] = useState(false)
+    const [registeredEmail, setRegisteredEmail] = useState("")
+
+    const handleRegister = async () => {
+        setError("")
+
+        // Validations
+        if (!formData.username.trim()) {
+            setError("Vui lòng nhập username")
+            return
+        }
+        if (!validateEmail(formData.email)) {
+            setError("Email không hợp lệ")
+            return
+        }
+        if (!validatePassword(formData.password)) {
+            setError("Mật khẩu phải có ít nhất 8 ký tự, gồm chữ hoa, chữ thường và số")
+            return
+        }
+        if (formData.password !== formData.confirmPassword) {
+            setError("Mật khẩu xác nhận không khớp")
+            return
+        }
+
+        setLoading(true)
+        try {
+            const response = await authService.register({
+                username: formData.username,
+                email: formData.email,
+                password: formData.password,
+            })
+            setRegisteredEmail(formData.email)
+            setShowOTPDialog(true)
+        } catch (err: any) {
+            setError(err.message || "Đăng ký thất bại")
+        } finally {
+            setLoading(false)
+        }
+    }
 
     return (
+
         <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
-            {/* Background image */}
             <img
                 src="/login-banner.jpg"
                 alt="Background"
                 className="absolute inset-0 w-full h-full object-cover blur-md scale-105"
             />
-
-            {/* Overlay */}
             <div className="absolute inset-0 bg-black/0" />
-
-            {/* Logo */}
             <img
                 className="absolute top-0 left-0 w-80 h-25 object-contain"
                 src="/logo.png"
                 alt="Learniverse Logo"
             />
 
-            {/* Centered register card */}
             <div className="relative z-10 bg-white/90 backdrop-blur-lg rounded-2xl shadow-2xl p-6 w-full max-w-md mx-auto">
                 <div className="flex justify-end mb-6">
                     <Link href="/login">
@@ -55,20 +104,7 @@ export default function SignupPage() {
                     Tạo tài khoản mới
                 </h2>
 
-                <form className="space-y-6">
-                    <div>
-                        <Label htmlFor="fullName" className="mb-2">Họ và tên</Label>
-                        <Input
-                            id="fullName"
-                            type="text"
-                            placeholder="Nhập họ và tên của bạn"
-                            value={formData.fullName}
-                            onChange={(e) =>
-                                setFormData({ ...formData, fullName: e.target.value })
-                            }
-                        />
-                    </div>
-
+                <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleRegister(); }}>
                     <div>
                         <Label htmlFor="email" className="mb-2">Email</Label>
                         <Input
@@ -78,6 +114,18 @@ export default function SignupPage() {
                             value={formData.email}
                             onChange={(e) =>
                                 setFormData({ ...formData, email: e.target.value })
+                            }
+                        />
+                    </div>
+                    <div>
+                        <Label htmlFor="username" className="mb-2">Username</Label>
+                        <Input
+                            id="username"
+                            type="text"
+                            placeholder="Nhập Username"
+                            value={formData.username}
+                            onChange={(e) =>
+                                setFormData({ ...formData, username: e.target.value })
                             }
                         />
                     </div>
@@ -96,7 +144,7 @@ export default function SignupPage() {
                         <button
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-8 text-gray-500"
+                            className="absolute right-4 top-8 text-gray-500"
                         >
                             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                         </button>
@@ -116,13 +164,21 @@ export default function SignupPage() {
                         <button
                             type="button"
                             onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                            className="absolute right-3 top-8 text-gray-500"
+                            className="absolute right-4 top-8 text-gray-500"
                         >
                             {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                         </button>
                     </div>
 
-                    <AuthButton provider={"register"} />
+                    <AuthButton
+                        provider="register"
+                        onClick={handleRegister}
+                        loading={loading}
+                    />
+
+                    {error && (
+                        <p className="text-red-500 text-sm text-center mb-4">{error}</p>
+                    )}
 
                     <div className="flex items-center my-4">
                         <div className="flex-grow border-t border-gray-300" />
@@ -131,8 +187,8 @@ export default function SignupPage() {
                     </div>
 
                     <div className="space-y-3">
-                        <AuthButton provider={"google"} />
-                        <AuthButton provider={"facebook"} />
+                        <AuthButton provider="google" />
+                        <AuthButton provider="facebook" />
                     </div>
                 </form>
 
@@ -146,6 +202,14 @@ export default function SignupPage() {
                     </Link>
                 </p>
             </div>
+            {showOTPDialog && (
+                <OTPVerificationDialog
+                    email={registeredEmail}
+                    onClose={() => setShowOTPDialog(false)}
+                    onVerified={() => window.location.href = "/login"}
+                />
+            )}
         </div>
+
     )
 }

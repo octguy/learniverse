@@ -1,69 +1,95 @@
 "use client"
 
-import * as React from "react"
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-    DialogFooter,
-} from "@/components/ui/dialog"
+import React, { useState } from "react"
 import { Button } from "@/components/ui/button"
-import {
-    InputOTP,
-    InputOTPGroup,
-    InputOTPSlot,
-    InputOTPSeparator,
-} from "@/components/ui/input-otp"
+import { Label } from "@/components/ui/label"
+import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from "@/components/ui/input-otp"
+import {authService} from "@/lib/api/authService";
 
-export function OTPVerificationDialog() {
-    const [open, setOpen] = React.useState(true) //dong nay dung de test
-    const [otp, setOtp] = React.useState("")
+interface OTPDialogProps {
+    email: string
+    onClose: () => void
+    onVerified?: () => void
+}
+
+export function OTPVerificationDialog({ email, onClose, onVerified }: OTPDialogProps) {
+    const [otp, setOtp] = useState("")
+    const [loading, setLoading] = useState(false)
+    const [message, setMessage] = useState("")
+
+    const handleVerify = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (otp.length < 6) {
+            setMessage("❌ Vui lòng nhập đủ 6 số OTP.")
+            return
+        }
+        setLoading(true)
+        setMessage("")
+
+        try {
+            const code = (otp || "").replace(/-/g, "").trim(); // null-safe
+            console.log("Sending OTP:", code);
+
+            await authService.verifyUser({ email, verificationCode: code });
+            setMessage("✅ Xác thực thành công! Đang chuyển hướng...");
+            setTimeout(() => (window.location.href = "/login"), 1500);
+        } catch (err: any) {
+            setMessage(err.message || "❌ Mã OTP không hợp lệ hoặc đã hết hạn.");
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    const handleResendOTP = async () => {
+        setLoading(true)
+        setMessage("Đang gửi lại mã OTP...")
+        try {
+            await authService.resendVerificationCode(email)
+            setMessage("✅ Mã OTP mới đã được gửi đến email của bạn.")
+        } catch {
+            setMessage("❌ Không thể gửi lại OTP. Vui lòng thử lại sau.")
+        } finally {
+            setLoading(false)
+        }
+    }
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent className="sm:max-w-[400px]">
-                <DialogHeader>
-                    <DialogTitle>Xác thực OTP</DialogTitle>
-                    <DialogDescription>
-                        Vui lòng nhập mã xác thực được gửi tới email của bạn.
-                    </DialogDescription>
-                </DialogHeader>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-md relative">
+                <h3 className="text-xl font-bold mb-4">Xác thực email</h3>
+                <p className="text-sm mb-4">Mã OTP đã được gửi đến <strong>{email}</strong></p>
 
-                {/* Ô nhập OTP */}
-                <div className="flex justify-center py-4">
-                    <InputOTP
-                        maxLength={6}
-                        value={otp}
-                        onChange={setOtp}
-                        containerClassName="justify-center"
-                    >
-                        <InputOTPGroup>
-                            <InputOTPSlot index={0} />
-                            <InputOTPSlot index={1} />
-                            <InputOTPSlot index={2} />
-                        </InputOTPGroup>
+                <InputOTP
+                    maxLength={6}
+                    value={otp}
+                    onChange={setOtp}
+                    containerClassName="justify-center mb-4"
+                >
+                    <InputOTPGroup>
+                        <InputOTPSlot index={0} />
+                        <InputOTPSlot index={1} />
+                        <InputOTPSlot index={2} />
+                    </InputOTPGroup>
+                    <InputOTPSeparator />
+                    <InputOTPGroup>
+                        <InputOTPSlot index={3} />
+                        <InputOTPSlot index={4} />
+                        <InputOTPSlot index={5} />
+                    </InputOTPGroup>
+                </InputOTP>
 
-                        <InputOTPSeparator />
+                {message && <p className="text-sm mb-4 text-center">{message}</p>}
 
-                        <InputOTPGroup>
-                            <InputOTPSlot index={3} />
-                            <InputOTPSlot index={4} />
-                            <InputOTPSlot index={5} />
-                        </InputOTPGroup>
-                    </InputOTP>
+                <div className="flex justify-between items-center">
+                    <Button onClick={onClose} variant="outline" className="px-4 py-2">Hủy</Button>
+                    <div className="flex gap-2">
+                        <Button onClick={handleResendOTP} variant="ghost" className="px-4 py-2">Gửi lại OTP</Button>
+                        <Button onClick={handleVerify} className="px-4 py-2" disabled={loading}>
+                            {loading ? "Đang xác thực..." : "Xác nhận"}
+                        </Button>
+                    </div>
                 </div>
-
-                <DialogFooter className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setOpen(false)}>
-                        Hủy
-                    </Button>
-                    <Button>
-                        Xác nhận
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+            </div>
+        </div>
     )
 }

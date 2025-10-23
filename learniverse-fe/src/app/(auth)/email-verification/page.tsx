@@ -1,18 +1,18 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
-
-// import OTP component bạn vừa tạo
 import {
     InputOTP,
     InputOTPGroup,
     InputOTPSlot,
     InputOTPSeparator,
 } from "@/components/ui/input-otp"
+import { authService } from "@/lib/api/authService"
+import {OTPVerificationDialog} from "@/components/auth/OTP-verification-dialog";
 
 export default function VerifyEmailPage() {
     const searchParams = useSearchParams()
@@ -20,53 +20,7 @@ export default function VerifyEmailPage() {
     const [otp, setOtp] = useState("")
     const [message, setMessage] = useState("")
     const [loading, setLoading] = useState(false)
-
-    const handleVerify = async (e: React.FormEvent) => {
-        e.preventDefault()
-        if (otp.length < 6) {
-            setMessage("❌ Vui lòng nhập đủ 6 số OTP.")
-            return
-        }
-        setLoading(true)
-        setMessage("")
-
-        try {
-            const res = await fetch("/api/auth/verify-email", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, otp }),
-            })
-
-            if (res.ok) {
-                setMessage("Xác thực thành công! Đang chuyển hướng...")
-                setTimeout(() => (window.location.href = "/login"), 1500)
-            } else {
-                setMessage("❌ Mã OTP không hợp lệ hoặc đã hết hạn.")
-            }
-        } catch {
-            setMessage("❌ Có lỗi xảy ra. Vui lòng thử lại.")
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    const handleResendOTP = async () => {
-        setLoading(true)
-        setMessage("Đang gửi lại mã OTP...")
-        try {
-            const res = await fetch("/api/auth/resend-otp", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email }),
-            })
-            if (res.ok) setMessage("Mã OTP mới đã được gửi đến email của bạn.")
-            else setMessage("❌ Không thể gửi lại OTP. Vui lòng thử lại sau.")
-        } catch {
-            setMessage("❌ Có lỗi xảy ra.")
-        } finally {
-            setLoading(false)
-        }
-    }
+    const [showDialog, setShowDialog] = useState(true)
 
     return (
         <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
@@ -107,54 +61,11 @@ export default function VerifyEmailPage() {
                     <span className="font-semibold text-[#2D55FB]">{email}</span>
                 </p>
 
-                {/* OTP Form */}
-                <form onSubmit={handleVerify} className="space-y-6">
-                    <div className="flex flex-col items-center">
-                        <Label htmlFor="otp" className="mb-3 text-base">
-                            Nhập mã OTP gồm 6 số
-                        </Label>
-
-                        <InputOTP
-                            maxLength={6}
-                            value={otp}
-                            onChange={(value) => setOtp(value)}
-                            containerClassName="justify-center"
-                            className="focus:ring-2 focus:ring-[#2D55FB]"
-                        >
-                            <InputOTPGroup>
-                                <InputOTPSlot index={0} />
-                                <InputOTPSlot index={1} />
-                                <InputOTPSlot index={2} />
-                            </InputOTPGroup>
-                            <InputOTPSeparator />
-                            <InputOTPGroup>
-                                <InputOTPSlot index={3} />
-                                <InputOTPSlot index={4} />
-                                <InputOTPSlot index={5} />
-                            </InputOTPGroup>
-                        </InputOTP>
-                    </div>
-
-                    <Button
-                        type="submit"
-                        className="w-full rounded-full bg-[#2D55FB] hover:bg-[#1b3de0] text-white font-medium py-2"
-                        disabled={loading}
-                    >
-                        {loading ? "Đang xác thực..." : "Xác nhận"}
-                    </Button>
-
-                    <p className="text-center text-sm text-gray-600">
-                        Không nhận được mã?{" "}
-                        <button
-                            type="button"
-                            onClick={handleResendOTP}
-                            className="text-[#2D55FB] hover:underline font-medium"
-                            disabled={loading}
-                        >
-                            Gửi lại
-                        </button>
-                    </p>
-                </form>
+                <OTPVerificationDialog email={email}
+                                       onClose={() => setShowDialog(false)}
+                                       onVerified={() => {
+                    window.location.href = "/login"
+                }}/>
 
                 {message && (
                     <p className="text-center text-sm mt-4 text-gray-700">{message}</p>

@@ -8,8 +8,7 @@ import Link from "next/link"
 import { Eye, EyeOff } from "lucide-react"
 import { useState } from "react"
 import { AuthButton } from "@/components/auth/auth-button"
-import * as React from "react"
-import { authService } from "@/lib/api/authService";
+import { authService } from "@/lib/api/authService"
 
 export default function LoginPage() {
     const [showPassword, setShowPassword] = useState(false)
@@ -18,43 +17,63 @@ export default function LoginPage() {
         password: "",
         remember: false,
     })
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false)
+    const [error, setError] = useState("")
+
+    const validateEmail = (email: string) => {
+        const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        return regex.test(email)
+    }
+
     const handleLogin = async () => {
         setError("");
+        if (!formData.email || !formData.password) {
+            setError("Vui lòng nhập đầy đủ email và mật khẩu.");
+            return;
+        }
+
+        if (!validateEmail(formData.email)) {
+            setError("Email không hợp lệ.");
+            return;
+        }
+
         setLoading(true);
         try {
-        const response = await authService.login(formData);
-        const { accessToken, refreshToken, user } = response.result;
-
-        localStorage.setItem("accessToken", accessToken);
-        localStorage.setItem("refreshToken", refreshToken);
-
-        console.log("Đăng nhập thành công:", user);
-        window.location.href = "/";
-        } catch (err) {
-        if (err instanceof Error) setError(err.message);
+            const response = await authService.login(formData);
+            // Nếu login thành công, response.result sẽ có accessToken
+            const { accessToken, refreshToken, user } = response.result!;
+            localStorage.setItem("accessToken", accessToken);
+            localStorage.setItem("refreshToken", refreshToken);
+            window.location.href = "/";
+        } catch (err: any) {
+            if (err.message === "Bad credentials") {
+                setError("❌ Email hoặc mật khẩu không đúng.")}
+            else
+                if (err.message === "password: Password must contain at least 1 number, 1 special character, and 1 uppercase letter") {
+                    setError("❌ Mật khẩu phải chứa ít nhất 1 số, 1 ký tự đặc biệt và 1 chữ hoa.");
+            }
+                else
+                    if (err.message === "Failed to fetch") {
+                        setError("Hệ thống đang bận. Thử lại sau!");}
+                    else {
+                setError(err.message || "Đã xảy ra lỗi. Vui lòng thử lại.");
+            }
         } finally {
-        setLoading(false);
+            setLoading(false);
         }
-  };
+    };
+
 
     return (
         <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
-
-            {/* Background image */}
             <img
                 src="/login-banner.jpg"
                 alt="Background"
                 className="absolute inset-0 w-full h-full object-cover blur-md scale-105"
             />
-            {/* Dark overlay */}
             <div className="absolute inset-0 bg-black/0" />
-            <img
-                className={"absolute top-0 left-0 w-80 h-25"}
-                src={"/logo.png"}/>
+            <img className="absolute top-0 left-0 w-80 h-25" src="/logo.png" />
 
-            {/* Centered login card */}
             <div className="relative z-10 bg-white/90 backdrop-blur-lg rounded-2xl shadow-2xl p-6 w-full max-w-md mx-auto">
                 <div className="flex justify-end mb-6">
                     <Link href="/signup">
@@ -71,9 +90,18 @@ export default function LoginPage() {
                     Đăng nhập vào tài khoản
                 </h2>
 
-                <form className="space-y-8">
+
+                <form
+                    className="space-y-8"
+                    onSubmit={(e) => {
+                        e.preventDefault()
+                        handleLogin()
+                    }}
+                >
                     <div>
-                        <Label className="mb-2" htmlFor="email">Email</Label>
+                        <Label className="mb-2" htmlFor="email">
+                            Email
+                        </Label>
                         <Input
                             id="email"
                             type="email"
@@ -86,7 +114,9 @@ export default function LoginPage() {
                     </div>
 
                     <div className="relative">
-                        <Label className="mb-2" htmlFor="password">Mật khẩu</Label>
+                        <Label className="mb-2" htmlFor="password">
+                            Mật khẩu
+                        </Label>
                         <Input
                             id="password"
                             type={showPassword ? "text" : "password"}
@@ -99,7 +129,7 @@ export default function LoginPage() {
                         <button
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-8 text-gray-500"
+                            className="absolute right-4 top-8 text-gray-500"
                         >
                             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                         </button>
@@ -127,7 +157,15 @@ export default function LoginPage() {
                         </Link>
                     </div>
 
-                    <AuthButton provider={"login"} onClick={handleLogin} loading={loading}/>
+                    <AuthButton
+                        provider={"login"}
+                        onClick={handleLogin}
+                        loading={loading}
+                    />
+
+                    {error && (
+                        <p className="text-red-500 text-sm mb-4 text-center">{error}</p>
+                    )}
 
                     <div className="flex items-center my-4">
                         <div className="flex-grow border-t border-gray-300" />
