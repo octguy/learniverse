@@ -1,5 +1,5 @@
 import type { User, Chat, Message, AppState } from '../types/chat';
-
+import type { Notification } from '../types/notification';
 export const mockUser: User = {
   id: 'user_1',
   displayName: 'Bạn',
@@ -57,6 +57,16 @@ export const initialChats: Chat[] = [
     },
     unreadCount: 3,
   },
+    {
+        id: 'chat_6',
+        name: 'David',
+        avatar: 'https://randomuser.me/api/portraits/men/8.jpg',
+        lastMessage: {
+            content: 'Nhớ gửi báo cáo hôm qua nhen!',
+            createdAt: new Date(Date.now() - 5400000).toISOString(),
+        },
+        unreadCount: 3,
+    },
 ];
 
 export const initialMessages: Record<string, Message[]> = {
@@ -136,6 +146,20 @@ export const initialMessages: Record<string, Message[]> = {
       createdAt: new Date(Date.now() - 5100000).toISOString(),
     },
   ],
+    chat_6: [
+        {
+            id: 'msg_10',
+            content: 'Nhớ gửi báo cáo hôm qua nhen!',
+            senderId: 'user_5',
+            createdAt: new Date(Date.now() - 5400000).toISOString(),
+        },
+        {
+            id: 'msg_11',
+            content: 'Rồi, xong rồi nè!',
+            senderId: 'user_1',
+            createdAt: new Date(Date.now() - 5100000).toISOString(),
+        },
+    ],
 };
 
 export const initialState: AppState = {
@@ -144,3 +168,39 @@ export const initialState: AppState = {
   currentChatId: null,
   searchQuery: '',
 };
+export const mockNotifications: Notification[] = [
+    {
+        id: '1',
+        avatarUrl: 'https://randomuser.me/api/portraits/women/1.jpg',
+        text: '<strong>Alice</strong> đã thích bài viết của bạn.',
+        createdAt: new Date(Date.now() - 300000).toISOString(),
+        read: false,
+    },
+    {
+        id: '2',
+        avatarUrl: 'https://randomuser.me/api/portraits/men/1.jpg',
+        text: '<strong>Bob</strong> đã bình luận về một bài viết trong nhóm <strong>Lập trình</strong>.',
+        createdAt: new Date(Date.now() - 1800000).toISOString(),
+        read: false,
+    },
+    {
+        id: '3',
+        avatarUrl: 'https://randomuser.me/api/portraits/women/2.jpg',
+        text: '<strong>Emma</strong> đã bắt đầu theo dõi bạn.',
+        createdAt: new Date(Date.now() - 3600000).toISOString(),
+        read: true,
+    },
+    {
+        id: '4',
+        avatarUrl: 'https://randomuser.me/api/portraits/men/2.jpg',
+        text: '<strong>David</strong> đã gửi cho bạn một tin nhắn.',
+        createdAt: new Date(Date.now() - 7200000).toISOString(),
+        read: true,
+    },
+    {
+        id: '5',
+        text: 'Bài viết <strong>"Giới thiệu về React"</strong> của bạn đã được phê duyệt.',
+        createdAt: new Date(Date.now() - 86400000).toISOString(),
+        read: true,
+    }
+];

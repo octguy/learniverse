@@ -2,8 +2,19 @@ import type { AppState, Action } from '@/types/chat';
 
 export function chatReducer(state: AppState, action: Action): AppState {
   switch (action.type) {
-    case 'SELECT_CHAT':
-      return { ...state, currentChatId: action.payload };
+      case 'SELECT_CHAT': {
+          const chatId = action.payload;
+
+          const updatedChats = state.chats.map((chat) =>
+              chat.id === chatId ? { ...chat, unreadCount: 0 } : chat
+          );
+
+          return {
+              ...state,
+              currentChatId: chatId,
+              chats: updatedChats,
+          };
+      }
 
     case 'SET_SEARCH_QUERY':
       return { ...state, searchQuery: action.payload };
@@ -21,7 +32,7 @@ export function chatReducer(state: AppState, action: Action): AppState {
 
       return {
         ...state,
-        chats: [updatedChat, ...otherChats], 
+        chats: [updatedChat, ...otherChats],
         messages: {
           ...state.messages,
           [chatId]: [...(state.messages[chatId] || []), message],
