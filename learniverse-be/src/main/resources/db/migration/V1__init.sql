@@ -1,4 +1,4 @@
-CREATE TABLE auth_credential
+CREATE TABLE if not exists auth_credential
 (
     id                      UUID                        NOT NULL,
     created_at              TIMESTAMP WITHOUT TIME ZONE NOT NULL,
@@ -12,7 +12,7 @@ CREATE TABLE auth_credential
     CONSTRAINT pk_auth_credential PRIMARY KEY (id)
 );
 
-CREATE TABLE password_reset_token
+CREATE TABLE if not exists password_reset_token
 (
     id         UUID                        NOT NULL,
     created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
@@ -24,7 +24,7 @@ CREATE TABLE password_reset_token
     CONSTRAINT pk_password_reset_token PRIMARY KEY (id)
 );
 
-CREATE TABLE refresh_token
+CREATE TABLE if not exists refresh_token
 (
     id         UUID                        NOT NULL,
     created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
@@ -36,7 +36,7 @@ CREATE TABLE refresh_token
     CONSTRAINT pk_refresh_token PRIMARY KEY (id)
 );
 
-CREATE TABLE role
+CREATE TABLE if not exists role
 (
     id         UUID                        NOT NULL,
     created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
@@ -46,7 +46,7 @@ CREATE TABLE role
     CONSTRAINT pk_role PRIMARY KEY (id)
 );
 
-CREATE TABLE role_user
+CREATE TABLE if not exists role_user
 (
     created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
     updated_at TIMESTAMP WITHOUT TIME ZONE,
@@ -56,7 +56,7 @@ CREATE TABLE role_user
     CONSTRAINT pk_role_user PRIMARY KEY (user_id, role_id)
 );
 
-CREATE TABLE "user"
+CREATE TABLE if not exists "user"
 (
     id            UUID                        NOT NULL,
     created_at    TIMESTAMP WITHOUT TIME ZONE NOT NULL,

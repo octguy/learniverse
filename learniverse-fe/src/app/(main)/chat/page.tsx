@@ -32,7 +32,7 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex border rounded-lg shadow-sm overflow-hidden">
+    <div className="flex flex-1 rounded-lg shadow-sm overflow-hidden">
       {/* Left panel */}
       <div className="w-80 border-r bg-white flex flex-col">
         <div className="p-4 border-b">
