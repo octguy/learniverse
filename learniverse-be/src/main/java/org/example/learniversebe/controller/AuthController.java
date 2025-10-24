@@ -1,5 +1,7 @@
 package org.example.learniversebe.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.example.learniversebe.dto.request.*;
 import org.example.learniversebe.dto.response.AuthResponse;
@@ -11,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RequestMapping("/api/v1/auth")
 @RestController
+@Tag(name = "Authentication", description = "Endpoints for user authentication and registration")
 public class AuthController {
 
     private final IAuthService authService;
@@ -19,6 +22,7 @@ public class AuthController {
         this.authService = authService;
     }
 
+    @Operation(summary = "Login a user", description = "Authenticate a user and send email verification")
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<AuthResponse>> register(@RequestBody @Valid RegisterRequest registerRequest) {
         AuthResponse authResponse = authService.register(registerRequest);
@@ -32,6 +36,7 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).body(apiResponse);
     }
 
+    @Operation(summary = "Login a user", description = "Authenticate a user and return auth tokens")
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(@RequestBody @Valid LoginRequest loginRequest) {
         AuthResponse authResponse = authService.login(loginRequest);
@@ -45,6 +50,7 @@ public class AuthController {
         return ResponseEntity.ok(apiResponse);
     }
 
+    @Operation(summary = "Verify user account", description = "Verify a user's account using a verification code sent via email")
     @PostMapping("/verify")
     public ResponseEntity<ApiResponse<String>> verifyUser(@RequestBody @Valid VerifyUserRequest request) {
         authService.verifyUser(request);
@@ -58,6 +64,7 @@ public class AuthController {
         return ResponseEntity.ok(apiResponse);
     }
 
+    @Operation(summary = "Resend verification code", description = "Resend the verification code to the user's email")
     @PostMapping("/resend-verification")
     public ResponseEntity<ApiResponse<String>> resendVerificationCode(@RequestParam String email) {
         authService.resendVerificationCode(email);
@@ -71,6 +78,7 @@ public class AuthController {
         return ResponseEntity.ok(apiResponse);
     }
 
+    @Operation(summary = "Refresh authentication token", description = "Refresh the user's authentication token using a refresh token")
     @PostMapping("/refresh-token")
     public ResponseEntity<ApiResponse<AuthResponse>> refreshToken(@RequestBody @Valid RefreshTokenRequest refreshTokenRequest) {
         AuthResponse authResponse = authService.refreshToken(refreshTokenRequest);
@@ -84,6 +92,7 @@ public class AuthController {
         return ResponseEntity.ok(apiResponse);
     }
 
+    @Operation(summary = "Forgot password", description = "Request a password reset link to be sent to the user's email")
     @PostMapping("/forgot-password")
     public ResponseEntity<ApiResponse<String>> forgetPassword(@Valid @RequestBody ForgotPasswordRequest request) {
         authService.requestPasswordReset(request);
@@ -98,6 +107,7 @@ public class AuthController {
         return ResponseEntity.ok(apiResponse);
     }
 
+    @Operation(summary = "Reset password", description = "Reset the user's password using a valid reset token")
     @PostMapping("/reset-password")
     public ResponseEntity<ApiResponse<String>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         authService.resetPassword(request);
@@ -112,6 +122,7 @@ public class AuthController {
         return ResponseEntity.ok(apiResponse);
     }
 
+    @Operation(summary = "Logout user", description = "Logout the currently authenticated user")
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<String>> logout() {
         authService.logout();

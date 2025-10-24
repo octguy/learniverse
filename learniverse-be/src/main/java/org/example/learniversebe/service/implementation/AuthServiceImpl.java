@@ -113,48 +113,53 @@ public class AuthServiceImpl implements IAuthService {
     @Override
     @Transactional
     public AuthResponse register(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new BadRequestException("Email already in use");
+        try {
+            if (userRepository.existsByEmail(request.getEmail())) {
+                throw new BadRequestException("Email already in use");
+            }
+
+            // Create a new record of user
+            User user = new User();
+            user.setId(UUID.randomUUID());
+            user.setEmail(request.getEmail());
+            user.setUsername(request.getUsername());
+            user.setEnabled(false);
+            user.setStatus(UserStatus.PENDING_VERIFICATION);
+            user.setCreatedAt(LocalDateTime.now());
+            user.setUpdatedAt(LocalDateTime.now());
+
+            Role role = roleRepository.findByName(UserRole.ROLE_USER)
+                    .orElseThrow(() -> new RuntimeException("Role not found"));
+
+            // Assign role to user
+            user.addRole(role); // role user will be added (cascade = CascadeType.ALL)
+            userRepository.save(user);
+
+            // Create a new record of auth credentials
+            AuthCredential authCredential = new AuthCredential();
+            authCredential.setId(UUID.randomUUID());
+            authCredential.setUser(user);
+            authCredential.setPassword(passwordEncoder.encode(request.getPassword()));
+            String verificationCode = generateVerificationCode();
+            authCredential.setVerificationCode(verificationCode);
+            authCredential.setVerificationExpiration(LocalDateTime.now().plusMinutes(expiration));
+            authCredential.setCreatedAt(LocalDateTime.now());
+            authCredential.setUpdatedAt(LocalDateTime.now());
+            authCredentialRepository.save(authCredential);
+
+            sendVerificationEmail(user.getEmail(), verificationCode);
+
+            return AuthResponse.builder()
+                    .id(user.getId())
+                    .email(user.getEmail())
+                    .username(user.getUsername())
+                    .accessToken(null)
+                    .refreshToken(null)
+                    .build();
         }
-
-        // Create a new record of user
-        User user = new User();
-        user.setId(UUID.randomUUID());
-        user.setEmail(request.getEmail());
-        user.setUsername(request.getUsername());
-        user.setEnabled(false);
-        user.setStatus(UserStatus.PENDING_VERIFICATION);
-        user.setCreatedAt(LocalDateTime.now());
-        user.setUpdatedAt(LocalDateTime.now());
-
-        Role role = roleRepository.findByName(UserRole.ROLE_USER)
-                .orElseThrow(() -> new RuntimeException("Role not found"));
-
-        // Assign role to user
-        user.addRole(role); // role user will be added (cascade = CascadeType.ALL)
-        userRepository.save(user);
-
-        // Create a new record of auth credentials
-        AuthCredential authCredential = new AuthCredential();
-        authCredential.setId(UUID.randomUUID());
-        authCredential.setUser(user);
-        authCredential.setPassword(passwordEncoder.encode(request.getPassword()));
-        String verificationCode = generateVerificationCode();
-        authCredential.setVerificationCode(verificationCode);
-        authCredential.setVerificationExpiration(LocalDateTime.now().plusMinutes(expiration));
-        authCredential.setCreatedAt(LocalDateTime.now());
-        authCredential.setUpdatedAt(LocalDateTime.now());
-        authCredentialRepository.save(authCredential);
-
-        sendVerificationEmail(user.getEmail(), verificationCode);
-
-        return AuthResponse.builder()
-                .id(user.getId())
-                .email(user.getEmail())
-                .username(user.getUsername())
-                .accessToken(null)
-                .refreshToken(null)
-                .build();
+        catch (Exception e) {
+            throw new RuntimeException("Registration failed: " + e.getMessage());
+        }
     }
 
     @Override
