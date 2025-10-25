@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/Learniverse.iml" filepath="$PROJECT_DIR$/.idea/Learniverse.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/learniverse-be.main.iml" filepath="$PROJECT_DIR$/.idea/modules/learniverse-be.main.iml" />
     </modules>
   </component>
 </project>
