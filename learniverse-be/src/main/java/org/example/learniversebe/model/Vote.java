@@ -16,8 +16,9 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name="\"votes\"")
-@Getter
+@Table(name="votes", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"votable_type", "votable_id", "user_id"}, name = "uq_vote_per_user")
+})@Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
@@ -30,6 +31,7 @@ public class Vote extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "votable_type", nullable = false)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private VotableType votableType;
 
     @Column(name = "votable_id", nullable = false)

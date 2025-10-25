@@ -12,12 +12,14 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name="\"votes\"")
+@Table(name="\"bookmarks\"", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"user_id", "content_id"}, name = "uq_bookmark_per_user")
+})
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@SQLDelete(sql = "UPDATE votes SET deleted_at = NOW() WHERE id = ?")
+@SQLDelete(sql = "UPDATE bookmarks SET deleted_at = NOW() WHERE id = ?")
 @SQLRestriction("deleted_at IS NULL")
 public class Bookmark extends BaseEntity {
     @Id
@@ -32,10 +34,10 @@ public class Bookmark extends BaseEntity {
     @JoinColumn(name = "content_id", nullable = false)
     private Content content;
 
-    @Column(columnDefinition = "TEXT", length = 100)
+    @Column(name = "collection_name", length = 100)
     private String collectionName;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 
     @PrePersist

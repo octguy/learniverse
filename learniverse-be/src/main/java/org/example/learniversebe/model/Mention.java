@@ -12,7 +12,9 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name="\"mentions\"")
+@Table(name="\"mentions\"", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"comment_id", "mentioned_user_id"}, name = "uq_mention_per_comment")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -30,14 +32,14 @@ public class Mention extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "mentioned_user_id", nullable = false)
-    private Comment mentionedUser;
+    private User mentionedUser;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "mentioned_by", nullable = false)
     private User mentionedBy;
 
     @Column(name = "is_notified")
-    private Boolean isNotified;
+    private Boolean isNotified = false;
 
     @Column(name = "notified_at")
     private LocalDateTime notifiedAt;
