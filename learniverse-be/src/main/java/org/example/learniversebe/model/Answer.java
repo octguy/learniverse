@@ -51,6 +51,9 @@ public class Answer extends BaseEntity {
     @Column(nullable = false)
     private Boolean isAccepted = false;
 
+    @OneToOne(mappedBy = "acceptedAnswer", fetch = FetchType.LAZY)
+    private Content acceptedInQuestion;
+
     @PrePersist
     protected void onCreate() {
         LocalDateTime now = LocalDateTime.now();
@@ -65,8 +68,4 @@ public class Answer extends BaseEntity {
     protected void onUpdate() {
         this.setUpdatedAt(LocalDateTime.now());
     }
-
-    // Quan hệ OneToOne ngược lại từ Content (acceptedAnswer)
-    // @OneToOne(mappedBy = "acceptedAnswer", fetch = FetchType.LAZY)
-    // private Content acceptedInQuestion;
 }
