@@ -6,6 +6,7 @@ import lombok.Data;
 import org.example.learniversebe.enums.ContentStatus;
 import org.example.learniversebe.enums.ContentType;
 import org.example.learniversebe.enums.ReactionType;
+import org.example.learniversebe.enums.VoteType;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -85,6 +86,9 @@ public class QuestionResponse {
     // Các trạng thái của người dùng hiện tại
     @Schema(description = "Đã được người dùng lưu lại hay chưa")
     private boolean bookmarkedByCurrentUser;
+
+    @Schema(description = "Vote hiện tại")
+    private VoteType currentUserVote;
 
     @Schema(description = "Reaction hiện tại")
     private ReactionType currentUserReaction;
