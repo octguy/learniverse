@@ -1,0 +1,233 @@
+package org.example.learniversebe.service.implementation;
+
+import org.example.learniversebe.dto.request.CreateAnswerRequest;
+import org.example.learniversebe.dto.request.UpdateAnswerRequest;
+import org.example.learniversebe.dto.response.AnswerResponse;
+import org.example.learniversebe.dto.response.PageResponse;
+import org.example.learniversebe.enums.ContentType;
+import org.example.learniversebe.exception.BadRequestException;
+import org.example.learniversebe.exception.ResourceNotFoundException;
+import org.example.learniversebe.exception.UnauthorizedException;
+import org.example.learniversebe.mapper.AnswerMapper;
+import org.example.learniversebe.model.Answer;
+import org.example.learniversebe.model.Content;
+import org.example.learniversebe.model.User;
+import org.example.learniversebe.repository.AnswerRepository;
+import org.example.learniversebe.repository.ContentRepository;
+import org.example.learniversebe.repository.UserRepository;
+import org.example.learniversebe.service.IAnswerService;
+import org.example.learniversebe.service.IInteractionService;
+import org.example.learniversebe.service.INotificationService;
+import org.example.learniversebe.util.ServiceHelper;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.UUID;
+
+@Service
+public class AnswerServiceImpl implements IAnswerService {
+
+    private final AnswerRepository answerRepository;
+    private final ContentRepository contentRepository; // Để lấy question và update count
+    private final UserRepository userRepository; // Để lấy author
+    private final AnswerMapper answerMapper;
+    private final ServiceHelper serviceHelper;
+    private final IInteractionService interactionService; // Inject InteractionService
+    // private final INotificationService notificationService; // Inject NotificationService (tạm comment)
+
+    @Value("${app.answer.edit.limit-minutes:30}") // Giới hạn sửa answer, ví dụ 30 phút
+    private long answerEditLimitMinutes;
+
+
+    // Sử dụng @Lazy để tránh Circular Dependency nếu QuestionService cũng inject AnswerService
+    public AnswerServiceImpl(AnswerRepository answerRepository,
+                             ContentRepository contentRepository,
+                             UserRepository userRepository,
+                             AnswerMapper answerMapper,
+                             ServiceHelper serviceHelper,
+                             @Lazy IInteractionService interactionService
+            /*, INotificationService notificationService */) {
+        this.answerRepository = answerRepository;
+        this.contentRepository = contentRepository;
+        this.userRepository = userRepository;
+        this.answerMapper = answerMapper;
+        this.serviceHelper = serviceHelper;
+        this.interactionService = interactionService;
+        // this.notificationService = notificationService;
+    }
+
+
+    @Override
+    @Transactional
+    public AnswerResponse addAnswer(CreateAnswerRequest request) {
+        User author = serviceHelper.getCurrentUser();
+        Content question = contentRepository.findById(request.getQuestionId())
+                .orElseThrow(() -> new ResourceNotFoundException("Question not found with id: " + request.getQuestionId()));
+
+        // Kiểm tra xem content có phải là question không
+        if (question.getContentType() != ContentType.QUESTION) {
+            throw new BadRequestException("Cannot add answer to content type: " + question.getContentType());
+        }
+
+        // Map DTO sang Entity
+        Answer answer = answerMapper.createAnswerRequestToAnswer(request);
+        answer.setAuthor(author);
+        answer.setQuestion(question);
+        // @PrePersist sẽ set ID và timestamps
+
+        Answer savedAnswer = answerRepository.save(answer);
+
+        // Cập nhật answer count trên Question
+        question.setAnswerCount(question.getAnswerCount() + 1);
+        contentRepository.save(question);
+
+        // Gửi notification cho tác giả câu hỏi (nếu khác người trả lời)
+        if (!question.getAuthor().getId().equals(author.getId())) {
+            // notificationService.notifyNewAnswer(question.getAuthor(), author, savedAnswer);
+        }
+
+        // Map sang Response DTO
+        AnswerResponse response = answerMapper.answerToAnswerResponse(savedAnswer);
+        // Set trạng thái tương tác ban đầu
+        response.setCurrentUserVote(null);
+        response.setCurrentUserReaction(null);
+        // response.setCommentCount(0); // Có thể cần nếu mapper không map
+        // response.setReactionCount(0); // Có thể cần
+        return response;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<AnswerResponse> getAnswersForQuestion(UUID questionId, Pageable pageable) {
+        if (!contentRepository.existsByIdAndContentType(questionId, ContentType.QUESTION)) {
+            throw new ResourceNotFoundException("Question not found with id: " + questionId);
+        }
+
+        Page<Answer> answerPage = answerRepository.findByQuestionIdOrderByIsAcceptedDescVoteScoreDescCreatedAtAsc(questionId, pageable);
+        PageResponse<AnswerResponse> responsePage = answerMapper.answerPageToAnswerPageResponse(answerPage);
+
+        // Lấy trạng thái tương tác cho từng answer trong trang hiện tại
+        UUID currentUserId = serviceHelper.getCurrentUserId();
+        if (currentUserId != null && responsePage != null && responsePage.getContent() != null) {
+            responsePage.getContent().forEach(answerDto -> setInteractionStatusForCurrentUser(answerDto, currentUserId));
+        }
+
+        return responsePage;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<AnswerResponse> getAnswersByAuthor(UUID authorId, Pageable pageable) {
+        if (!userRepository.existsById(authorId)) {
+            throw new ResourceNotFoundException("Author not found with id: " + authorId);
+        }
+        Page<Answer> answerPage = answerRepository.findByAuthorIdOrderByCreatedAtDesc(authorId, pageable); // Cần tạo method này trong Repo
+        PageResponse<AnswerResponse> responsePage = answerMapper.answerPageToAnswerPageResponse(answerPage);
+
+        // Lấy trạng thái tương tác
+        UUID currentUserId = serviceHelper.getCurrentUserId();
+        if (currentUserId != null && responsePage != null && responsePage.getContent() != null) {
+            responsePage.getContent().forEach(answerDto -> setInteractionStatusForCurrentUser(answerDto, currentUserId));
+        }
+        return responsePage;
+    }
+
+
+    @Override
+    @Transactional(readOnly = true)
+    public AnswerResponse getAnswerById(UUID answerId) {
+        Answer answer = answerRepository.findById(answerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Answer not found with id: " + answerId));
+        AnswerResponse response = answerMapper.answerToAnswerResponse(answer);
+
+        // Lấy trạng thái tương tác
+        UUID currentUserId = serviceHelper.getCurrentUserId();
+        if (currentUserId != null) {
+            setInteractionStatusForCurrentUser(response, currentUserId);
+        }
+        return response;
+    }
+
+    @Override
+    @Transactional
+    public AnswerResponse updateAnswer(UUID answerId, UpdateAnswerRequest request) {
+        User currentUser = serviceHelper.getCurrentUser();
+        Answer answer = answerRepository.findById(answerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Answer not found with id: " + answerId));
+
+        // Kiểm tra quyền sở hữu
+        serviceHelper.ensureCurrentUserIsAuthor(answer.getAuthor().getId(), "update answer");
+
+        // Kiểm tra thời gian sửa (ngắn hơn post/question)
+        if (answer.getCreatedAt() != null &&
+                LocalDateTime.now().isAfter(answer.getCreatedAt().plusMinutes(answerEditLimitMinutes))) {
+            throw new BadRequestException("Edit time limit exceeded (" + answerEditLimitMinutes + " minutes)");
+        }
+
+        // Cập nhật body
+        answer.setBody(request.getBody());
+        // @PreUpdate sẽ tự cập nhật updatedAt
+
+        Answer updatedAnswer = answerRepository.save(answer);
+
+        AnswerResponse response = answerMapper.answerToAnswerResponse(updatedAnswer);
+        // Lấy lại trạng thái tương tác
+        setInteractionStatusForCurrentUser(response, currentUser.getId());
+        return response;
+    }
+
+    @Override
+    @Transactional
+    public void deleteAnswer(UUID answerId) {
+        User currentUser = serviceHelper.getCurrentUser();
+        Answer answer = answerRepository.findById(answerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Answer not found with id: " + answerId));
+        Content question = answer.getQuestion(); // Lấy question liên quan
+
+        // Kiểm tra quyền (tác giả hoặc admin/mod)
+        if (!answer.getAuthor().getId().equals(currentUser.getId()) /* && !currentUser.isAdminOrModerator() */) {
+            throw new UnauthorizedException("User is not authorized to delete this answer");
+        }
+
+        // Nếu answer bị xóa là accepted answer -> cập nhật question
+        if (answer.getIsAccepted()) {
+            question.setAcceptedAnswer(null);
+            question.setIsAnswered(false); // Cần kiểm tra lại nếu còn answer khác
+            // Có thể cần gọi IQuestionService.unmark... nhưng sẽ gây circular dependency
+            // Nên xử lý trực tiếp ở đây
+            answer.setIsAccepted(false); // Đảm bảo trạng thái answer cũng được cập nhật trước khi soft delete
+        }
+
+        // Giảm answer count trên question
+        question.setAnswerCount(Math.max(0, question.getAnswerCount() - 1));
+        contentRepository.save(question);
+
+        // Soft delete answer (dùng @SQLDelete)
+        answerRepository.delete(answer);
+
+        // TODO: Xử lý xóa mềm các comment, reaction, vote liên quan đến answer này nếu cần
+    }
+
+    /**
+     * Helper method to set current user's interaction status (vote, reaction) on an AnswerResponse DTO.
+     */
+    private void setInteractionStatusForCurrentUser(AnswerResponse answerDto, UUID currentUserId) {
+        // TODO: Implement logic to query VoteRepository and ReactionRepository
+        // using currentUserId, ReactableType.ANSWER/VotableType.ANSWER, and answerDto.getId()
+        // Vote vote = voteRepository.findByVotableTypeAndVotableIdAndUserId(VotableType.ANSWER, answerDto.getId(), currentUserId).orElse(null);
+        // Reaction reaction = reactionRepository.findByReactableTypeAndReactableIdAndUserId(ReactableType.ANSWER, answerDto.getId(), currentUserId).orElse(null);
+        // answerDto.setCurrentUserVote(vote != null ? vote.getVoteType() : null);
+        // answerDto.setCurrentUserReaction(reaction != null ? reaction.getReactionType() : null);
+
+        // Placeholder:
+        answerDto.setCurrentUserVote(null);
+        answerDto.setCurrentUserReaction(null);
+    }
+}
