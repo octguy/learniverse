@@ -98,11 +98,11 @@ public class PostServiceImpl implements IPostService {
         content.setPublishedAt(LocalDateTime.now());
         content.setSlug(slugGenerator.generateSlug(request.getTitle() != null ? request.getTitle() : request.getBody().substring(0, Math.min(request.getBody().length(), 50)))); // Tạo slug
 
+        // Xử lý Tags
+        associateTags(content, request.getTagIds());
+
         // Lưu Content trước để có ID
         Content savedContent = contentRepository.save(content);
-
-        // Xử lý Tags
-        associateTags(savedContent, request.getTagIds());
 
         // Map lại sang Response DTO (đã bao gồm author và tags)
         PostResponse response = contentMapper.contentToPostResponse(savedContent);
@@ -322,11 +322,11 @@ public class PostServiceImpl implements IPostService {
             ContentTag contentTag = new ContentTag();
             contentTag.setContent(content);
             contentTag.setTag(tag);
-            contentTag.setContentTagId(new ContentTagId(content.getId(), tag.getId()));
+//            contentTag.setContentTagId(new ContentTagId(content.getId(), tag.getId()));
             contentTag.setCreatedAt(now); // Set timestamp cho bảng join
             contentTags.add(contentTag);
         }
-        contentTagRepository.saveAll(contentTags); // Lưu các liên kết mới
+//        contentTagRepository.saveAll(contentTags); // Lưu các liên kết mới
         content.setContentTags(contentTags); // Cập nhật lại collection trong Content entity
     }
 }

@@ -103,11 +103,11 @@ public class QuestionServiceImpl implements IQuestionService {
         content.setPublishedAt(LocalDateTime.now());
         content.setSlug(slugGenerator.generateSlug(request.getTitle())); // Slug cho question dựa vào title
 
+        // Xử lý Tags (tương tự Post)
+        associateTags(content, request.getTagIds());
+
         // Lưu Content trước
         Content savedContent = contentRepository.save(content);
-
-        // Xử lý Tags (tương tự Post)
-        associateTags(savedContent, request.getTagIds());
 
         // Map lại sang Response DTO
         QuestionResponse response = contentMapper.contentToQuestionResponse(savedContent);
@@ -370,11 +370,11 @@ public class QuestionServiceImpl implements IQuestionService {
             ContentTag contentTag = new ContentTag();
             contentTag.setContent(content);
             contentTag.setTag(tag);
-            contentTag.setContentTagId(new ContentTagId(content.getId(), tag.getId()));
+//            contentTag.setContentTagId(new ContentTagId(content.getId(), tag.getId()));
             contentTag.setCreatedAt(now);
             contentTags.add(contentTag);
         }
-        contentTagRepository.saveAll(contentTags);
+//        contentTagRepository.saveAll(contentTags);
         content.setContentTags(contentTags);
     }
 
