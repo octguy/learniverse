@@ -1,6 +1,5 @@
 package org.example.learniversebe.config;
 
-import org.example.learniversebe.enums.UserRole;
 import org.example.learniversebe.jwt.JwtAuthenticationEntryPoint;
 import org.example.learniversebe.jwt.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
