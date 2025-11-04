@@ -1,6 +1,6 @@
 package org.example.learniversebe.service;
 
-public interface IUserCleanupService {
+public interface ICleanupService {
 
     void cleanupPendingUsers();
 }
