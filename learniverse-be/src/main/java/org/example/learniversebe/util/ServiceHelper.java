@@ -1,6 +1,5 @@
 package org.example.learniversebe.util;
 
-import org.example.learniversebe.exception.ResourceNotFoundException;
 import org.example.learniversebe.exception.UnauthorizedException;
 import org.example.learniversebe.model.CustomUserDetails;
 import org.example.learniversebe.model.User;
