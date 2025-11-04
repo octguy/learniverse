@@ -39,7 +39,7 @@ public class CleanupServiceImpl implements ICleanupService {
 
     @Override
     @Transactional
-    @Scheduled(fixedRate = 60000) // runs every 1 minute
+    @Scheduled(cron = "0 0 0 * * *") // runs every 1 day at midnight
     public void cleanupPendingUsers() {
         LocalDateTime now = LocalDateTime.now();
         List<User> users = userRepository.findPendingUserExceedOneDay();
@@ -58,24 +58,33 @@ public class CleanupServiceImpl implements ICleanupService {
 
             System.out.println("🧹 Cleaned up " + users.size() + " unverified users and their credentials.");
         }
+    }
 
-        // Clean up expired tokens that expired more than 1 day ago
-        LocalDateTime threshold = now.minusDays(1);
+    @Override
+    @Transactional
+    @Scheduled(cron = "0 0 0 * * *") // runs every 1 day at midnight
+    public void cleanupExpiredRefreshTokens() {
+        List<RefreshToken> expiredTokens = refreshTokenRepository.findAllTokenExpiredAfter24Hours();
 
-        List<RefreshToken> expiredRefreshTokens = refreshTokenRepository.findAllByExpiryDateBefore(threshold);
-        if (!expiredRefreshTokens.isEmpty()) {
-            refreshTokenRepository.deleteAll(expiredRefreshTokens);
-            System.out.println("🧹 Deleted " + expiredRefreshTokens.size() + " expired refresh tokens.");
+        if (expiredTokens.isEmpty()) {
+            System.out.println("🧹 No expired refresh tokens to clean up.");
         } else {
-            System.out.println("🧹 No expired refresh tokens to delete.");
+            refreshTokenRepository.deleteAll(expiredTokens);
+            System.out.println("🧹 Cleaned up " + expiredTokens.size() + " expired refresh tokens.");
         }
+    }
 
-        List<PasswordResetToken> expiredResetTokens = passwordResetTokenRepository.findAllByExpiryDateBefore(threshold);
-        if (!expiredResetTokens.isEmpty()) {
-            passwordResetTokenRepository.deleteAll(expiredResetTokens);
-            System.out.println("🧹 Deleted " + expiredResetTokens.size() + " expired password reset tokens.");
+    @Override
+    @Transactional
+    @Scheduled(cron = "0 0 0 * * *") // runs every 1 day at midnight
+    public void cleanupExpiredPasswordResetTokens() {
+        List<PasswordResetToken> expiredTokens = passwordResetTokenRepository.findAllTokenExpiredAfter24Hours();
+
+        if (expiredTokens.isEmpty()) {
+            System.out.println("🧹 No expired password reset tokens to clean up.");
         } else {
-            System.out.println("🧹 No expired password reset tokens to delete.");
+            passwordResetTokenRepository.deleteAll(expiredTokens);
+            System.out.println("🧹 Cleaned up " + expiredTokens.size() + " expired password reset tokens.");
         }
     }
 }
