@@ -107,13 +107,12 @@
 
 - **Cases:**
 
-| Status code                  | Message to debug                 | Message to display (not mandatory)                 |
-| ---------------------------- | -------------------------------- | -------------------------------------------------- |
-| 200 OK ✅                    | Token refreshed successfully     | Đã làm mới token                                   |
-| 400 Bad Request 🚫           | Missing or invalid request body  | Yêu cầu không hợp lệ                               |
-| 401 Unauthorized 🚫          | Refresh token invalid or expired | Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại |
-| 403 Forbidden 🚫             | Refresh token revoked            | Token bị thu hồi                                   |
-| 500 Internal Server Error ❌ | Refresh processing failed        | Lỗi hệ thống                                       |
+| Status code                  | Message to debug                           | Message to display (not mandatory)                 |
+| ---------------------------- | ------------------------------------------ | -------------------------------------------------- |
+| 200 OK ✅                    | Token refreshed successfully               | Đã làm mới token                                   |
+| 400 Bad Request 🚫           | Refresh token must not be blank            | Token không được để trống                          |
+| 401 Unauthorized 🚫          | Refresh token invalid/not found or expired | Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại |
+| 500 Internal Server Error ❌ | Refresh processing failed                  | Lỗi hệ thống                                       |
 
 - **Notes:** ApiResponse.data = AuthResponse. Prefer httpOnly cookie for refresh tokens; if refresh token is stored in cookie, sending the cookie may be sufficient.
 
@@ -135,7 +134,6 @@
 | 200 OK ✅                    | Password reset link / token sent | Gửi yêu cầu đặt lại mật khẩu thành công |
 | 400 Bad Request 🚫           | Invalid email format             | Email không hợp lệ                      |
 | 404 Not Found 🚫             | User not found                   | Người dùng không tồn tại                |
-| 429 Too Many Requests 🚫     | Rate limit hit                   | Vui lòng thử lại sau                    |
 | 500 Internal Server Error ❌ | Sending email failed             | Lỗi hệ thống                            |
 
 - **Notes:** Backend will send reset link or token to email. Frontend should show generic success message to avoid user enumeration.
@@ -154,13 +152,12 @@
 
 - **Cases:**
 
-| Status code                  | Message to debug                         | Message to display (not mandatory)                 |
-| ---------------------------- | ---------------------------------------- | -------------------------------------------------- |
-| 200 OK ✅                    | Password reset successfully              | Đổi mật khẩu thành công                            |
-| 400 Bad Request 🚫           | Invalid or missing token / weak password | Token không hợp lệ hoặc mật khẩu không đạt yêu cầu |
-| 401 Unauthorized 🚫          | Token expired                            | Token đã hết hạn, yêu cầu đặt lại mật khẩu lại     |
-| 404 Not Found 🚫             | User not found                           | Người dùng không tồn tại                           |
-| 500 Internal Server Error ❌ | Reset processing failed                  | Lỗi hệ thống                                       |
+| Status code                  | Message to debug                           | Message to display (not mandatory)                 |
+| ---------------------------- | ------------------------------------------ | -------------------------------------------------- |
+| 200 OK ✅                    | Token refreshed successfully               | Đã làm mới token                                   |
+| 400 Bad Request 🚫           | Refresh token must not be blank            | Token không được để trống                          |
+| 401 Unauthorized 🚫          | Refresh token invalid/not found or expired | Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại |
+| 500 Internal Server Error ❌ | Refresh processing failed                  | Lỗi hệ thống                                       |
 
 - **Notes:** After successful reset, prompt user to log in with new password.
 
