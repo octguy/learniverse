@@ -17,6 +17,7 @@ import org.example.learniversebe.service.IPasswordResetTokenService;
 import org.example.learniversebe.service.IRefreshTokenService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -26,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
@@ -81,8 +83,9 @@ public class AuthServiceImpl implements IAuthService {
     public AuthResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail()).orElseThrow(() -> new RuntimeException("User not found"));
 
+        // Still throw BadCredentialsException to avoid giving hints to attackers
         if (!user.isEnabled()) {
-            throw new EmailNotVerifiedException("User not verified. Please verify your email.");
+            throw new BadCredentialsException("Email not verified, user disabled");
         }
 
         Authentication authentication = authenticationManager.authenticate(
@@ -113,53 +116,48 @@ public class AuthServiceImpl implements IAuthService {
     @Override
     @Transactional
     public AuthResponse register(RegisterRequest request) {
-        try {
-            if (userRepository.existsByEmail(request.getEmail())) {
-                throw new BadRequestException("Email already in use");
-            }
-
-            // Create a new record of user
-            User user = new User();
-            user.setId(UUID.randomUUID());
-            user.setEmail(request.getEmail());
-            user.setUsername(request.getUsername());
-            user.setEnabled(false);
-            user.setStatus(UserStatus.PENDING_VERIFICATION);
-            user.setCreatedAt(LocalDateTime.now());
-            user.setUpdatedAt(LocalDateTime.now());
-
-            Role role = roleRepository.findByName(UserRole.ROLE_USER)
-                    .orElseThrow(() -> new RuntimeException("Role not found"));
-
-            // Assign role to user
-            user.addRole(role); // role user will be added (cascade = CascadeType.ALL)
-            userRepository.save(user);
-
-            // Create a new record of auth credentials
-            AuthCredential authCredential = new AuthCredential();
-            authCredential.setId(UUID.randomUUID());
-            authCredential.setUser(user);
-            authCredential.setPassword(passwordEncoder.encode(request.getPassword()));
-            String verificationCode = generateVerificationCode();
-            authCredential.setVerificationCode(verificationCode);
-            authCredential.setVerificationExpiration(LocalDateTime.now().plusMinutes(expiration));
-            authCredential.setCreatedAt(LocalDateTime.now());
-            authCredential.setUpdatedAt(LocalDateTime.now());
-            authCredentialRepository.save(authCredential);
-
-            sendVerificationEmail(user.getEmail(), verificationCode);
-
-            return AuthResponse.builder()
-                    .id(user.getId())
-                    .email(user.getEmail())
-                    .username(user.getUsername())
-                    .accessToken(null)
-                    .refreshToken(null)
-                    .build();
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new EmailAlreadyInUseException("Email already in use");
         }
-        catch (Exception e) {
-            throw new RuntimeException("Registration failed: " + e.getMessage());
-        }
+
+        // Create a new record of user
+        User user = new User();
+        user.setId(UUID.randomUUID());
+        user.setEmail(request.getEmail());
+        user.setUsername(request.getUsername());
+        user.setEnabled(false);
+        user.setStatus(UserStatus.PENDING_VERIFICATION);
+        user.setCreatedAt(LocalDateTime.now());
+        user.setUpdatedAt(LocalDateTime.now());
+
+        Role role = roleRepository.findByName(UserRole.ROLE_USER)
+                .orElseThrow(() -> new RuntimeException("Role not found"));
+
+        // Assign role to user
+        user.addRole(role); // role user will be added (cascade = CascadeType.ALL)
+        userRepository.save(user);
+
+        // Create a new record of auth credentials
+        AuthCredential authCredential = new AuthCredential();
+        authCredential.setId(UUID.randomUUID());
+        authCredential.setUser(user);
+        authCredential.setPassword(passwordEncoder.encode(request.getPassword()));
+        String verificationCode = generateVerificationCode();
+        authCredential.setVerificationCode(verificationCode);
+        authCredential.setVerificationExpiration(LocalDateTime.now().plusMinutes(expiration));
+        authCredential.setCreatedAt(LocalDateTime.now());
+        authCredential.setUpdatedAt(LocalDateTime.now());
+        authCredentialRepository.save(authCredential);
+
+        sendVerificationEmail(user.getEmail(), verificationCode);
+
+        return AuthResponse.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .username(user.getUsername())
+                .accessToken(null)
+                .refreshToken(null)
+                .build();
     }
 
     @Override
@@ -175,24 +173,26 @@ public class AuthServiceImpl implements IAuthService {
         AuthCredential authCredential = authCredentialRepository.findByUser(userDetails)
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
 
-        if (authCredential.getVerificationExpiration().isBefore(LocalDateTime.now())) {
-            throw new InvalidVerificationCodeException("Verification code expired");
-        }
+        LocalDateTime expirationTime = authCredential.getVerificationExpiration();
+        String verificationCode = authCredential.getVerificationCode();
 
-        if (request.getVerificationCode().equals(authCredential.getVerificationCode())) {
-            userDetails.setEnabled(true);
-            userDetails.setStatus(UserStatus.ACTIVE);
-            userDetails.setUpdatedAt(LocalDateTime.now());
+        boolean expired = expirationTime == null || LocalDateTime.now().isAfter(expirationTime);
+        boolean invalidCode = verificationCode == null || !Objects.equals(verificationCode, request.getVerificationCode());
 
-            authCredential.setVerificationCode(null);
-            authCredential.setVerificationExpiration(null);
-            authCredential.setUpdatedAt(LocalDateTime.now());
-
-            userRepository.save(userDetails);
-            authCredentialRepository.save(authCredential);
-        } else {
+        if (expired || invalidCode) {
             throw new InvalidVerificationCodeException("Invalid verification code");
         }
+
+        userDetails.setEnabled(true);
+        userDetails.setStatus(UserStatus.ACTIVE);
+        userDetails.setUpdatedAt(LocalDateTime.now());
+
+        authCredential.setVerificationCode(null);
+        authCredential.setVerificationExpiration(null);
+        authCredential.setUpdatedAt(LocalDateTime.now());
+
+        userRepository.save(userDetails);
+        authCredentialRepository.save(authCredential);
     }
 
     @Override

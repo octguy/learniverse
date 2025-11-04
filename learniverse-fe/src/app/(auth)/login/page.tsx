@@ -40,10 +40,10 @@ export default function LoginPage() {
         setLoading(true);
         try {
             const response = await authService.login(formData);
-            // Nếu login thành công, response.result sẽ có accessToken
-            const { accessToken, refreshToken, user } = response.result!;
-            localStorage.setItem("accessToken", accessToken);
-            localStorage.setItem("refreshToken", refreshToken);
+            const { accessToken, refreshToken, email, username } = response;
+            console.log("Logged in as:", username, email);
+            sessionStorage.setItem("accessToken", accessToken);
+            sessionStorage.setItem("refreshToken", refreshToken);
             window.location.href = "/";
         } catch (err: any) {
             if (err.message === "Bad credentials") {

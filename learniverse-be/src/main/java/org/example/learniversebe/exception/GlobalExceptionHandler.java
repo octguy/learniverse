@@ -1,6 +1,7 @@
 package org.example.learniversebe.exception;
 
 import org.example.learniversebe.model.ApiResponse;
+import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -22,7 +23,6 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
     }
-
 
     @ExceptionHandler(EmailNotVerifiedException.class)
     public ResponseEntity<ApiResponse<?>> handleEmailNotVerifiedException(EmailNotVerifiedException ex) {
@@ -87,8 +87,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<?>> handleValidationException(MethodArgumentNotValidException ex) {
         String errorMessage = ex.getBindingResult().getFieldErrors().stream()
-                .map(error -> error.getField() + ": " + error.getDefaultMessage())
-                .reduce((first, second) -> first + ", " + second)
+                .map(DefaultMessageSourceResolvable::getDefaultMessage)
+                .reduce((first, second) -> first + ". " + second)
                 .orElse("Validation error");
 
         ApiResponse <?> apiResponse = new ApiResponse<>(
@@ -112,6 +112,19 @@ public class GlobalExceptionHandler {
         );
 
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(apiResponse);
+    }
+
+    @ExceptionHandler(EmailAlreadyInUseException.class)
+    public ResponseEntity<ApiResponse<?>> handleEmailAlreadyInUseException(EmailAlreadyInUseException ex) {
+        ApiResponse<?> apiResponse = new ApiResponse<>(
+                HttpStatus.CONFLICT,
+                ex.getMessage(),
+                null,
+                "EMAIL_ALREADY_IN_USE"
+        );
+
+        return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(apiResponse);
     }
 
