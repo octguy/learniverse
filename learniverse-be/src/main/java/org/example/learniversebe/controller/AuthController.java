@@ -122,6 +122,21 @@ public class AuthController {
         return ResponseEntity.ok(apiResponse);
     }
 
+    @Operation(summary="Change password", description = "Change the password of the currently authenticated user")
+    @PostMapping("/change-password")
+    public ResponseEntity<ApiResponse<String>> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+        authService.changePassword(request);
+
+        ApiResponse<String> apiResponse = new ApiResponse<>(
+                HttpStatus.OK,
+                "Password changed successfully",
+                "Password changed successfully",
+                null
+        );
+
+        return ResponseEntity.ok(apiResponse);
+    }
+
     @Operation(summary = "Logout user", description = "Logout the currently authenticated user")
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<String>> logout() {

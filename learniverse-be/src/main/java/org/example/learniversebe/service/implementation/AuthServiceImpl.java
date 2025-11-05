@@ -269,6 +269,26 @@ public class AuthServiceImpl implements IAuthService {
     }
 
     @Override
+    public void changePassword(ChangePasswordRequest request) {
+        User currentUser = getCurrentUser();
+        Optional<AuthCredential> authCredential = authCredentialRepository.findByUser(currentUser);
+
+        if (authCredential.isEmpty()) {
+            throw new UserNotFoundException("User not found");
+        }
+
+        AuthCredential credential = authCredential.get();
+        if (!passwordEncoder.matches(request.getCurrentPassword(), credential.getPassword())) {
+            throw new BadCredentialsException("Current password is incorrect");
+        }
+
+        credential.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        credential.setUpdatedAt(LocalDateTime.now());
+        credential.setLastPasswordChangeAt(LocalDateTime.now());
+        authCredentialRepository.save(credential);
+    }
+
+    @Override
     @Transactional
     public void logout() {
         User currentUser = getCurrentUser();
