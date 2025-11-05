@@ -161,7 +161,40 @@
 
 - **Notes:** After successful reset, prompt user to log in with new password.
 
-#### 8. Logout
+#### 8. Change password
+
+- **POST** /api/v1/auth/change-password
+- **Authentication**: Required — include access token in Authorization header: `Authorization: Bearer <access-token>`
+- **Body request** (JSON):
+
+```json
+{
+  "currentPassword": "OldP@ss1",
+  "newPassword": "NewP@ssw0rd"
+}
+```
+
+- **Validation / password policy**:
+  - New password must contain at least 1 number, 1 special character, and 1 uppercase letter (same regex enforced by backend).
+  - Frontend should validate format before submitting and require the user to re-enter new password for confirmation if desired.
+
+- **Cases:**
+
+| Status code                  | Message to debug                             | Message to display (not mandatory)               |
+| ---------------------------- | -------------------------------------------- |--------------------------------------------------|
+| 200 OK ✅                    | Password changed successfully                 | Thay đổi mật khẩu thành công                     |
+| 400 Bad Request 🚫           | Validation error (new password format)        | Mật khẩu mới không hợp lệ                        |
+| 401 Unauthorized 🚫          | Current password is incorrect  | Mật khẩu hiện tại không đúng |
+| 404 Not Found 🚫             | User not found                                | Người dùng không tồn tại                         |
+| 500 Internal Server Error ❌ | Change password processing failed             | Lỗi hệ thống                                     |
+
+- **Notes:**
+  - Backend will verify the provided currentPassword before updating to the new password.
+  - Use the access token (short-lived) in Authorization header; do not send refresh token here.
+  - After a successful change, backend updates lastPasswordChange timestamp; frontend may force re-authentication or refresh tokens per security policy.
+  - Show generic messages to users when appropriate to avoid leaking information.
+
+#### 9. Logout
 
 - **POST** /api/v1/auth/logout
 - **Body request**: none (or may include device identifier)
@@ -175,3 +208,88 @@
 | 500 Internal Server Error ❌ | Logout processing failed      | Lỗi hệ thống                       |
 
 - **Notes:** Backend should invalidate refresh tokens or session. Frontend must clear stored tokens and redirect to login.
+
+### Frontend token handling (recommended)
+
+- Do NOT store refresh tokens in localStorage. Refresh tokens are long-lived and should be stored in a secure, httpOnly cookie (SameSite=strict/lax as appropriate) so they are not accessible to JavaScript and are protected from XSS.
+- Store short-lived access tokens (JWT) in memory (e.g., React state, Redux store, or in-memory variable). If you must persist across tabs/sessions, prefer secure storage mechanisms and understand the tradeoffs.
+- Auto-redirect to login-page when refresh token is expired or invalid:
+  - If a refresh attempt returns 401/403 or the backend indicates the refresh token is expired, clear client auth state and redirect to the login page.
+- Refresh flow when access (JWT) expires:
+  - When an API call fails due to expired access token (401), call POST /api/v1/auth/refresh-token.
+    - If refresh-token is valid: backend returns a new accessToken (and optionally a new refreshToken). Replace the access token in memory and retry the original request — this provides smooth UX.
+    - If refresh-token is expired/invalid: redirect the user to the login page.
+- Frontend should validate password formats according to the backend policy before submitting (regex for new password).
+
+Example (concise) client-side flow using an HTTP interceptor (pseudocode):
+
+```javascript
+// Example: axios interceptor pseudocode
+// Assumptions:
+// - Access token stored in memory: auth.accessToken
+// - Refresh token sent automatically via httpOnly cookie (no JS access)
+// - /refresh-token accepts JSON { refreshToken: "<token>" } only if you store it elsewhere
+
+import axios from 'axios';
+
+const api = axios.create({ baseURL: '/api/v1' });
+
+let isRefreshing = false;
+let pendingRequests = [];
+
+api.interceptors.request.use(config => {
+  const token = auth.accessToken; // in-memory
+  if (token) config.headers['Authorization'] = `Bearer ${token}`;
+  return config;
+});
+
+api.interceptors.response.use(
+  res => res,
+  async err => {
+    const original = err.config;
+    if (err.response && err.response.status === 401 && !original._retry) {
+      // Access token likely expired
+      original._retry = true;
+
+      if (isRefreshing) {
+        // queue the request until refresh finishes
+        return new Promise((resolve, reject) => {
+          pendingRequests.push({ resolve, reject, original });
+        });
+      }
+
+      isRefreshing = true;
+      try {
+        // Try refreshing. If using httpOnly cookie for refresh token, backend will read cookie.
+        // If refresh token must be sent in body, include it here (less recommended).
+        const refreshResponse = await api.post('/auth/refresh-token', {/* optional body */});
+
+        // Set new access token in memory
+        auth.accessToken = refreshResponse.data.data.accessToken;
+
+        // retry pending requests
+        pendingRequests.forEach(p => p.resolve(api(p.original)));
+        pendingRequests = [];
+
+        // retry original
+        return api(original);
+      } catch (refreshError) {
+        // Refresh failed (expired/invalid) -> force logout and redirect to login
+        pendingRequests.forEach(p => p.reject(refreshError));
+        pendingRequests = [];
+        auth.clear(); // clear in-memory auth
+        window.location.href = '/login'; // or use router navigation
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+    return Promise.reject(err);
+  }
+);
+```
+
+Notes:
+- Prefer httpOnly cookies for refresh tokens; if your backend cannot use cookies, store refresh tokens in secure storage accessible only as needed and avoid localStorage.
+- Avoid leaking details to users; show generic messages like "Session expired, please sign in again" when redirecting to login.
+- Consider rotating refresh tokens (backend issues a new refresh token when refresh is used) to improve security.
