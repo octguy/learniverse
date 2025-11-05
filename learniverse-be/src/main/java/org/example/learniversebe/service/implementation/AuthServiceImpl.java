@@ -117,7 +117,11 @@ public class AuthServiceImpl implements IAuthService {
     @Transactional
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new EmailAlreadyInUseException("Email already in use");
+            throw new UserAlreadyExistException("Email already in use");
+        }
+
+        if (userRepository.existsByUsername(request.getUsername())) {
+            throw new UserAlreadyExistException("Username already in use");
         }
 
         // Create a new record of user

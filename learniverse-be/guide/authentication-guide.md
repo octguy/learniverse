@@ -25,12 +25,12 @@
 
 - **Cases:**
 
-| Status code                  | Message to debug             | Message to display (not mandatory)                                              |
-| ---------------------------- | ---------------------------- | ------------------------------------------------------------------------------- |
-| 201 Created ✅               | User registered successfully | Đăng ký thành công.                                                             |
-| 400 Bad Request 🚫           |                              | Thông tin đăng ký không hợp lệ                                                  |
-| 409 Conflict 🚫              | Email already in use         | Email đã tồn tại. Vui lòng dùng email khác. **(not recommended in production)** |
-| 500 Internal Server Error ❌ | Role not found               | Lỗi hệ thống.                                                                   |
+| Status code                  | Message to debug                | Message to display (not mandatory)                                                                |
+| ---------------------------- |---------------------------------|---------------------------------------------------------------------------------------------------|
+| 201 Created ✅               | User registered successfully    | Đăng ký thành công.                                                                               |
+| 400 Bad Request 🚫           |                                 | Thông tin đăng ký không hợp lệ                                                                    |
+| 409 Conflict 🚫              | Username / Email already in use | Email hoặc username đã tồn tại. Vui lòng dùng thông tin khác. **(not recommended in production)** |
+| 500 Internal Server Error ❌ | Role not found                  | Lỗi hệ thống.                                                                                     |
 
 - **Notes:** After registration user may need to verify email using code.
 
