@@ -48,12 +48,13 @@
 
 - **Cases:**
 
-| Status code                  | Message to debug                      | Message to display (not mandatory) |
-| ---------------------------- | ------------------------------------- | ---------------------------------- |
-| 200 OK ✅                    | User logged in successfully           | Đăng nhập thành công               |
-| 400 Bad Request 🚫           | Validation error                      | Thông tin đăng nhập không hợp lệ   |
-| 401 Unauthorized 🚫          | Invalid credentials / unverified user | Email hoặc mật khẩu không đúng     |
-| 500 Internal Server Error ❌ |                                       | Lỗi hệ thống                       |
+| Status code                 | Message to debug            | Message to display (not mandatory) |
+|-----------------------------|-----------------------------|------------------------------------|
+| 200 OK ✅                    | User logged in successfully | Đăng nhập thành công               |
+| 400 Bad Request 🚫          | Validation error            | Thông tin đăng nhập không hợp lệ   |
+| 401 Unauthorized 🚫         | Bad credentials             | Email hoặc mật khẩu không đúng     |
+| 403 Forbidden 🚫            | Unverified user             | Người dùng chưa xác thực           |
+| 500 Internal Server Error ❌ |                             | Lỗi hệ thống                       |
 
 #### 3. Verify user
 
