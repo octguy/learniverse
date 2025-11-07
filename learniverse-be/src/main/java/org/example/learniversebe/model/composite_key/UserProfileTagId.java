@@ -11,10 +11,10 @@ import java.util.UUID;
 @Getter
 @Setter
 public class UserProfileTagId {
-    @Column(name="user_id", columnDefinition = "uuid")
-    private UUID userId;
+    @Column(name="user_profile_id", columnDefinition = "uuid")
+    private UUID userProfileId;
 
-    @Column(name="role_id", columnDefinition = "uuid")
+    @Column(name="user_tag_id", columnDefinition = "uuid")
     private UUID userTagId;
 }
 

@@ -1,5 +1,6 @@
 package org.example.learniversebe.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -14,8 +15,14 @@ import java.util.UUID;
 @Setter
 public class UserProfileRequest {
     private UUID id;
-    private String display_name;
+
+    @JsonProperty("display_name")
+    private String displayName;
+
     private String bio;
-    private String avatar_url;
-    private Set<UserProfileTag> userTags = new HashSet<>();
+
+    @JsonProperty("avatar_url")
+    private String avatarUrl;
+
+    private Set<UserProfileTagRequest> userTags = new HashSet<>();
 }

@@ -7,7 +7,6 @@ import org.example.learniversebe.model.composite_key.UserProfileTagId;
 
 @Entity
 @Table(name="user_profile_tag")
-@IdClass(UserProfileTagId.class)
 @Getter
 @Setter
 public class UserProfileTag {
@@ -15,9 +14,9 @@ public class UserProfileTag {
     private UserProfileTagId userProfileTagId = new UserProfileTagId(); // initialize to avoid NullPointerException
 
     @ManyToOne
-    @MapsId("userId")
-    @JoinColumn(name="user_id", referencedColumnName = "id", nullable = false)
-    private User user;
+    @MapsId("userProfileId")
+    @JoinColumn(name="user_profile_id", referencedColumnName = "id", nullable = false)
+    private UserProfile userProfile;
 
     @ManyToOne
     @MapsId("userTagId")

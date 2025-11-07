@@ -25,13 +25,13 @@ public class UserProfile extends BaseEntity {
     private User user;
 
     @Column(name="display_name")
-    private String display_name;
+    private String displayName;
 
     @Column(name="bio", length=500)
     private String bio;
 
     @Column(name="avatar_url")
-    private String avatar_url;
+    private String avatarUrl;
 
     @Column(name="post_count")
     private int postCount = 0;
