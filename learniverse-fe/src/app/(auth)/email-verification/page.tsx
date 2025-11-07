@@ -23,14 +23,14 @@ export default function VerifyEmailPage() {
     const [showDialog, setShowDialog] = useState(true)
 
     return (
-        <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
+        <div className="relative min-h-screen flex  items-center justify-center overflow-hidden">
             {/* Background */}
             <img
                 src="/login-banner.jpg"
                 alt="Background"
                 className="absolute inset-0 w-full h-full object-cover blur-md scale-105"
             />
-            <div className="absolute inset-0 bg-black/0" />
+            <div className="absolute inset-0 bg-black/0"  />
 
             {/* Logo */}
             <img
@@ -40,12 +40,12 @@ export default function VerifyEmailPage() {
             />
 
             {/* Card */}
-            <div className="relative z-10 bg-white/90 backdrop-blur-lg rounded-2xl shadow-2xl p-6 w-full max-w-md mx-auto">
+            <div className="relative z-10 bg-white/90 backdrop-blur-lg  shadow-2xl p-6 w-full max-w-md mx-auto">
                 <div className="flex justify-end mb-6">
                     <Link href="/login">
                         <Button
                             variant="outline"
-                            className="rounded-full px-6 py-2 text-sm border-black text-black hover:bg-gray-100"
+                            className=" px-6 py-2 text-sm border-black text-black hover:bg-gray-100"
                         >
                             ← Đăng nhập
                         </Button>

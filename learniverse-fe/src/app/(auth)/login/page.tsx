@@ -9,9 +9,11 @@ import { Eye, EyeOff } from "lucide-react"
 import { useState } from "react"
 import { AuthButton } from "@/components/auth/auth-button"
 import { authService } from "@/lib/api/authService"
+import {getErrorMessage, DEFAULT_ERROR_MESSAGE, AUTH_ERROR_MESSAGES} from "@/lib/errorMap";
 
 export default function LoginPage() {
     const [showPassword, setShowPassword] = useState(false)
+    const [showOTPDialog, setShowOTPDialog] = useState(false)
     const [formData, setFormData] = useState({
         email: "",
         password: "",
@@ -19,7 +21,7 @@ export default function LoginPage() {
     })
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
-
+    const [isUnverifiedUser, setIsUnverifiedUser] = useState(false)
     const validateEmail = (email: string) => {
         const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
         return regex.test(email)
@@ -46,18 +48,15 @@ export default function LoginPage() {
             sessionStorage.setItem("refreshToken", refreshToken);
             window.location.href = "/";
         } catch (err: any) {
-            if (err.message === "Bad credentials") {
-                setError("❌ Email hoặc mật khẩu không đúng.")}
-            else
-                if (err.message === "password: Password must contain at least 1 number, 1 special character, and 1 uppercase letter") {
-                    setError("❌ Mật khẩu phải chứa ít nhất 1 số, 1 ký tự đặc biệt và 1 chữ hoa.");
+            let errMsg = getErrorMessage(err);
+            const isUnverified = err.httpStatus === 402 || err.errorCode === "USER_NOT_VERIFIED";
+
+            if (isUnverified) {
+                errMsg = AUTH_ERROR_MESSAGES.USER_NOT_VERIFIED;
+                setIsUnverifiedUser(true);
+                setShowOTPDialog(true);
             }
-                else
-                    if (err.message === "Failed to fetch") {
-                        setError("Hệ thống đang bận. Thử lại sau!");}
-                    else {
-                setError(err.message || "Đã xảy ra lỗi. Vui lòng thử lại.");
-            }
+            setError(errMsg);
         } finally {
             setLoading(false);
         }
@@ -137,15 +136,9 @@ export default function LoginPage() {
 
                     <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
-                            <Checkbox
-                                id="remember"
-                                checked={formData.remember}
-                                onCheckedChange={(val) =>
-                                    setFormData({ ...formData, remember: Boolean(val) })
-                                }
-                            />
+
                             <Label htmlFor="remember" className="text-gray-600 text-sm">
-                                Ghi nhớ tôi
+
                             </Label>
                         </div>
 
@@ -164,19 +157,21 @@ export default function LoginPage() {
                     />
 
                     {error && (
-                        <p className="text-red-500 text-sm mb-4 text-center">{error}</p>
+                        <p className="text-red-500 text-sm mb-4 text-center">
+                            {error}
+                            {error === AUTH_ERROR_MESSAGES.USER_NOT_VERIFIED && (
+                                <Button
+                                    variant="link"
+                                    onClick={() => setShowOTPDialog(true)}
+                                    className="p-0 h-auto ml-1 text-sm text-red-500 underline"
+                                >
+                                    Xác thực ngay
+                                </Button>
+                            )}
+                        </p>
                     )}
 
-                    <div className="flex items-center my-4">
-                        <div className="flex-grow border-t border-gray-300" />
-                        <span className="mx-2 text-gray-500 text-sm">hoặc</span>
-                        <div className="flex-grow border-t border-gray-300" />
-                    </div>
 
-                    <div className="space-y-3">
-                        <AuthButton provider={"google"} />
-                        <AuthButton provider={"facebook"} />
-                    </div>
                 </form>
 
                 <p className="text-center text-sm text-gray-600 mt-6">

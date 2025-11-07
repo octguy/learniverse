@@ -3,6 +3,7 @@ package org.example.learniversebe.model;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -11,6 +12,7 @@ import java.util.UUID;
 @Table(name="auth_credential")
 @Getter
 @Setter
+@SQLRestriction("deleted_at IS NULL")
 public class AuthCredential extends BaseEntity {
 
     @Id

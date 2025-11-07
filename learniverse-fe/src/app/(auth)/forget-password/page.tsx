@@ -6,11 +6,14 @@ import { Label } from "@/components/ui/label"
 import Link from "next/link"
 import React, { useState } from "react"
 import { authService } from "@/lib/api/authService"
+import { getErrorMessage, DEFAULT_ERROR_MESSAGE } from "@/lib/errorMap";
 
 export default function ForgotPasswordPage() {
     const [email, setEmail] = useState("")
     const [message, setMessage] = useState("")
     const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
+    const [error, setError] = useState("")
+    const [loading, setLoading] = useState(false)
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -22,8 +25,11 @@ export default function ForgotPasswordPage() {
             setStatus("success")
             setMessage("✅ Liên kết đặt lại mật khẩu đã được gửi đến email của bạn!")
         } catch (err: any) {
-            setStatus("error")
-            setMessage(err.message || "❌ Có lỗi xảy ra, vui lòng thử lại.")
+            const errMsg = getErrorMessage(err);
+            setMessage(errMsg); 
+            setStatus("error"); 
+        } finally {
+            setLoading(false);
         }
     }
 

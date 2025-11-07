@@ -117,7 +117,11 @@ public class AuthServiceImpl implements IAuthService {
     @Transactional
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new EmailAlreadyInUseException("Email already in use");
+            throw new UserAlreadyExistException("Email already in use");
+        }
+
+        if (userRepository.existsByUsername(request.getUsername())) {
+            throw new UserAlreadyExistException("Username already in use");
         }
 
         // Create a new record of user
@@ -266,6 +270,26 @@ public class AuthServiceImpl implements IAuthService {
         authCredentialRepository.save(authCredential);
 
         passwordResetTokenService.markTokenAsUsed(resetToken);
+    }
+
+    @Override
+    public void changePassword(ChangePasswordRequest request) {
+        User currentUser = getCurrentUser();
+        Optional<AuthCredential> authCredential = authCredentialRepository.findByUser(currentUser);
+
+        if (authCredential.isEmpty()) {
+            throw new UserNotFoundException("User not found");
+        }
+
+        AuthCredential credential = authCredential.get();
+        if (!passwordEncoder.matches(request.getCurrentPassword(), credential.getPassword())) {
+            throw new BadCredentialsException("Current password is incorrect");
+        }
+
+        credential.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        credential.setUpdatedAt(LocalDateTime.now());
+        credential.setLastPasswordChangeAt(LocalDateTime.now());
+        authCredentialRepository.save(credential);
     }
 
     @Override

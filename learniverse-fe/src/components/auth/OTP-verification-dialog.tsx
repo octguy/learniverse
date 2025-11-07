@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from "@/components/ui/input-otp"
 import {authService} from "@/lib/api/authService";
+import { getErrorMessage, DEFAULT_ERROR_MESSAGE } from "@/lib/errorMap";
+import {cn} from "@/lib/utils";
 
 interface OTPDialogProps {
     email: string
@@ -19,6 +21,7 @@ export function OTPVerificationDialog({ email, onClose, onVerified }: OTPDialogP
 
     const handleVerify = async (e: React.FormEvent) => {
         e.preventDefault()
+        setMessage("");
         if (otp.length < 6) {
             setMessage("❌ Vui lòng nhập đủ 6 số OTP.")
             return
@@ -34,7 +37,7 @@ export function OTPVerificationDialog({ email, onClose, onVerified }: OTPDialogP
             setMessage("✅ Xác thực thành công! Đang chuyển hướng...");
             setTimeout(() => (window.location.href = "/login"), 1500);
         } catch (err: any) {
-            setMessage(err.message || "❌ Mã OTP không hợp lệ hoặc đã hết hạn.");
+            setMessage(getErrorMessage(err));
         } finally {
             setLoading(false);
         }
@@ -46,12 +49,21 @@ export function OTPVerificationDialog({ email, onClose, onVerified }: OTPDialogP
         try {
             await authService.resendVerificationCode(email)
             setMessage("✅ Mã OTP mới đã được gửi đến email của bạn.")
-        } catch {
-            setMessage("❌ Không thể gửi lại OTP. Vui lòng thử lại sau.")
+        } catch (err: any) {
+            setMessage(getErrorMessage(err));
         } finally {
             setLoading(false)
         }
     }
+
+    const isError = message.includes("lỗi") ||
+        message.includes("hạn") ||
+        message.includes("tồn tại") ||
+        message.includes("sai") ||
+        message.includes("thất bại") ||
+        message.includes("❌") ||
+        message.includes("hợp lệ") ||
+        message.includes("quyền");
 
     return (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
@@ -78,7 +90,14 @@ export function OTPVerificationDialog({ email, onClose, onVerified }: OTPDialogP
                     </InputOTPGroup>
                 </InputOTP>
 
-                {message && <p className="text-sm mb-4 text-center">{message}</p>}
+                {message && (
+                    <p className={cn(
+                        "text-sm mb-4 text-center",
+                        isError ? "text-red-500" : "text-green-600"
+                    )}>
+                        {message}
+                    </p>
+                )}
 
                 <div className="flex justify-between items-center">
                     <Button onClick={onClose} variant="outline" className="px-4 py-2">Hủy</Button>

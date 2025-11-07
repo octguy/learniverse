@@ -175,7 +175,7 @@ export default function ComponentTestPage() {
               </Card>
 
               <Card className="mt-6">
-                  <OTPVerificationDialog/>
+
               </Card>
 
               <Card>

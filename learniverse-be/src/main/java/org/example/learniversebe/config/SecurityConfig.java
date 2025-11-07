@@ -1,6 +1,5 @@
 package org.example.learniversebe.config;
 
-import org.example.learniversebe.enums.UserRole;
 import org.example.learniversebe.jwt.JwtAuthenticationEntryPoint;
 import org.example.learniversebe.jwt.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
@@ -79,7 +78,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/comments/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/tags/**").permitAll()
 
-                        .requestMatchers("/api/v1/dummy/**").hasRole("USER")
+                        .requestMatchers("/api/v1/dummy/**", "/api/v1/auth/change-password").hasRole("USER")
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(authenticationEntryPoint))

@@ -3,7 +3,7 @@ console.log("API_URL = ", API_URL);
 async function handleResponse<T>(response: Response): Promise<T> {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.message || "Request failed");
+    throw { ...data, httpStatus: response.status };
   }
   return data;
 }

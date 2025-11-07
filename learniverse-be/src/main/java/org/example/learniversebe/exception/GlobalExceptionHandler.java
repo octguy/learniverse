@@ -115,13 +115,13 @@ public class GlobalExceptionHandler {
                 .body(apiResponse);
     }
 
-    @ExceptionHandler(EmailAlreadyInUseException.class)
-    public ResponseEntity<ApiResponse<?>> handleEmailAlreadyInUseException(EmailAlreadyInUseException ex) {
+    @ExceptionHandler(UserAlreadyExistException.class)
+    public ResponseEntity<ApiResponse<?>> handleEmailAlreadyInUseException(UserAlreadyExistException ex) {
         ApiResponse<?> apiResponse = new ApiResponse<>(
                 HttpStatus.CONFLICT,
                 ex.getMessage(),
                 null,
-                "EMAIL_ALREADY_IN_USE"
+                "USER_ALREADY_EXISTS"
         );
 
         return ResponseEntity.status(HttpStatus.CONFLICT)

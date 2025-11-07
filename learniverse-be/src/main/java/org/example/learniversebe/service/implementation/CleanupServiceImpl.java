@@ -45,7 +45,7 @@ public class CleanupServiceImpl implements ICleanupService {
         List<User> users = userRepository.findPendingUserExceedOneDay();
 
         if (users.isEmpty()) {
-            System.out.println("🧹 No unverified users to clean up.");
+            System.out.println("No unverified users to clean up.");
         } else {
             List<AuthCredential> authCredentials = authCredentialRepository.findAllByUserIn(users);
 
@@ -56,7 +56,7 @@ public class CleanupServiceImpl implements ICleanupService {
             userRepository.saveAll(users);
             authCredentialRepository.saveAll(authCredentials);
 
-            System.out.println("🧹 Cleaned up " + users.size() + " unverified users and their credentials.");
+            System.out.println("Cleaned up " + users.size() + " unverified users and their credentials.");
         }
     }
 
@@ -67,10 +67,10 @@ public class CleanupServiceImpl implements ICleanupService {
         List<RefreshToken> expiredTokens = refreshTokenRepository.findAllTokenExpiredAfter24Hours();
 
         if (expiredTokens.isEmpty()) {
-            System.out.println("🧹 No expired refresh tokens to clean up.");
+            System.out.println("No expired refresh tokens to clean up.");
         } else {
             refreshTokenRepository.deleteAll(expiredTokens);
-            System.out.println("🧹 Cleaned up " + expiredTokens.size() + " expired refresh tokens.");
+            System.out.println("Cleaned up " + expiredTokens.size() + " expired refresh tokens.");
         }
     }
 
@@ -81,10 +81,10 @@ public class CleanupServiceImpl implements ICleanupService {
         List<PasswordResetToken> expiredTokens = passwordResetTokenRepository.findAllTokenExpiredAfter24Hours();
 
         if (expiredTokens.isEmpty()) {
-            System.out.println("🧹 No expired password reset tokens to clean up.");
+            System.out.println("No expired password reset tokens to clean up.");
         } else {
             passwordResetTokenRepository.deleteAll(expiredTokens);
-            System.out.println("🧹 Cleaned up " + expiredTokens.size() + " expired password reset tokens.");
+            System.out.println("Cleaned up " + expiredTokens.size() + " expired password reset tokens.");
         }
     }
 }

@@ -8,39 +8,65 @@ import Link from "next/link"
 import { useState, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { authService } from "@/lib/api/authService"
+import { getErrorMessage, DEFAULT_ERROR_MESSAGE } from "@/lib/errorMap";
 
 export default function ResetPasswordPage() {
     const searchParams = useSearchParams()
     const router = useRouter()
-    const token = searchParams.get("token")
+    const token = searchParams.get("token") || ""
     const [isValidToken, setIsValidToken] = useState<boolean | null>(null)
+
     const [showPassword, setShowPassword] = useState(false)
     const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-    const [formData, setFormData] = useState({ password: "", confirmPassword: "" })
+    const [password, setPassword] = useState("")
+    const [confirmPassword, setConfirmPassword] = useState("")
+
     const [message, setMessage] = useState("")
+    const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
 
     useEffect(() => {
         if (!token) {
             setIsValidToken(false)
+            setMessage("❌ Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.")
         } else {
             setIsValidToken(true)
         }
     }, [token])
 
+    const validatePassword = (pwd: string) => {
+        const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/
+        return regex.test(pwd)
+    }
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!token) return
-        if (formData.password !== formData.confirmPassword) {
-            setMessage("❌ Mật khẩu không khớp!")
+        setStatus("loading")
+        setMessage("")
+
+        if (password !== confirmPassword) {
+            setMessage("❌ Mật khẩu xác nhận không khớp!")
+            setStatus("error")
+            return
+        }
+
+        if (!validatePassword(password)) {
+            setMessage("❌ Mật khẩu phải có ít nhất 8 ký tự, gồm chữ hoa, chữ thường và số.")
+            setStatus("error")
             return
         }
 
         try {
-            await authService.resetPassword({ token, newPassword: formData.password })
+            await authService.resetPassword({ token, newPassword: password })
+            setStatus("success")
             setMessage("✅ Mật khẩu đã được đặt lại thành công!")
             setTimeout(() => router.push("/login"), 2000)
         } catch (err: any) {
-            setMessage("❌ Liên kết không hợp lệ hoặc đã hết hạn.")
+            let errMsg = getErrorMessage(err);
+            if (err.httpStatus === 400) {
+                errMsg = "❌ Mật khẩu mới không hợp lệ. Vui lòng kiểm tra lại yêu cầu về độ dài và định dạng."
+            }
+            setMessage(errMsg);
+            setStatus("error");
         }
     }
 
@@ -75,8 +101,9 @@ export default function ResetPasswordPage() {
                                     id="password"
                                     type={showPassword ? "text" : "password"}
                                     placeholder="••••••••"
-                                    value={formData.password}
-                                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
                                 />
                                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-8 text-gray-500">
                                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -89,21 +116,28 @@ export default function ResetPasswordPage() {
                                     id="confirmPassword"
                                     type={showConfirmPassword ? "text" : "password"}
                                     placeholder="••••••••"
-                                    value={formData.confirmPassword}
-                                    onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    required
                                 />
                                 <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-4 top-8 text-gray-500">
                                     {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                 </button>
                             </div>
 
-                            <Button type="submit" className="w-full rounded-full bg-[#2D55FB] hover:bg-[#1b3de0] text-white font-medium py-2">
-                                Cập nhật mật khẩu
+                            <Button
+                                type="submit"
+                                className="w-full rounded-full bg-[#2D55FB] hover:bg-[#1b3de0] text-white font-medium py-2"
+                                disabled={status === "loading"}
+                            >
+                                {status === "loading" ? "Đang xử lý..." : "Cập nhật mật khẩu"}
                             </Button>
                         </form>
 
                         {message && (
-                            <p className="text-center text-sm mt-4 text-gray-700">{message}</p>
+                            <p className={`text-center text-sm mt-4 ${status === "success" ? "text-green-600" : "text-red-600"}`}>
+                                {message}
+                            </p>
                         )}
                     </>
                 )}

@@ -9,6 +9,7 @@ import { useState } from "react"
 import { AuthButton } from "@/components/auth/auth-button"
 import { authService } from "@/lib/api/authService"
 import { OTPVerificationDialog } from "@/components/auth/OTP-verification-dialog"
+import { getErrorMessage, DEFAULT_ERROR_MESSAGE } from "@/lib/errorMap";
 
 export default function SignupPage() {
     const [showPassword, setShowPassword] = useState(false)
@@ -28,7 +29,6 @@ export default function SignupPage() {
     }
 
     const validatePassword = (password: string) => {
-        // Ít nhất 8 ký tự, 1 chữ hoa, 1 chữ thường, 1 số
         const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/
         return regex.test(password)
     }
@@ -67,7 +67,7 @@ export default function SignupPage() {
             setRegisteredEmail(formData.email)
             setShowOTPDialog(true)
         } catch (err: any) {
-            setError(err.message || "Đăng ký thất bại")
+            setError(getErrorMessage(err));
         } finally {
             setLoading(false)
         }
@@ -180,16 +180,7 @@ export default function SignupPage() {
                         <p className="text-red-500 text-sm text-center mb-4">{error}</p>
                     )}
 
-                    <div className="flex items-center my-4">
-                        <div className="flex-grow border-t border-gray-300" />
-                        <span className="mx-2 text-gray-500 text-sm">hoặc</span>
-                        <div className="flex-grow border-t border-gray-300" />
-                    </div>
 
-                    <div className="space-y-3">
-                        <AuthButton provider="google" />
-                        <AuthButton provider="facebook" />
-                    </div>
                 </form>
 
                 <p className="text-center text-sm text-gray-600 mt-6">
