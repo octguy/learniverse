@@ -318,7 +318,7 @@ public class AuthServiceImpl implements IAuthService {
 
     private void sendForgetPasswordEmail(String email, String token) {
         String subject = "Password Reset Request";
-        String resetLink = "http://localhost:8080/api/v1/auth/reset-password?token=" + token; // Replace with your frontend URL
+        String resetLink = "http://localhost:8386/reset-password?token=" + token;// Replace with your frontend URL
         String htmlMessage = "<html>"
                 + "<body style=\"font-family: Arial, sans-serif;\">"
                 + "<div style=\"background-color: #f5f5f5; padding: 20px;\">"
