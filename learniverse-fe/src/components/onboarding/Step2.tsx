@@ -14,17 +14,17 @@ const purposes = [
   {
     id: "study",
     title: "Học tập",
-    image: "/onboarding/study.png",
+    image: "/onboarding/study.jpg",
   },
   {
     id: "friends",
     title: "Kết bạn",
-    image: "/onboarding/friends.png",
+    image: "/onboarding/friends.jpg",
   },
   {
     id: "personal",
     title: "Mục đích cá nhân",
-    image: "/onboarding/personal.png",
+    image: "/onboarding/personal.jpeg",
   },
 ]
 
@@ -67,7 +67,7 @@ export default function Step2({ onNext, onPrev }: Step2Props) {
                     : "border-gray-200 bg-white hover:bg-gray-50"
                 )}
               >
-                <div className="flex-1 bg-gray-50 flex items-center justify-center p-5">
+                <div className="flex-1 bg-white flex items-center justify-center p-5">
                   <Image
                     src={item.image}
                     alt={item.title}

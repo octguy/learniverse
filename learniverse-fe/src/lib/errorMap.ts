@@ -7,7 +7,7 @@ export const AUTH_ERROR_MESSAGES: { [key: string]: string } = {
     // === Login (POST /api/v1/auth/login) ===
     'VALIDATION_ERROR': 'Thông tin đăng nhập không hợp lệ', // 400
     'INVALID_CREDENTIALS': 'Email hoặc mật khẩu không đúng', // 401
-    'USER_NOT_VERIFIED': 'Email chưa được xác thực.', // 402
+    'EMAIL_NOT_VERIFIED': 'Email chưa được xác thực.', // 402
     'BAD_CREDENTIALS': 'Email hoặc mật khẩu không đúng',
 
 
@@ -48,8 +48,8 @@ export const HTTP_STATUS_ERROR_MESSAGES: { [key: number]: string } = {
     400: 'Yêu cầu không hợp lệ. Vui lòng kiểm tra lại thông tin.',
     401: 'Bạn không có quyền truy cập hoặc phiên đăng nhập đã hết hạn.',
     402: 'Tài khoản chưa được xác thực. Vui lòng hoàn tất xác thực.',
-    404: 'Không tìm thấy tài nguyên.',
-    409: 'Xung đột dữ liệu. Có thể email đã tồn tại.',
+    403: 'Không tìm thấy tài nguyên.',
+    409: 'Email hoặc username đã tồn tại. Vui lòng dùng thông tin khác.',
     500: 'Lỗi máy chủ. Vui lòng thử lại sau.'
 };
 

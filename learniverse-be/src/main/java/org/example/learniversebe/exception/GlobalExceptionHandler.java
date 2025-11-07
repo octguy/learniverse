@@ -12,6 +12,18 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(AccountNotActivatedException.class)
+    public ResponseEntity<ApiResponse<?>> handleAccountNotActivatedException(AccountNotActivatedException ex) {
+        ApiResponse<?> response = new ApiResponse<>(
+                HttpStatus.FORBIDDEN,
+                ex.getMessage(),
+                null,
+                "ACCOUNT_NOT_ACTIVATED"
+        );
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<ApiResponse<?>> handleUnauthorizedException(UnauthorizedException ex) {
         ApiResponse<?> response = new ApiResponse<>(

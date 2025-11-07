@@ -29,17 +29,15 @@ export default function SignupPage() {
     }
 
     const validatePassword = (password: string) => {
-        const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/
+        const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/
         return regex.test(password)
     }
-
     const [showOTPDialog, setShowOTPDialog] = useState(false)
     const [registeredEmail, setRegisteredEmail] = useState("")
 
     const handleRegister = async () => {
         setError("")
-
-        // Validations
+        let validationFailed = false;
         if (!formData.username.trim()) {
             setError("Vui lòng nhập username")
             return
@@ -49,9 +47,11 @@ export default function SignupPage() {
             return
         }
         if (!validatePassword(formData.password)) {
-            setError("Mật khẩu phải có ít nhất 8 ký tự, gồm chữ hoa, chữ thường và số")
+            setError("Mật khẩu phải có ít nhất 8 ký tự, gồm chữ hoa, chữ thường, số VÀ ký tự đặc biệt.")
+            validationFailed = true;
             return
         }
+
         if (formData.password !== formData.confirmPassword) {
             setError("Mật khẩu xác nhận không khớp")
             return
@@ -67,7 +67,11 @@ export default function SignupPage() {
             setRegisteredEmail(formData.email)
             setShowOTPDialog(true)
         } catch (err: any) {
-            setError(getErrorMessage(err));
+            if (err.httpStatus === 400) {
+                setError("❌ Thông tin đăng ký không hợp lệ. Vui lòng kiểm tra lại định dạng mật khẩu, email và username.")
+            } else {
+                setError(getErrorMessage(err));
+            }
         } finally {
             setLoading(false)
         }

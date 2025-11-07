@@ -26,6 +26,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.file.AccessDeniedException;
 import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.Optional;
@@ -81,11 +82,11 @@ public class AuthServiceImpl implements IAuthService {
 
     @Override
     public AuthResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.getEmail()).orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepository.findByEmail(request.getEmail()).orElseThrow(() -> new BadCredentialsException("Bad credentials"));
 
         // Still throw BadCredentialsException to avoid giving hints to attackers
         if (!user.isEnabled()) {
-            throw new BadCredentialsException("Email not verified, user disabled");
+            throw new AccountNotActivatedException("Email not verified!");
         }
 
         Authentication authentication = authenticationManager.authenticate(

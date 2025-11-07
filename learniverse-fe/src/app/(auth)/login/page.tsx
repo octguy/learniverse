@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
+import { OTPVerificationDialog } from "@/components/auth/OTP-verification-dialog"
 import Link from "next/link"
 import { Eye, EyeOff } from "lucide-react"
 import { useState } from "react"
@@ -49,7 +50,7 @@ export default function LoginPage() {
             window.location.href = "/";
         } catch (err: any) {
             let errMsg = getErrorMessage(err);
-            const isUnverified = err.httpStatus === 402 || err.errorCode === "USER_NOT_VERIFIED";
+            const isUnverified = err.httpStatus === 403 || err.errorCode === "EMAIL_NOT_VERIFIED";
 
             if (isUnverified) {
                 errMsg = AUTH_ERROR_MESSAGES.USER_NOT_VERIFIED;
@@ -184,6 +185,13 @@ export default function LoginPage() {
                     </Link>
                 </p>
             </div>
+            {showOTPDialog && formData.email && (
+                <OTPVerificationDialog
+                    email={formData.email}
+                    onClose={() => setShowOTPDialog(false)}
+                    onVerified={() => window.location.href = "/"}
+                />
+            )}
         </div>
     )
 }
