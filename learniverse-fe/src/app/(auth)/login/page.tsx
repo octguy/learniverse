@@ -42,8 +42,8 @@ export default function LoginPage() {
 
         setLoading(true);
         try {
-            const response = await authService.login(formData);
-            const { accessToken, refreshToken, email, username } = response;
+            const apiResponse = await authService.login(formData);
+            const { accessToken, refreshToken, email, username } = apiResponse.data;
             console.log("Logged in as:", username, email);
             sessionStorage.setItem("accessToken", accessToken);
             sessionStorage.setItem("refreshToken", refreshToken);

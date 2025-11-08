@@ -31,7 +31,7 @@ export const authService = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    return handleResponse<AuthResponse>(res);
+    return handleResponse<ApiResponse<AuthResponse>>(res);
   },
 
   async verifyUser(payload: {
@@ -98,7 +98,7 @@ export const authService = {
 export interface ApiResponse<T> {
   status: string | number;
   message: string;
-  result: T;
+  data: T;
   errors: unknown;
 }
 
