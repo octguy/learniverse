@@ -20,6 +20,8 @@ public interface IAuthService {
 
     void resetPassword(ResetPasswordRequest request);
 
+    void changePassword(ChangePasswordRequest request);
+
     void logout();
 }
 

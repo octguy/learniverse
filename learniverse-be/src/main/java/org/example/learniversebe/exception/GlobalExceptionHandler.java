@@ -1,6 +1,7 @@
 package org.example.learniversebe.exception;
 
 import org.example.learniversebe.model.ApiResponse;
+import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -10,6 +11,18 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(AccountNotActivatedException.class)
+    public ResponseEntity<ApiResponse<?>> handleAccountNotActivatedException(AccountNotActivatedException ex) {
+        ApiResponse<?> response = new ApiResponse<>(
+                HttpStatus.FORBIDDEN,
+                ex.getMessage(),
+                null,
+                "ACCOUNT_NOT_ACTIVATED"
+        );
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
 
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<ApiResponse<?>> handleUnauthorizedException(UnauthorizedException ex) {
@@ -22,7 +35,6 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
     }
-
 
     @ExceptionHandler(EmailNotVerifiedException.class)
     public ResponseEntity<ApiResponse<?>> handleEmailNotVerifiedException(EmailNotVerifiedException ex) {
@@ -87,8 +99,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<?>> handleValidationException(MethodArgumentNotValidException ex) {
         String errorMessage = ex.getBindingResult().getFieldErrors().stream()
-                .map(error -> error.getField() + ": " + error.getDefaultMessage())
-                .reduce((first, second) -> first + ", " + second)
+                .map(DefaultMessageSourceResolvable::getDefaultMessage)
+                .reduce((first, second) -> first + ". " + second)
                 .orElse("Validation error");
 
         ApiResponse <?> apiResponse = new ApiResponse<>(
@@ -112,6 +124,19 @@ public class GlobalExceptionHandler {
         );
 
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(apiResponse);
+    }
+
+    @ExceptionHandler(UserAlreadyExistException.class)
+    public ResponseEntity<ApiResponse<?>> handleEmailAlreadyInUseException(UserAlreadyExistException ex) {
+        ApiResponse<?> apiResponse = new ApiResponse<>(
+                HttpStatus.CONFLICT,
+                ex.getMessage(),
+                null,
+                "USER_ALREADY_EXISTS"
+        );
+
+        return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(apiResponse);
     }
 

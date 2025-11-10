@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import org.example.learniversebe.enums.UserStatus;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -12,6 +13,7 @@ import java.util.*;
 @Table(name="\"user\"")
 @Getter
 @Setter
+@SQLRestriction("deleted_at IS NULL")
 public class User extends BaseEntity {
 
     @Id
@@ -38,8 +40,8 @@ public class User extends BaseEntity {
     private Set<RoleUser> roleUsers = new HashSet<>();
 
     public void addRole(Role role) {
-//        System.out.println("User ID = " + this.getId());
-//        System.out.println("Role ID = " + role.getId());
+        // System.out.println("User ID = " + this.getId());
+        // System.out.println("Role ID = " + role.getId());
         RoleUser roleUser = new RoleUser();
         roleUser.setRole(role);
         roleUser.setUser(this);

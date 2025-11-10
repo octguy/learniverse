@@ -37,7 +37,7 @@ out/
 .vscode/
 
 ### env files ###
-.env
+src/main/resources/.env
 
 ### gradle files ###
 /gradle
