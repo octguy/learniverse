@@ -88,13 +88,13 @@ export function Header() {
           </Link>
 
           {/* Profile */}
-          <div className="flex flex-col items-center text-gray-600 hover:text-primary">
+          <Link href="/profile" className="flex flex-col items-center text-gray-600 hover:text-primary">
             <Avatar className="w-6 h-6">
               <AvatarImage src={sampleUser.avatar} alt={sampleUser.displayName} />
               <AvatarFallback>{sampleUser.displayName?.charAt(0)}</AvatarFallback>
             </Avatar>
             <span className="text-xs">Me</span>
-          </div>
+          </Link>
 
           {/* Work menu */}
           <div className="flex flex-col items-center text-gray-600 hover:text-primary">

@@ -9,7 +9,8 @@ import { useState } from "react"
 import { AuthButton } from "@/components/auth/auth-button"
 import { authService } from "@/lib/api/authService"
 import { OTPVerificationDialog } from "@/components/auth/OTP-verification-dialog"
-import { getErrorMessage, DEFAULT_ERROR_MESSAGE } from "@/lib/errorMap";
+import { getErrorMessage } from "@/lib/errorMap";
+import { useAuth } from "@/context/AuthContext"
 
 export default function SignupPage() {
     const [showPassword, setShowPassword] = useState(false)
@@ -23,13 +24,15 @@ export default function SignupPage() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
 
+    const { register } = useAuth();
+
     const validateEmail = (email: string) => {
         const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
         return regex.test(email)
     }
 
     const validatePassword = (password: string) => {
-        const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/
+        const regex = /^(?=.*[0-9])(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])(?=.*[A-Z]).{8,}$/
         return regex.test(password)
     }
     const [showOTPDialog, setShowOTPDialog] = useState(false)
@@ -59,7 +62,7 @@ export default function SignupPage() {
 
         setLoading(true)
         try {
-            const response = await authService.register({
+            const responseData = await register({
                 username: formData.username,
                 email: formData.email,
                 password: formData.password,
