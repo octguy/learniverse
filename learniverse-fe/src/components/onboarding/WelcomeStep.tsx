@@ -15,7 +15,7 @@ export default function WelcomeOnboardingPage({ onNext }: WelcomeStepProps) {
                     flex flex-col md:flex-row
                     border border-gray-200
                     w-full max-w-[1250px]
-                    min-h-[70vh]
+                    min-h-[60vh] lg:min-h-[50vh] xl:min-h-[45vh] 2xl:min-h-[40vh]
                     transition-all duration-300
                     "
             >

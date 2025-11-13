@@ -57,7 +57,8 @@ export default function Step4({
   return (
     <div
       className="flex flex-col justify-between bg-gradient-to-b from-[#f6f6ff] to-white
-                 w-full max-w-[1250px] h-full min-h-[70vh] rounded-xl p-10"
+                 w-full max-w-[1250px] h-full min-h-[60vh] lg:min-h-[50vh] xl:min-h-[45vh] 2xl:min-h-[40vh]
+                 rounded-xl p-10"
     >
       {/* === Header === */}
       <div className="mb-6">

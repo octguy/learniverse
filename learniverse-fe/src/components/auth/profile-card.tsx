@@ -2,8 +2,10 @@
 
 import React, { useState } from "react"
 import Image from "next/image"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
+import { Card } from "@/components/ui/card" //
+import { Button } from "@/components/ui/button" //
+import { Pencil } from "lucide-react"
+// Đã xóa import Separator
 
 interface ProfileCardProps {
     defaultCoverUrl?: string
@@ -14,38 +16,30 @@ interface ProfileCardProps {
     major?: string
     country?: string
     favoriteSubject?: string
+    onEditClick?: () => void
 }
 
 export function ProfileCard({
                                 defaultCoverUrl = "/favicon.ico",
                                 defaultAvatarUrl = "/favicon.ico",
                                 displayName,
-                                username = "username",
-                                school = "Trường học ...",
-                                major = "Chuyên môn / Ngành học ...",
-                                country = "Quốc gia:",
-                                favoriteSubject = "Môn học yêu thích:",
+                                username,
+                                school,
+                                major,
+                                country,
+                                favoriteSubject,
+                                onEditClick,
                             }: ProfileCardProps) {
-    // State ảnh nền và avatar
     const [coverUrl, setCoverUrl] = useState(defaultCoverUrl)
     const [avatarUrl, setAvatarUrl] = useState(defaultAvatarUrl)
 
-    // Upload ảnh nền
     const handleCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
-        if (file) {
-            const url = URL.createObjectURL(file)
-            setCoverUrl(url)
-        }
+        if (file) setCoverUrl(URL.createObjectURL(file))
     }
-
-    // Upload avatar
     const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
-        if (file) {
-            const url = URL.createObjectURL(file)
-            setAvatarUrl(url)
-        }
+        if (file) setAvatarUrl(URL.createObjectURL(file))
     }
 
     return (
@@ -59,7 +53,6 @@ export function ProfileCard({
                     className="object-cover"
                     priority
                 />
-                {/* Edit cover button */}
                 <label className="absolute bottom-3 right-3 bg-white rounded-full p-2 shadow hover:bg-gray-100 cursor-pointer">
                     ✏️
                     <input
@@ -82,7 +75,6 @@ export function ProfileCard({
                             fill
                             className="object-cover"
                         />
-                        {/* Overlay upload avatar */}
                         <label className="absolute inset-0 bg-black/40 text-white text-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                             Đổi ảnh
                             <input
@@ -95,32 +87,34 @@ export function ProfileCard({
                     </div>
                 </div>
 
-                {/* Name and Info */}
-                <div className="pl-44 pt-4">
-                    <h2 className="text-2xl font-semibold text-black">{displayName}</h2>
-                    <div className="grid grid-cols-2 text-sm text-gray-700 mt-1">
-                        <div>
-                            <div>{username}</div>
-                            <div>{school}</div>
-                            <div>{major}</div>
-                        </div>
-                        <div>
-                            <div>{country}</div>
-                            <div>{favoriteSubject}</div>
-                        </div>
+                {/* Name and Info  */}
+                <div className="pl-44 pt-4 min-h-[100px] pb-6">
+                    <div className="flex justify-between items-start">
+                        <h2 className="text-2xl font-semibold text-black">{displayName}</h2>
+                        {onEditClick && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={onEditClick}
+                                className="text-gray-600 hover:text-black shrink-0"
+                            >
+                                <Pencil className="w-5 h-5" />
+                            </Button>
+                        )}
+                    </div>
+
+                    {username && (
+                        <p className="text-sm text-gray-500 mt-1">{username}</p>
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 text-sm text-gray-700 mt-2 gap-x-6 gap-y-1">
+                        {school && <div><span className="font-medium text-black">Trường học:</span> {school}</div>}
+                        {major && <div><span className="font-medium text-black">Chuyên môn:</span> {major}</div>}
+                        {country && <div><span className="font-medium text-black">Quốc gia:</span> {country}</div>}
+                        {favoriteSubject && <div><span className="font-medium text-black">Môn yêu thích:</span> {favoriteSubject}</div>}
                     </div>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex gap-3 mt-6 pl-44">
-                    <Button className="bg-blue-600 text-white hover:bg-blue-700">
-                        + Thêm bạn
-                    </Button>
-                    <Button variant="outline" className="border-blue-600 text-blue-600">
-                        💬 Gửi tin nhắn
-                    </Button>
-                    <Button variant="outline">Thêm...</Button>
-                </div>
             </div>
         </Card>
     )
