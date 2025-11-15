@@ -3,12 +3,14 @@ package org.example.learniversebe.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.example.learniversebe.dto.request.UserProfileRequest;
+import org.example.learniversebe.dto.response.UserProfileResponse;
+import org.example.learniversebe.model.CustomUserDetails;
 import org.example.learniversebe.model.UserProfile;
 import org.example.learniversebe.service.IUserProfileService;
-import org.example.learniversebe.service.implementation.UserProfileServiceImpl;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -24,26 +26,28 @@ public class UserProfileController {
     }
 
     @Operation(summary = "Onboard profile")
-    @PostMapping("/onboard")
-    public ResponseEntity<UserProfile> onboardProfile(@RequestBody UserProfileRequest request) {
+    @PostMapping(value = "/onboard", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<UserProfile> onboardProfile(@ModelAttribute UserProfileRequest request) {
         UserProfile profile = service.onboardProfile(request);
         return new ResponseEntity<>(profile, HttpStatus.CREATED);
     }
 
-    @Operation(summary = "Get user profile")
-    @GetMapping("/{userId}")
-    public ResponseEntity<UserProfile> viewProfile(@PathVariable UUID userId) {
-        UserProfile profile = service.viewProfile(userId);
-        return ResponseEntity.ok(profile);
-    }
-
-    @Operation(summary = "Edit user profile")
-    @PutMapping("/{userId}")
-    public ResponseEntity<UserProfile> updateProfile(
-            @PathVariable UUID userId,
+    @Operation(summary = "Update current user profile")
+    @PutMapping("/me")
+    public UserProfileResponse updateMyProfile(
+            Authentication authentication,
             @RequestBody UserProfileRequest request
     ) {
-        UserProfile updated = service.updateProfile(userId, request);
-        return ResponseEntity.ok(updated);
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        UUID userId = userDetails.getId();
+
+        return service.updateProfile(userId, request);
+    }
+
+    @Operation(summary = "Read current user profile")
+    @GetMapping("/me")
+    public UserProfileResponse getMyProfile(Authentication authentication) {
+        UUID userId = ((CustomUserDetails) authentication.getPrincipal()).getId();
+        return service.viewProfile(userId);
     }
 }

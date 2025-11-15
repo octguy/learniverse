@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.example.learniversebe.model.User;
 import org.example.learniversebe.model.UserProfileTag;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -14,15 +15,12 @@ import java.util.UUID;
 @Getter
 @Setter
 public class UserProfileRequest {
-    private UUID id;
-
     @JsonProperty("display_name")
     private String displayName;
 
     private String bio;
 
-    @JsonProperty("avatar_url")
-    private String avatarUrl;
+    private MultipartFile avatar;
 
     private Set<UserProfileTagRequest> userTags = new HashSet<>();
 }
