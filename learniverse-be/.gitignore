@@ -42,5 +42,7 @@ src/main/resources/.env
 ### gradle files ###
 /gradle
 
+.env
+
 ### MacOS ###
 .DS_Store
