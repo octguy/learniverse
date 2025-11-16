@@ -7,7 +7,7 @@ import org.example.learniversebe.model.UserProfile;
 import java.util.UUID;
 
 public interface IUserProfileService {
-    UserProfile onboardProfile(UserProfileRequest request);
+    UserProfileResponse onboardProfile(UUID userId, UserProfileRequest request);
     UserProfileResponse viewProfile(UUID userId);
 
     UserProfileResponse updateProfile(UUID userId, UserProfileRequest request);

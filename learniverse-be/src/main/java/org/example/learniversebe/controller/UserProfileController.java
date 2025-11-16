@@ -5,7 +5,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.example.learniversebe.dto.request.UserProfileRequest;
 import org.example.learniversebe.dto.response.UserProfileResponse;
 import org.example.learniversebe.model.CustomUserDetails;
-import org.example.learniversebe.model.UserProfile;
 import org.example.learniversebe.service.IUserProfileService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -27,8 +26,12 @@ public class UserProfileController {
 
     @Operation(summary = "Onboard profile")
     @PostMapping(value = "/onboard", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<UserProfile> onboardProfile(@ModelAttribute UserProfileRequest request) {
-        UserProfile profile = service.onboardProfile(request);
+    public ResponseEntity<UserProfileResponse> onboardProfile(Authentication authentication,
+                                                      @ModelAttribute UserProfileRequest request
+    ) {
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        UUID userId = userDetails.getId();
+        UserProfileResponse profile = service.onboardProfile(userId, request);
         return new ResponseEntity<>(profile, HttpStatus.CREATED);
     }
 

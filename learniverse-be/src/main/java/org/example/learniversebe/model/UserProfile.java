@@ -3,6 +3,8 @@ package org.example.learniversebe.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.security.Timestamp;
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -10,13 +12,12 @@ import java.util.UUID;
 @Entity
 @Table(name="user_profile")
 @NoArgsConstructor
-@AllArgsConstructor
 @Getter
 @Setter
 public class UserProfile extends BaseEntity {
 
     @Id
-    @Column(columnDefinition = "uuid", updatable = false, nullable = false)
+    @Column(name = "id", columnDefinition = "uuid", updatable = false, nullable = false)
     private UUID id;
 
 
@@ -41,4 +42,16 @@ public class UserProfile extends BaseEntity {
 
     @OneToMany(mappedBy = "userProfile", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<UserProfileTag> userTags = new HashSet<>();
+
+    @PrePersist
+    protected void onCreate() {
+        LocalDateTime now = LocalDateTime.now();
+        this.setCreatedAt(now);
+        this.setUpdatedAt(now);
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.setUpdatedAt(LocalDateTime.now());
+    }
 }

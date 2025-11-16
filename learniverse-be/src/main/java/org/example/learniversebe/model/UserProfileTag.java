@@ -15,11 +15,11 @@ public class UserProfileTag {
 
     @ManyToOne
     @MapsId("userProfileId")
-    @JoinColumn(name="user_profile_id", referencedColumnName = "id", nullable = false)
+    @JoinColumn(name="user_profile_id", nullable = false)
     private UserProfile userProfile;
 
     @ManyToOne
     @MapsId("userTagId")
-    @JoinColumn(name="user_tag_id", referencedColumnName = "id", nullable = false)
+    @JoinColumn(name="user_tag_id", nullable = false)
     private UserTag userTag;
 }

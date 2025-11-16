@@ -3,28 +3,30 @@ package org.example.learniversebe.service.implementation;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import java.io.IOException;
+
+import jakarta.transaction.Transactional;
 import org.example.learniversebe.dto.request.UserProfileRequest;
-import org.example.learniversebe.dto.request.UserProfileTagRequest;
 import org.example.learniversebe.dto.response.UserProfileResponse;
+import org.example.learniversebe.model.User;
 import org.example.learniversebe.model.UserProfile;
 import org.example.learniversebe.model.UserProfileTag;
 import org.example.learniversebe.model.UserTag;
 import org.example.learniversebe.repository.UserProfileRepository;
 import org.example.learniversebe.repository.UserProfileTagRepository;
+import org.example.learniversebe.repository.UserRepository;
 import org.example.learniversebe.repository.UserTagRepository;
 import org.example.learniversebe.service.IUserProfileService;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 public class UserProfileServiceImpl implements IUserProfileService {
     private final UserProfileRepository userProfileRepository;
     private final UserTagRepository userTagRepository;
     private final UserProfileTagRepository userProfileTagRepository;
+    private final UserRepository userRepository;
 
     private final Cloudinary cloudinary;
     private final String cloudinaryFolder;
@@ -32,18 +34,24 @@ public class UserProfileServiceImpl implements IUserProfileService {
     public UserProfileServiceImpl(UserProfileRepository userProfileRepository,
                                   UserTagRepository userTagRepository,
                                   UserProfileTagRepository userProfileTagRepository,
+                                  UserRepository userRepository,
                                   Cloudinary cloudinary,
                                   String cloudinaryFolder) {
         this.userProfileRepository = userProfileRepository;
         this.userTagRepository = userTagRepository;
         this.userProfileTagRepository = userProfileTagRepository;
+        this.userRepository = userRepository;
         this.cloudinary = cloudinary;
         this.cloudinaryFolder = cloudinaryFolder;
     }
 
     @Override
-    public UserProfile onboardProfile(UserProfileRequest request) {
+    public UserProfileResponse onboardProfile(UUID userId, UserProfileRequest request) {
         UserProfile profile = new UserProfile();
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        profile.setUser(user);
+        profile.setId(UUID.randomUUID());
         profile.setDisplayName(request.getDisplayName());
         profile.setBio(request.getBio());
 
@@ -51,37 +59,40 @@ public class UserProfileServiceImpl implements IUserProfileService {
         String avatarUrl = uploadAvatar(request.getAvatar());
         if (avatarUrl != null) profile.setAvatarUrl(avatarUrl);
 
-        userProfileRepository.save(profile);
-
         // Gắn tags
         if (request.getUserTags() != null && !request.getUserTags().isEmpty()) {
-            for (UserProfileTagRequest tagRequest : request.getUserTags()) {
-                UserTag tag = userTagRepository.findById(tagRequest.getUserTagId())
-                        .orElseThrow(() -> new RuntimeException("Tag not found: " + tagRequest.getUserTagId()));
+            for (UUID tagId : request.getUserTags()) {
+                UserTag tag = userTagRepository.findById(tagId)
+                        .orElseThrow(() -> new RuntimeException("Tag not found: " + tagId));
 
                 UserProfileTag relation = new UserProfileTag();
                 relation.setUserProfile(profile);
                 relation.setUserTag(tag);
-
                 userProfileTagRepository.save(relation);
             }
         }
 
-        return profile;
-    }
+        userProfileRepository.save(profile);
 
-    @Override
-    public UserProfileResponse viewProfile(UUID userId) {
-        UserProfile profile = userProfileRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User profile not found with ID: " + userId));
         return toResponse(profile);
     }
 
     @Override
-    public UserProfileResponse updateProfile(UUID userId, UserProfileRequest request) {
-        UserProfile profile = userProfileRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User profile not found with ID: " + userId));
+    public UserProfileResponse viewProfile(UUID userId) {
+        UserProfile profile = userProfileRepository.findByUserId(userId);
+        if (profile == null){
+            throw new RuntimeException("User profile not found with user ID: " + userId);
+        }
+        return toResponse(profile);
+    }
 
+    @Override
+    @Transactional
+    public UserProfileResponse updateProfile(UUID userId, UserProfileRequest request) {
+        UserProfile profile = userProfileRepository.findByUserId(userId);
+        if (profile == null){
+            throw new RuntimeException("User profile not found with user ID: " + userId);
+        }
         if (request.getDisplayName() != null)
             profile.setDisplayName(request.getDisplayName());
         if (request.getBio() != null)
@@ -98,9 +109,9 @@ public class UserProfileServiceImpl implements IUserProfileService {
         if (request.getUserTags() != null) {
             userProfileTagRepository.deleteAllByUserProfile(profile);
 
-            for (UserProfileTagRequest tagRequest : request.getUserTags()) {
-                UserTag tag = userTagRepository.findById(tagRequest.getUserTagId())
-                        .orElseThrow(() -> new RuntimeException("Tag not found: " + tagRequest.getUserTagId()));
+            for (UUID tagId : request.getUserTags()) {
+                UserTag tag = userTagRepository.findById(tagId)
+                        .orElseThrow(() -> new RuntimeException("Tag not found: " + tagId));
 
                 UserProfileTag relation = new UserProfileTag();
                 relation.setUserProfile(profile);
