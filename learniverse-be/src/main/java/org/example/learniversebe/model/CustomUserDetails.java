@@ -7,6 +7,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Getter
@@ -15,10 +16,12 @@ public class CustomUserDetails implements UserDetails {
 
     private final User user;
     private final String password;
+    private final UUID id;
 
     public CustomUserDetails(User user, String password) {
         this.user = user;
         this.password = password;
+        this.id = user.getId();
     }
 
     @Override
@@ -57,4 +60,5 @@ public class CustomUserDetails implements UserDetails {
     public boolean isEnabled() {
         return user.isEnabled();
     }
+
 }
