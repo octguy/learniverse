@@ -1,79 +1,108 @@
-import { CreatePostTrigger } from "@/components/post/CreatePostTrigger";
-import { PostCard } from "@/components/post/PostCard";
-import type { Post } from "@/types/post";
+"use client"
 
-const mockPost: Post = {
-  id: "post_1",
-  author: {
-    id: "user_1",
-    username: "Lê Bùi Quốc Huy",
-    avatarUrl: "https://github.com/shadcn.png",
-  },
-  contentType: "POST",
-  status: "PUBLISHED",
-  title: "Giới thiệu về LaTeX và Markdown",
-  body: `
-Bài viết mẫu hỗ trợ **Markdown**.
-
-## Công thức Toán học (LaTeX)
-
-Bạn có thể viết công thức inline như $E=mc^2$.
-
-Hoặc viết ở chế độ display (block):
-
-$$
-\\int_a^b f(x) \\, dx = F(b) - F(a)
-$$
-
-## Định dạng Code
-
-\`\`\`tsx
-import React from "react";
-
-function HelloWorld() {
-  return <div>Hello, World!</div>;
-}
-\`\`\`
-  `,
-  slug: "gioi-thieu-latex-markdown",
-  viewCount: 102,
-  commentCount: 5,
-  reactionCount: 12,
-  bookmarkCount: 3,
-  shareCount: 1,
-  createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-  updatedAt: new Date().toISOString(),
-  publishedAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-  lastEditedAt: new Date().toISOString(),
-  tags: [
-    { id: "tag_1", name: "Toán học", slug: "toan-hoc" },
-    { id: "tag_2", name: "Markdown", slug: "markdown" },
-  ],
-  attachments: [
-    {
-      id: "att_1",
-      fileName: "Demo-Image.jpg",
-      fileType: "IMAGE",
-      mimeType: "image/jpeg",
-      storageUrl: "/login-banner.jpg",
-    },
-    {
-      id: "att_2",
-      fileName: "Demo-Document.pdf",
-      fileType: "PDF",
-      mimeType: "application/pdf",
-      storageUrl: "#",
-    },
-  ],
-  bookmarkedByCurrentUser: false,
-  currentUserReaction: null,
-};
+import React, { useEffect, useState } from "react"
+import { CreatePostTrigger } from "@/components/post/CreatePostTrigger"
+import { PostCard } from "@/components/post/PostCard"
+import type { Post } from "@/types/post"
+import { postService } from "@/lib/api/postService"
+import { Loader2, RefreshCw } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 export default function MainPage() {
+  const [posts, setPosts] = useState<Post[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+/*
+  const fetchPosts = async () => {
+    setLoading(true)
+    setError("")
+    try {
+      const data = await postService.getNewsfeed(0, 20) 
+      const mappedPosts: Post[] = data.data.content.map((item: any) => ({
+        ...item,
+        body: item.bodyExcerpt || item.body || "",
+        attachments: item.attachments || [],
+        viewCount: item.viewCount || 0,
+        shareCount: item.shareCount || 0,
+        createdAt: item.publishedAt || new Date().toISOString(),
+        publishedAt: item.publishedAt || new Date().toISOString(),
+      }))
+      setPosts(mappedPosts)
+    } catch (err) {
+      console.error("Failed to fetch posts:", err)
+      setError("Không thể tải bảng tin. Vui lòng thử lại sau.")
+    } finally {
+      setLoading(false)
+    }
+  } */
+ //hot fix "bodyExcerpt": null from /api/v1/posts/feed
+ const fetchPosts = async () => {
+  setLoading(true)
+  setError("")
+  try {
+    const feedRes = await postService.getNewsfeed(0, 20)
+    if (!feedRes.data || !feedRes.data.content) {
+      setPosts([])
+      return
+    }
+
+    const detailPromises = feedRes.data.content.map((summary: any) =>
+      postService.getPostById(summary.id),
+    )
+
+    const detailResponses = await Promise.all(detailPromises)
+
+    const fullPosts = detailResponses.map((response) => {
+      console.log("getPostById response:", response) // 👈 xem structure ở đây
+      return response.data // có thể cần response.data.data tùy API
+    })
+
+    console.log("fullPosts:", fullPosts) // 👈 kiểm tra có field title không
+
+    setPosts(fullPosts)
+  } catch (err) {
+    console.error("Failed to fetch posts:", err)
+    setError("Không thể tải bảng tin. Vui lòng thử lại sau.")
+  } finally {
+    setLoading(false)
+  }
+}
+
+
+  useEffect(() => {
+    fetchPosts()
+  }, [])
+
   return (
     <div className="max-w-2xl mx-auto flex flex-col gap-6">
       <CreatePostTrigger />
-      <PostCard post={mockPost} />
+      {loading && (
+        <div className="flex justify-center py-10">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      )}
+      {error && (
+        <div className="text-center py-10 space-y-3">
+          <p className="text-red-500">{error}</p>
+          <Button variant="outline" onClick={fetchPosts} className="gap-2">
+            <RefreshCw className="h-4 w-4" /> Thử lại
+          </Button>
+        </div>
+      )}
+
+      {/* Danh sách bài viết */}
+      {!loading && !error && posts.length > 0 && (
+        <div className="flex flex-col gap-6">
+          {posts.map((post) => (
+            <PostCard key={post.id} post={post} />
+          ))}
+        </div>
+      )}
+      {!loading && !error && posts.length === 0 && (
+        <div className="text-center py-10 text-muted-foreground">
+          Chưa có bài viết nào. Hãy là người đầu tiên chia sẻ kiến thức!
+        </div>
+      )}
     </div>
-  );
+  )
 }

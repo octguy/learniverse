@@ -35,7 +35,7 @@ interface PostCardProps {
 }
 
 export function PostCard({ post }: PostCardProps) {
-  const { author, body, tags, attachments, createdAt, lastEditedAt } = post
+  const { author, title, body, tags, attachments, createdAt, lastEditedAt } = post
 
   const postDate = new Date(createdAt)
   const isOwnPost = author.id === CURRENT_USER_ID
@@ -48,14 +48,14 @@ export function PostCard({ post }: PostCardProps) {
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader className="p-4">
+      <CardHeader className="p-4 pb-1 space-y-3">
         <div className="flex items-center gap-3">
-          <Avatar className="h-9 w-9">
+          <Avatar className="h-10 w-10"> 
             <AvatarImage src={author.avatarUrl} />
             <AvatarFallback>{author.username.charAt(0)}</AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
-            <p className="font-semibold leading-none truncate">
+            <p className="font-semibold text-sm leading-none truncate">
               {author.username}
             </p>
             <div className="mt-1 text-xs text-muted-foreground">
@@ -73,7 +73,7 @@ export function PostCard({ post }: PostCardProps) {
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent>
+              <DropdownMenuContent align="end">
                 {canEdit && (
                   <DropdownMenuItem onClick={() => alert("Mở modal chỉnh sửa")}>
                     Chỉnh sửa bài viết
@@ -90,10 +90,15 @@ export function PostCard({ post }: PostCardProps) {
             </DropdownMenu>
           </div>
         </div>
+        {title && (
+          <h2 className="text-lg font-bold text-foreground leading-tight">
+            {title}
+          </h2>
+        )}
       </CardHeader>
 
       {/* CONTENT */}
-      <CardContent>
+      <CardContent className="p-4 pt-0">
         <div className="mb-4">
           <MarkdownRenderer content={body} />
         </div>
