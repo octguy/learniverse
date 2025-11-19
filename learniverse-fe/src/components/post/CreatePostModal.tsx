@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useRef } from "react"
+import React, { useState, useRef, useEffect } from "react"
 import {
     Avatar,
     AvatarFallback,
@@ -30,7 +30,7 @@ import {
     CardContent,
     CardFooter,
     CardHeader,
-} from "@/components/ui/card" // <-- Import Card
+} from "@/components/ui/card"
 import {
     X,
     Image as ImageIcon,
@@ -44,6 +44,8 @@ import {
     ListOrdered,
 } from "lucide-react"
 import { MarkdownRenderer } from "./MarkdownRenderer"
+import { postService } from "@/lib/api/postService"
+import { Tag } from "@/types/post"
 
 const mockUser = {
     id: "user_mock_id",
@@ -63,7 +65,8 @@ export default function CreatePostModalContent({
 }) {
     const [title, setTitle] = useState("")
     const [content, setContent] = useState("")
-    const [tags, setTags] = useState<string[]>([])
+    const [availableTags, setAvailableTags] = useState<Tag[]>([])
+    const [selectedTags, setSelectedTags] = useState<Tag[]>([])
     const [tagInput, setTagInput] = useState("")
     const [images, setImages] = useState<File[]>([])
     const [pdfs, setPdfs] = useState<File[]>([])
@@ -74,25 +77,49 @@ export default function CreatePostModalContent({
     const imageInputRef = useRef<HTMLInputElement>(null)
     const pdfInputRef = useRef<HTMLInputElement>(null)
 
+    //Lấy tags
+    useEffect(() => {
+        const fetchTags = async () => {
+            try {
+                const res = await postService.getAllTags();
+                if (res.data) {
+                    setAvailableTags(res.data);
+                }
+            } catch (err) {
+                console.error("Lỗi tải tags:", err);
+            }
+        };
+        fetchTags();
+    }, []);
+
     const handleTagInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === "Enter" && tagInput.trim()) {
             e.preventDefault()
-            if (tags.length < 5 && !tags.includes(tagInput.trim())) {
-                setTags([...tags, tagInput.trim()])
+            const inputVal = tagInput.trim().toLowerCase();
+            const matchedTag = availableTags.find(
+                t => t.name.toLowerCase() === inputVal
+            );
+            if (!matchedTag) {
+                setError(`Tag "${tagInput}" chưa có trong hệ thống. Vui lòng chọn tag có sẵn.`);
+                return;
             }
-            setTagInput("")
+            if (selectedTags.length < 5 && !selectedTags.some(t => t.id === matchedTag.id)) {
+                setSelectedTags([...selectedTags, matchedTag]);
+                setTagInput("");
+                setError("");
+            }
         }
     }
 
-    const removeTag = (tagToRemove: string) => {
-        setTags(tags.filter((tag) => tag !== tagToRemove))
+    const removeTag = (tagId: string) => {
+        setSelectedTags(selectedTags.filter((tag) => tag.id !== tagId))
     }
 
     const handleFileChange = (
         e: React.ChangeEvent<HTMLInputElement>,
         type: "image" | "pdf"
     ) => {
-        setError("") 
+        setError("")
         const file = e.target.files?.[0]
         if (!file) return
         if (type === "image") {
@@ -106,7 +133,7 @@ export default function CreatePostModalContent({
                 setError("Chỉ cho phép file ảnh PNG hoặc JPEG.")
                 return
             }
-            setImages([file]) 
+            setImages([file])
         }
         if (type === "pdf") {
             if (file.size > MAX_PDF_SIZE_BYTES) {
@@ -119,38 +146,39 @@ export default function CreatePostModalContent({
                 setError("Chỉ cho phép file PDF.")
                 return
             }
-            setPdfs([file]) 
+            setPdfs([file])
         }
         e.target.value = ""
     }
 
     const handleSubmit = async () => {
         setError("")
-        if (!title.trim()) {
-            setError("Tiêu đề (Title) không được để trống.")
-            return
-        }
-        if (!content.trim()) {
-            setError("Nội dung (Detail) không được để trống.")
-            return
-        }
-        if (tags.length === 0) {
-            setError("Bạn phải thêm ít nhất một tag cho bài viết.")
-            return
-        }
+        if (!title.trim()) return setError("Tiêu đề không được để trống.")
+        if (!content.trim()) return setError("Nội dung không được để trống.")
+        if (selectedTags.length === 0) return setError("Vui lòng chọn ít nhất 1 tag.")
 
         setIsLoading(true)
-        console.log("Đang gửi bài đăng:", { title, content, tags, images, pdfs })
 
-        await new Promise((resolve) => setTimeout(resolve, 1500))
+        try {
+            const payload = {
+                title: title,
+                body: content,
+                tagIds: selectedTags.map(tag => tag.id)
+            };
+            await postService.createPost(payload);
+            setOpen(false)
+            setTitle("")
+            setContent("")
+            setSelectedTags([])
 
-        setIsLoading(false)
-        setOpen(false)
-        setTitle("")
-        setContent("")
-        setTags([])
-        setImages([])
-        setPdfs([])
+            // TODO: Trigger reload 
+
+        } catch (err: any) {
+            console.error("Lỗi đăng bài:", err);
+            setError(err.message || "Có lỗi xảy ra khi đăng bài.");
+        } finally {
+            setIsLoading(false)
+        }
     }
 
     const removeFile = (type: "image" | "pdf", indexToRemove: number) => {
@@ -246,14 +274,26 @@ export default function CreatePostModalContent({
                             onChange={(e) => setTagInput(e.target.value)}
                             onKeyDown={handleTagInputKeyDown}
                         />
-                        <div className="mt-2 flex flex-wrap gap-2 min-h-[24px]">
-                            {tags.map((tag) => (
-                                <Badge key={tag} variant="secondary">
-                                    {tag}
-                                    <X className="ml-1 h-3 w-3 cursor-pointer" onClick={() => removeTag(tag)} />
+                        <div className="flex flex-wrap gap-2 mt-2">
+                            {selectedTags.map((tag) => (
+                                <Badge key={tag.id} variant="secondary">
+                                    {tag.name}
+                                    <X
+                                        className="ml-1 h-3 w-3 cursor-pointer"
+                                        onClick={() => removeTag(tag.id)}
+                                    />
                                 </Badge>
                             ))}
                         </div>
+                        {tagInput && (
+                            <div className="border rounded p-2 bg-slate-50 text-sm text-muted-foreground">
+                                Gợi ý: {availableTags
+                                    .filter(t => t.name.toLowerCase().includes(tagInput.toLowerCase()))
+                                    .slice(0, 5)
+                                    .map(t => t.name)
+                                    .join(", ")}
+                            </div>
+                        )}
                     </div>
 
                     <div className="space-y-1.5">
@@ -333,12 +373,12 @@ export default function CreatePostModalContent({
                             )}
                         </CardContent>
 
-                        {tags.length > 0 && (
+                        {selectedTags.length > 0 && (
                             <CardFooter className="flex-col items-start gap-4">
                                 <div className="w-full border-t pt-4 flex flex-wrap gap-2">
-                                    {tags.map((tag) => (
-                                        <Badge key={tag} variant="outline">
-                                            {tag}
+                                    {selectedTags.map((tag) => (
+                                        <Badge key={tag.id} variant="outline">
+                                            {tag.name}
                                         </Badge>
                                     ))}
                                 </div>
@@ -358,15 +398,7 @@ export default function CreatePostModalContent({
                 >
                     {activeTab === "edit" ? "Xem trước" : "Chỉnh sửa"}
                 </Button>
-                <Button
-                    onClick={handleSubmit}
-                    disabled={
-                        isLoading ||
-                        !content.trim() ||
-                        !title.trim() ||
-                        tags.length === 0
-                    }
-                >
+                <Button onClick={handleSubmit} disabled={isLoading}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Đăng bài
                 </Button>

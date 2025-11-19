@@ -1,3 +1,14 @@
+export interface Tag {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+}
+export interface CreatePostRequest {
+  title: string;
+  body: string;
+  tagIds: string[];
+}
 export type PostAuthor = {
   id: string; 
   username: string;
