@@ -19,5 +19,5 @@ public class UserProfileResponse {
     private String avatarUrl;
     private int postCount;
     private int answeredQuestionCount;
-    private List<String> tags;
+    private List<UserTagResponse> tags;
 }

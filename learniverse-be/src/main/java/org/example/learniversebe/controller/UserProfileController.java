@@ -36,10 +36,10 @@ public class UserProfileController {
     }
 
     @Operation(summary = "Update current user profile")
-    @PutMapping("/me")
+    @PutMapping(value = "/me", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public UserProfileResponse updateMyProfile(
             Authentication authentication,
-            @RequestBody UserProfileRequest request
+            @ModelAttribute UserProfileRequest request
     ) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
         UUID userId = userDetails.getId();

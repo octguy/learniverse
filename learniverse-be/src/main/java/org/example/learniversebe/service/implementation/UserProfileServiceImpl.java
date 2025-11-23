@@ -7,6 +7,7 @@ import java.io.IOException;
 import jakarta.transaction.Transactional;
 import org.example.learniversebe.dto.request.UserProfileRequest;
 import org.example.learniversebe.dto.response.UserProfileResponse;
+import org.example.learniversebe.dto.response.UserTagResponse;
 import org.example.learniversebe.model.User;
 import org.example.learniversebe.model.UserProfile;
 import org.example.learniversebe.model.UserProfileTag;
@@ -148,9 +149,18 @@ public class UserProfileServiceImpl implements IUserProfileService {
     }
 
     private UserProfileResponse toResponse(UserProfile profile) {
-        List<String> tagNames = profile.getUserTags().stream()
-                .map(rel -> rel.getUserTag().getName())
+
+        List<UserTagResponse> tagResponses = profile.getUserTags().stream()
+                .map(UserProfileTag::getUserTag)
+                .map(userTag -> UserTagResponse.builder()
+                        .id(userTag.getId())
+                        .name(userTag.getName())
+                        .build())
                 .toList();
+
+//        List<String> tagNames = profile.getUserTags().stream()
+//                .map(rel -> rel.getUserTag().getName())
+//                .toList();
 
         return UserProfileResponse.builder()
                 .id(profile.getId())
@@ -159,7 +169,7 @@ public class UserProfileServiceImpl implements IUserProfileService {
                 .avatarUrl(profile.getAvatarUrl())
                 .postCount(profile.getPostCount())
                 .answeredQuestionCount(profile.getAnsweredQuestionCount())
-                .tags(tagNames)
+                .tags(tagResponses)
                 .build();
     }
 }
