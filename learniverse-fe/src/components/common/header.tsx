@@ -1,4 +1,4 @@
-"use client";
+"use client"
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -68,7 +68,7 @@ export function Header() {
             <Users className="w-5 h-5" />
             <span className="text-xs">Network</span>
           </Link>
-          <Link href="/jobs" className="flex flex-col items-center text-gray-600 hover:text-primary">
+          <Link href="/questions" className="flex flex-col items-center text-gray-600 hover:text-primary">
             <BadgeQuestionMark className="w-5 h-5" />
             <span className="text-xs">Question</span>
           </Link>
