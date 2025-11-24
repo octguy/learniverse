@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 import type {
     AnchorHTMLAttributes,
     HTMLAttributes,
@@ -30,6 +31,7 @@ import {
 
 import { useAuth } from "@/context/AuthContext"
 import apiService from "@/lib/apiService"
+import { questionService } from "@/lib/api/questionService"
 import { cn } from "@/lib/utils"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -45,9 +47,10 @@ import {
 } from "@/components/question/tag-multi-select"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { QuestionCard } from "@/components/question/question-card"
-import type { PostSummary } from "@/types/api"
+import type { QuestionSummary } from "@/types/question"
 
 const TITLE_LIMIT = 300
+const MIN_TITLE_LENGTH = 10
 const MIN_BODY_LENGTH = 10
 const MAX_BODY_LENGTH = 10000
 const MAX_TAGS = 5
@@ -82,10 +85,6 @@ type PreviewFile = {
 }
 
 type MarkdownComponents = Components
-
-interface PostResponse {
-    slug?: string
-}
 
 interface ApiResponse<T> {
     data?: T
@@ -265,6 +264,7 @@ export function QuestionForm() {
     const imageInputRef = useRef<HTMLInputElement | null>(null)
     const documentInputRef = useRef<HTMLInputElement | null>(null)
     const { user } = useAuth()
+    const router = useRouter()
 
     const displayName = user?.username ?? "Hồ sơ của bạn"
     const avatarFallback =
@@ -285,7 +285,6 @@ export function QuestionForm() {
     const [statusMessage, setStatusMessage] = useState<StatusMessage | null>(
         null
     )
-    const [createdSlug, setCreatedSlug] = useState<string | null>(null)
     const [activeTab, setActiveTab] = useState<"write" | "preview">("write")
     const [images, setImages] = useState<File[]>([])
     const [documents, setDocuments] = useState<File[]>([])
@@ -337,29 +336,33 @@ export function QuestionForm() {
         }
     }, [])
 
+    const trimmedTitle = useMemo(() => title.trim(), [title])
+    const titleLength = trimmedTitle.length
     const bodyLength = useMemo(() => body.trim().length, [body])
     const canSubmit =
         !isSubmitting &&
+        titleLength >= MIN_TITLE_LENGTH &&
         bodyLength >= MIN_BODY_LENGTH &&
         bodyLength <= MAX_BODY_LENGTH &&
         selectedTags.length > 0
 
-    const previewPost = useMemo<PostSummary>(
+    const previewQuestion = useMemo<QuestionSummary>(
         () => ({
-            id: createdSlug ?? "preview-question",
+            id: "preview-question",
             author: {
                 id: user?.id ?? "preview-author",
                 username: displayName,
                 avatarUrl: undefined,
             },
-            contentType: "POST",
-            title: title.trim() || "Câu hỏi chưa có tiêu đề",
-            bodyExcerpt: createPreviewExcerpt(body),
-            slug: createdSlug ?? "xem-truoc",
+            contentType: "QUESTION",
+            title: trimmedTitle || "Câu hỏi chưa có tiêu đề",
+            slug: "xem-truoc",
+            excerpt: createPreviewExcerpt(body),
             commentCount: 0,
-            reactionCount: 0,
             bookmarkCount: 0,
             voteScore: 0,
+            answerCount: 0,
+            viewCount: 0,
             publishedAt: new Date().toISOString(),
             tags: selectedTags.map((tag) => ({
                 id: tag.id,
@@ -368,7 +371,7 @@ export function QuestionForm() {
                 description: tag.description ?? undefined,
             })),
         }),
-        [body, createdSlug, displayName, selectedTags, title, user?.id]
+        [body, displayName, selectedTags, trimmedTitle, user?.id]
     )
 
     const imagePreviews = useMemo<PreviewFile[]>(
@@ -534,31 +537,29 @@ export function QuestionForm() {
 
         setIsSubmitting(true)
         setStatusMessage(null)
-        setCreatedSlug(null)
 
         try {
             const payload = {
-                title: title.trim() || undefined,
+                title: trimmedTitle,
                 body: body.trim(),
                 tagIds: selectedTags.map((tag) => tag.id),
             }
 
-            const response = await apiService.post<ApiResponse<PostResponse>>(
-                "/posts",
-                payload
-            )
-            const slug = response.data?.data?.slug ?? null
-            setCreatedSlug(slug)
-            setStatusMessage({
-                type: "success",
-                message: "Câu hỏi của bạn đã được đăng thành công.",
-            })
+            const createdQuestion = await questionService.create(payload)
+            const slug = createdQuestion?.slug ?? null
             setTitle("")
             setBody("")
             setSelectedTags([])
             setImages([])
             setDocuments([])
             setAttachmentError(null)
+
+            if (slug) {
+                router.push(`/questions/${slug}`)
+                return
+            }
+
+            router.push("/questions")
         } catch (error) {
             let message =
                 "Không thể đăng câu hỏi ngay lúc này. Vui lòng thử lại sau."
@@ -577,7 +578,6 @@ export function QuestionForm() {
         setBody("")
         setSelectedTags([])
         setStatusMessage(null)
-        setCreatedSlug(null)
         setImages([])
         setDocuments([])
         setAttachmentError(null)
@@ -697,8 +697,16 @@ export function QuestionForm() {
                                     >
                                         Tiêu đề
                                     </label>
-                                    <span className="text-xs text-muted-foreground">
-                                        {title.trim().length}/{TITLE_LIMIT}
+                                    <span
+                                        className={cn(
+                                            "text-xs",
+                                            titleLength > 0 &&
+                                                titleLength < MIN_TITLE_LENGTH
+                                                ? "text-destructive"
+                                                : "text-muted-foreground"
+                                        )}
+                                    >
+                                        {titleLength}/{TITLE_LIMIT}
                                     </span>
                                 </div>
                                 <Input
@@ -719,6 +727,13 @@ export function QuestionForm() {
                                     Hãy ngắn gọn, mô tả đúng trọng tâm vấn đề
                                     bạn đang gặp phải.
                                 </p>
+                                {titleLength > 0 &&
+                                titleLength < MIN_TITLE_LENGTH ? (
+                                    <p className="text-xs text-destructive">
+                                        Tiêu đề cần tối thiểu {MIN_TITLE_LENGTH}{" "}
+                                        ký tự.
+                                    </p>
+                                ) : null}
                             </div>
 
                             <div className="space-y-3">
@@ -1006,12 +1021,6 @@ export function QuestionForm() {
                                     Làm mới
                                 </Button>
                             </div>
-                            {createdSlug && (
-                                <span className="text-xs text-muted-foreground">
-                                    Bạn sẽ được chuyển đến trang chi tiết khi
-                                    câu hỏi sẵn sàng. Slug: {createdSlug}
-                                </span>
-                            )}
                         </CardFooter>
                     </Card>
                 </TabsContent>
@@ -1019,7 +1028,7 @@ export function QuestionForm() {
                 <TabsContent value="preview">
                     <Card>
                         <CardContent className="space-y-5 pt-6">
-                            <QuestionCard post={previewPost} />
+                            <QuestionCard question={previewQuestion} />
 
                             <div className="rounded-lg border bg-white px-4 py-3 text-sm leading-6">
                                 {body.trim() ? (
@@ -1102,12 +1111,6 @@ export function QuestionForm() {
                                     Quay lại chỉnh sửa
                                 </Button>
                             </div>
-                            {createdSlug && (
-                                <span className="text-xs text-muted-foreground">
-                                    Bạn sẽ được chuyển đến trang chi tiết khi
-                                    câu hỏi sẵn sàng. Slug: {createdSlug}
-                                </span>
-                            )}
                         </CardFooter>
                     </Card>
                 </TabsContent>

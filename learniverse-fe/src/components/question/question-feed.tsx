@@ -5,15 +5,14 @@ import Link from "next/link"
 import { isAxiosError } from "axios"
 import { SlidersHorizontal } from "lucide-react"
 
-import { postsService } from "@/lib/api/postsService"
-import { postService } from "@/lib/api/postService"
-import type { PageResponse, PostSummary } from "@/types/api"
-import type { Post } from "@/types/post"
-import { Button } from "@/components/ui/button"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Badge } from "@/components/ui/badge"
+import { questionService } from "@/lib/api/questionService"
+import type { PageResponse } from "@/types/api"
+import type { QuestionDetail, QuestionSummary } from "@/types/question"
 import { QuestionCard } from "@/components/question/question-card"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 
 const PAGE_SIZE = 8
 
@@ -22,10 +21,10 @@ const SORT_OPTIONS: Array<{
     label: string
     sort?: string
     badge?: string
-    predicate?: (item: PostSummary) => boolean
+    predicate?: (item: QuestionSummary) => boolean
 }> = [
     { id: "newest", label: "Mới nhất", sort: "publishedAt,desc" },
-    { id: "active", label: "Hoạt động", sort: "commentCount,desc" },
+    { id: "active", label: "Hoạt động", sort: "answerCount,desc" },
     {
         id: "bountied",
         label: "Đang treo thưởng",
@@ -35,14 +34,14 @@ const SORT_OPTIONS: Array<{
     {
         id: "unanswered",
         label: "Chưa có trả lời",
-        predicate: (item) => (item.commentCount ?? 0) === 0,
+        predicate: (item) => (item.answerCount ?? 0) === 0,
         sort: "publishedAt,desc",
     },
 ]
 
 interface FeedState {
-    items: PostSummary[]
-    page: PageResponse<PostSummary> | null
+    items: QuestionSummary[]
+    page: PageResponse<QuestionSummary> | null
     status: "idle" | "loading" | "error"
     error: string | null
 }
@@ -61,99 +60,115 @@ export function QuestionFeed() {
     useEffect(() => {
         let cancelled = false
 
-        const fetchData = async () => {
+        const load = async () => {
             setState((prev) => ({
                 ...prev,
                 status: "loading",
                 error: null,
             }))
+
             try {
-                const payload = await postsService.getFeed({
+                const pageData = await questionService.list({
                     page: pageIndex,
                     size: PAGE_SIZE,
                     sort: activeSort.sort,
                 })
 
-                if (cancelled) return
+                if (cancelled) {
+                    return
+                }
 
-                const data = payload.data ?? null
-                const content = data?.content ?? []
-                let items: PostSummary[] = content
+                const content = pageData?.content ?? []
+                let items: QuestionSummary[] = content
 
                 if (content.length > 0) {
                     try {
                         const detailResponses = await Promise.all(
-                            content.map((item) =>
-                                postService
-                                    .getPostById(item.id)
-                                    .then((response) => extractPost(response))
+                            content.map((summary) =>
+                                questionService
+                                    .getById(summary.id)
                                     .catch(() => null)
                             )
                         )
 
-                        const detailMap = new Map<string, Post>()
+                        if (cancelled) {
+                            return
+                        }
+
+                        const detailMap = new Map<string, QuestionDetail>()
                         detailResponses.forEach((detail) => {
                             if (detail) {
                                 detailMap.set(detail.id, detail)
                             }
                         })
 
-                        items = content.map((item) => {
-                            const detail = detailMap.get(item.id)
+                        items = content.map((summary) => {
+                            const detail = detailMap.get(summary.id)
                             if (!detail) {
                                 return {
-                                    ...item,
-                                    bodyExcerpt: createExcerpt(
-                                        item.bodyExcerpt ?? ""
+                                    ...summary,
+                                    excerpt: createExcerpt(
+                                        summary.excerpt ?? ""
                                     ),
                                 }
                             }
 
                             return {
-                                ...item,
-                                bodyExcerpt: createExcerpt(detail.body),
+                                ...summary,
+                                excerpt: createExcerpt(detail.body),
                                 commentCount:
-                                    detail.commentCount ?? item.commentCount,
+                                    detail.commentCount ?? summary.commentCount,
                                 bookmarkCount:
-                                    detail.bookmarkCount ?? item.bookmarkCount,
-                                reactionCount:
-                                    detail.reactionCount ?? item.reactionCount,
-                                tags: detail.tags?.length
-                                    ? detail.tags
-                                    : item.tags,
+                                    detail.bookmarkCount ??
+                                    summary.bookmarkCount,
+                                voteScore:
+                                    detail.voteScore ?? summary.voteScore,
+                                currentUserVote:
+                                    detail.currentUserVote ??
+                                    summary.currentUserVote,
+                                answerCount:
+                                    detail.answerCount ?? summary.answerCount,
+                                viewCount:
+                                    detail.viewCount ?? summary.viewCount,
+                                tags:
+                                    detail.tags && detail.tags.length > 0
+                                        ? detail.tags
+                                        : summary.tags,
                             }
                         })
                     } catch (detailError) {
-                        console.error("Failed to enrich posts", detailError)
-                        items = content.map((item) => ({
-                            ...item,
-                            bodyExcerpt: createExcerpt(item.bodyExcerpt ?? ""),
+                        console.error("Failed to enrich questions", detailError)
+                        items = content.map((summary) => ({
+                            ...summary,
+                            excerpt: createExcerpt(summary.excerpt ?? ""),
                         }))
                     }
                 }
 
                 setState({
                     items,
-                    page: data,
+                    page: pageData ?? null,
                     status: "idle",
                     error: null,
                 })
             } catch (error) {
-                if (cancelled) return
+                if (cancelled) {
+                    return
+                }
                 const message = isAxiosError(error)
-                    ? error.response?.data?.message ??
+                    ? (error.response?.data as { message?: string })?.message ??
                       "Không thể tải danh sách câu hỏi lúc này."
                     : "Không thể tải danh sách câu hỏi lúc này."
                 setState({
                     items: [],
                     page: null,
-                    status: "idle",
+                    status: "error",
                     error: message,
                 })
             }
         }
 
-        fetchData()
+        load()
 
         return () => {
             cancelled = true
@@ -171,7 +186,6 @@ export function QuestionFeed() {
     const { page, status, error } = state
     const isLoading = status === "loading"
     const showErrorBanner = Boolean(error)
-
     const canGoPrev = Boolean(page && !page.first)
     const canGoNext = Boolean(page && !page.last)
 
@@ -239,8 +253,8 @@ export function QuestionFeed() {
                 </div>
             ) : visibleItems.length > 0 ? (
                 <div className="space-y-6">
-                    {visibleItems.map((post) => (
-                        <QuestionCard key={post.id} post={post} />
+                    {visibleItems.map((question) => (
+                        <QuestionCard key={question.id} question={question} />
                     ))}
                 </div>
             ) : (
@@ -316,35 +330,16 @@ function EmptyState() {
     )
 }
 
-function extractPost(payload: unknown): Post | null {
-    if (!payload || typeof payload !== "object") {
-        return null
+function createExcerpt(source?: string | null, maxLength = 220) {
+    if (!source) {
+        return "Nội dung mô tả đang được cập nhật."
     }
 
-    const maybeApiResponse = payload as { data?: unknown }
-    if (
-        "data" in maybeApiResponse &&
-        maybeApiResponse.data &&
-        typeof maybeApiResponse.data === "object"
-    ) {
-        return maybeApiResponse.data as Post
+    const normalized = source.replace(/\s+/g, " ").trim()
+    if (normalized.length <= maxLength) {
+        return normalized
     }
 
-    const maybePost = payload as Post
-    return typeof maybePost.body === "string" ? maybePost : null
-}
-
-function createExcerpt(source: string, maxLength = 220) {
-    const plain = source
-        .replace(/```[\s\S]*?```/g, " ")
-        .replace(/`[^`]*`/g, " ")
-        .replace(/\!\[[^\]]*\]\([^)]*\)/g, " ")
-        .replace(/\[[^\]]*\]\([^)]*\)/g, " ")
-        .replace(/[#>*_~`]/g, " ")
-        .replace(/\s+/g, " ")
-        .trim()
-
-    if (!plain) return ""
-    if (plain.length <= maxLength) return plain
-    return `${plain.slice(0, maxLength - 1)}…`
+    const truncated = normalized.slice(0, maxLength)
+    return `${truncated.replace(/\s+[^\s]*$/, "")}…`
 }

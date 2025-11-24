@@ -3,13 +3,14 @@
 import Link from "next/link"
 import { formatDistanceToNow } from "date-fns"
 import { vi } from "date-fns/locale"
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import type { PostSummary } from "@/types/api"
 import { cn } from "@/lib/utils"
+import type { QuestionSummary } from "@/types/question"
 
 interface QuestionCardProps {
-    post: PostSummary
+    question: QuestionSummary
 }
 
 function getInitials(name: string) {
@@ -37,24 +38,33 @@ function formatCount(value: number) {
     return `${value}`
 }
 
-export function QuestionCard({ post }: QuestionCardProps) {
-    const voteScore = post.voteScore ?? 0
-    const answerCount = post.commentCount ?? 0
-    const saveCount = post.bookmarkCount ?? 0
-    const authorName = post.author?.username ?? "Ẩn danh"
-    const publishedAt = post.publishedAt ? new Date(post.publishedAt) : null
+export function QuestionCard({ question }: QuestionCardProps) {
+    const voteScore = question.voteScore ?? 0
+    const userVoteState = question.currentUserVote
+    const voteActive =
+        userVoteState !== undefined ? Boolean(userVoteState) : voteScore > 0
+    const answerCount = question.answerCount ?? 0
+    const viewCount = question.viewCount ?? 0
+    const authorName = question.author?.username ?? "Ẩn danh"
+    const publishedAt = question.publishedAt
+        ? new Date(question.publishedAt)
+        : null
     const publishedLabel = publishedAt
         ? formatDistanceToNow(publishedAt, { addSuffix: true, locale: vi })
         : "Vừa xong"
-
     const excerpt =
-        post.bodyExcerpt?.trim() || "Nội dung mô tả đang được cập nhật."
-    const tags = post.tags ?? []
+        question.excerpt?.trim() || "Nội dung mô tả đang được cập nhật."
+    const tags = question.tags ?? []
 
     return (
-        <article className="flex gap-5 border-b border-border/60 pb-6 last:border-b-0">
+        <article className="flex gap-5 rounded-lg border bg-card px-5 py-4 shadow-sm">
             <div className="flex w-28 shrink-0 flex-col gap-1.5 text-[11px] font-medium text-muted-foreground">
-                <Metric value={voteScore} label="Bình chọn" variant="vote" />
+                <Metric
+                    value={voteScore}
+                    label="Bình chọn"
+                    variant="vote"
+                    active={voteActive}
+                />
                 <Metric
                     value={answerCount}
                     label="Trả lời"
@@ -62,52 +72,53 @@ export function QuestionCard({ post }: QuestionCardProps) {
                     active={answerCount > 0}
                 />
                 <Metric
-                    value={saveCount}
-                    label="Đã lưu"
-                    variant="save"
-                    active={saveCount > 0}
+                    value={viewCount}
+                    label="Lượt xem"
+                    variant="view"
+                    active={viewCount > 0}
                 />
             </div>
 
             <div className="flex-1 space-y-3">
                 <Link
-                    href={`/questions/${post.slug}`}
+                    href={`/questions/${question.slug}`}
                     className="text-lg font-semibold leading-snug text-primary hover:underline"
                 >
-                    {post.title || "Câu hỏi chưa có tiêu đề"}
+                    {question.title || "Câu hỏi chưa có tiêu đề"}
                 </Link>
 
-                <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
+                <p className="text-sm leading-relaxed text-muted-foreground line-clamp-3">
                     {excerpt}
                 </p>
 
-                <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                    <div className="flex flex-wrap gap-2">
-                        {tags.map((tag) => (
-                            <Badge
-                                key={tag.id}
-                                variant="secondary"
-                                className="rounded-full bg-secondary text-secondary-foreground"
-                            >
-                                {tag.name}
-                            </Badge>
-                        ))}
-                        {tags.length === 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                        {tags.length > 0 ? (
+                            tags.map((tag) => (
+                                <Badge
+                                    key={tag.id}
+                                    variant="secondary"
+                                    className="rounded-full bg-secondary text-secondary-foreground"
+                                >
+                                    {tag.name}
+                                </Badge>
+                            ))
+                        ) : (
                             <Badge variant="outline">Chưa gắn thẻ</Badge>
                         )}
                     </div>
 
-                    <div className="ml-auto flex items-center gap-2 text-xs">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <Avatar className="h-7 w-7">
                             <AvatarImage
-                                src={post.author?.avatarUrl ?? undefined}
+                                src={question.author?.avatarUrl ?? undefined}
                                 alt={authorName}
                             />
                             <AvatarFallback className="bg-[#f97362] text-[11px] font-semibold uppercase text-white">
                                 {getInitials(authorName)}
                             </AvatarFallback>
                         </Avatar>
-                        <div className="leading-tight">
+                        <div className="leading-tight text-left">
                             <p className="font-medium text-foreground">
                                 {authorName}
                             </p>
@@ -125,7 +136,7 @@ export function QuestionCard({ post }: QuestionCardProps) {
 interface MetricProps {
     value: number
     label: string
-    variant?: "vote" | "answer" | "save"
+    variant?: "vote" | "answer" | "view"
     active?: boolean
 }
 
@@ -138,11 +149,17 @@ function Metric({
     const base = "rounded-md border px-3 py-1"
 
     const palette = {
-        vote: {
-            container: "border-amber-300 bg-amber-50",
-            value: "text-amber-700",
-            label: "text-amber-600",
-        },
+        vote: active
+            ? {
+                  container: "border-amber-500 bg-amber-500 text-white",
+                  value: "text-white",
+                  label: "text-white/90",
+              }
+            : {
+                  container: "border-amber-300 bg-amber-50",
+                  value: "text-amber-700",
+                  label: "text-amber-600",
+              },
         answer: active
             ? {
                   container: "border-emerald-500 bg-emerald-500 text-white",
@@ -154,16 +171,16 @@ function Metric({
                   value: "text-emerald-700",
                   label: "text-emerald-600",
               },
-        save: active
+        view: active
             ? {
-                  container: "border-violet-500 bg-violet-500 text-white",
+                  container: "border-sky-400 bg-sky-500 text-white",
                   value: "text-white",
                   label: "text-white/90",
               }
             : {
-                  container: "border-violet-200 bg-violet-50",
-                  value: "text-violet-700",
-                  label: "text-violet-600",
+                  container: "border-sky-200 bg-sky-50",
+                  value: "text-sky-700",
+                  label: "text-sky-600",
               },
     } as const
 
