@@ -11,6 +11,7 @@ import { useState } from "react"
 import { AuthButton } from "@/components/auth/auth-button"
 import { authService } from "@/lib/api/authService"
 import {getErrorMessage, DEFAULT_ERROR_MESSAGE, AUTH_ERROR_MESSAGES} from "@/lib/errorMap";
+import { useAuth } from "@/context/AuthContext"
 
 export default function LoginPage() {
     const [showPassword, setShowPassword] = useState(false)
@@ -22,6 +23,9 @@ export default function LoginPage() {
     })
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
+
+    const { login } = useAuth();
+
     const [isUnverifiedUser, setIsUnverifiedUser] = useState(false)
     const validateEmail = (email: string) => {
         const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -43,10 +47,7 @@ export default function LoginPage() {
         setLoading(true);
         try {
             const apiResponse = await authService.login(formData);
-            const { accessToken, refreshToken, email, username } = apiResponse.data;
-            console.log("Logged in as:", username, email);
-            sessionStorage.setItem("accessToken", accessToken);
-            sessionStorage.setItem("refreshToken", refreshToken);
+            await login(apiResponse.data);
             window.location.href = "/";
         } catch (err: any) {
             let errMsg = getErrorMessage(err);

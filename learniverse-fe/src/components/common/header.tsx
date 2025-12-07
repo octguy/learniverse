@@ -1,19 +1,18 @@
-"use client";
+"use client"
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Bell, HomeIcon, Search, MessageCircle, Users, Settings, LogOut, Home, LayoutGrid, BadgeQuestionMark } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { Skeleton } from '@/components/ui/skeleton';
 
-const sampleUser = {
-  displayName: 'test-user',
-  avatar: 'https://github.com/shadcn.png',
-};
 
-const unreadCount = 5;
+const unreadCount = 5; 
 
 export function Header() {
+  const { user, loading } = useAuth();
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-2 sticky top-0 z-50">
       <div className="flex items-center gap-x-20 max-w-7xl mx-auto">
@@ -69,7 +68,7 @@ export function Header() {
             <Users className="w-5 h-5" />
             <span className="text-xs">Network</span>
           </Link>
-          <Link href="/jobs" className="flex flex-col items-center text-gray-600 hover:text-primary">
+          <Link href="/questions" className="flex flex-col items-center text-gray-600 hover:text-primary">
             <BadgeQuestionMark className="w-5 h-5" />
             <span className="text-xs">Question</span>
           </Link>
@@ -87,14 +86,28 @@ export function Header() {
             <span className="text-xs">Notifications</span>
           </Link>
 
-          {/* Profile */}
-          <div className="flex flex-col items-center text-gray-600 hover:text-primary">
-            <Avatar className="w-6 h-6">
-              <AvatarImage src={sampleUser.avatar} alt={sampleUser.displayName} />
-              <AvatarFallback>{sampleUser.displayName?.charAt(0)}</AvatarFallback>
-            </Avatar>
-            <span className="text-xs">Me</span>
-          </div>
+          {loading ? (
+            <div className="flex flex-col items-center text-gray-600 cursor-wait">
+              <Skeleton className="w-6 h-6 rounded-full" />
+              <Skeleton className="h-3 w-6 mt-1.5" />
+            </div>
+          ) : user ? (
+            <Link href="/profile" className="flex flex-col items-center text-gray-600 hover:text-primary">
+              <Avatar className="w-6 h-6">
+                <AvatarImage src={undefined} alt={user.username} />
+                {/* thêm user avt sau*/}
+                <AvatarFallback>{user.username?.charAt(0).toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <span className="text-xs">Me</span>
+            </Link>
+          ) : (
+            <Link href="/login" className="flex flex-col items-center text-gray-600 hover:text-primary">
+              <Avatar className="w-6 h-6">
+                <AvatarFallback>?</AvatarFallback>
+              </Avatar>
+              <span className="text-xs">Login</span>
+            </Link>
+          )}
 
           {/* Work menu */}
           <div className="flex flex-col items-center text-gray-600 hover:text-primary">
