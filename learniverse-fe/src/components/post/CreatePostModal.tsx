@@ -60,8 +60,10 @@ const MAX_PDF_SIZE_BYTES = MAX_PDF_SIZE_MB * 1024 * 1024
 
 export default function CreatePostModalContent({
     setOpen,
+    onSuccess,
 }: {
     setOpen: (open: boolean) => void
+    onSuccess: () => void
 }) {
     const [title, setTitle] = useState("")
     const [content, setContent] = useState("")
@@ -154,7 +156,9 @@ export default function CreatePostModalContent({
     const handleSubmit = async () => {
         setError("")
         if (!title.trim()) return setError("Tiêu đề không được để trống.")
-        if (!content.trim()) return setError("Nội dung không được để trống.")
+        const bodyContent = content.trim();
+        if (!bodyContent) return setError("Nội dung không được để trống.");
+        if (bodyContent.length < 10) return setError("Nội dung bài viết phải có ít nhất 10 ký tự.");
         if (selectedTags.length === 0) return setError("Vui lòng chọn ít nhất 1 tag.")
 
         setIsLoading(true)
@@ -171,8 +175,9 @@ export default function CreatePostModalContent({
             setContent("")
             setSelectedTags([])
 
-            // TODO: Trigger reload 
-
+            if (onSuccess) {
+                onSuccess();
+            }
         } catch (err: any) {
             console.error("Lỗi đăng bài:", err);
             setError(err.message || "Có lỗi xảy ra khi đăng bài.");
