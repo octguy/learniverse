@@ -27,12 +27,14 @@ import {
   Lightbulb,
   CheckCircle,
   HelpCircle,
+  Bookmark,
 } from "lucide-react"
 import { MarkdownRenderer } from "./MarkdownRenderer"
 import type { Post } from "@/types/post"
 import { interactionService, ReactionType } from "@/lib/api/interactionService"
 import { cn } from "@/lib/utils"
 import { CommentSection } from "./CommentSection"
+import { toast } from "sonner"
 const REACTIONS_CONFIG = [
   {
     type: "LIKE" as ReactionType,
@@ -78,6 +80,8 @@ export function PostCard({ post }: PostCardProps) {
   )
   const [reactionCount, setReactionCount] = useState(post.reactionCount)
   const [isApiLoading, setIsApiLoading] = useState(false)
+  const [isBookmarked, setIsBookmarked] = useState(post.bookmarkedByCurrentUser);
+  const [isBookmarkLoading, setIsBookmarkLoading] = useState(false);
 
   const handleReact = async (type: ReactionType) => {
     if (isApiLoading) return
@@ -110,6 +114,29 @@ export function PostCard({ post }: PostCardProps) {
       setIsApiLoading(false)
     }
   }
+  const handleBookmark = async () => {
+    if (isBookmarkLoading) return;
+    setIsBookmarkLoading(true);
+    const prevIsBookmarked = isBookmarked;
+    
+    setIsBookmarked(!isBookmarked);
+
+    try {
+      if (prevIsBookmarked) {
+        await interactionService.unbookmark(post.id);
+        toast.success("Đã bỏ lưu bài viết");
+      } else {
+        await interactionService.bookmark(post.id);
+        toast.success("Đã lưu bài viết");
+      }
+    } catch (error) {
+      console.error("Lỗi bookmark:", error);
+      toast.error("Có lỗi xảy ra, vui lòng thử lại");
+      setIsBookmarked(prevIsBookmarked);
+    } finally {
+      setIsBookmarkLoading(false);
+    }
+  };
 
   const activeReactionConfig = REACTIONS_CONFIG.find(r => r.type === currentReaction)
   const postDate = new Date(createdAt)
@@ -163,6 +190,24 @@ export function PostCard({ post }: PostCardProps) {
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
+            <Button
+            variant="ghost"
+            size="icon" 
+            className={cn(
+                "flex-none w-12 transition-colors", 
+                isBookmarked && "text-yellow-600 hover:text-yellow-700 bg-yellow-50"
+            )}
+            onClick={handleBookmark}
+            disabled={isBookmarkLoading}
+            title={isBookmarked ? "Bỏ lưu" : "Lưu bài viết"}
+          >
+            <Bookmark 
+                className={cn(
+                    "h-4 w-4", 
+                    isBookmarked && "fill-current"
+                )} 
+            />
+          </Button>
           </div>
         </div>
         {title && (
@@ -264,6 +309,7 @@ export function PostCard({ post }: PostCardProps) {
           <Button variant="ghost" className="flex-1 flex items-center justify-center">
             <Share2 className="h-4 w-4 mr-2" /> Chia sẻ
           </Button>
+          
         </div>
 
         {tags.length > 0 && (

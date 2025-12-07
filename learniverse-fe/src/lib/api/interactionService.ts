@@ -35,4 +35,14 @@ export const interactionService = {
         )
         return unwrap(response.data)
     },
+    async bookmark(contentId: string) {
+        const response = await apiService.post<ApiResponse<any>>(`${BASE_PATH}/bookmark`, {
+            contentId: contentId,
+        })
+        return unwrap(response.data)
+    },
+    async unbookmark(contentId: string) {
+        const response = await apiService.delete<ApiResponse<void>>(`${BASE_PATH}/bookmark/${contentId}`)
+        return unwrap(response.data)
+    }
 }
