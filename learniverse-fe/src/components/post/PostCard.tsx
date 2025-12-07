@@ -23,46 +23,46 @@ import {
   ThumbsUp,
   MessageCircle,
   Share2,
-  Heart,       
-  Lightbulb,   
-  CheckCircle, 
-  HelpCircle,  
+  Heart,
+  Lightbulb,
+  CheckCircle,
+  HelpCircle,
 } from "lucide-react"
 import { MarkdownRenderer } from "./MarkdownRenderer"
 import type { Post } from "@/types/post"
 import { interactionService, ReactionType } from "@/lib/api/interactionService"
 import { cn } from "@/lib/utils"
-
+import { CommentSection } from "./CommentSection"
 const REACTIONS_CONFIG = [
-  { 
-    type: "LIKE" as ReactionType, 
-    icon: ThumbsUp, 
-    label: "Thích", 
-    color: "text-blue-600" 
+  {
+    type: "LIKE" as ReactionType,
+    icon: ThumbsUp,
+    label: "Thích",
+    color: "text-blue-600"
   },
-  { 
-    type: "LOVE" as ReactionType, 
-    icon: Heart, 
-    label: "Yêu thích", 
+  {
+    type: "LOVE" as ReactionType,
+    icon: Heart,
+    label: "Yêu thích",
     color: "text-red-500"
   },
-  { 
-    type: "INSIGHTFUL" as ReactionType, 
-    icon: Lightbulb, 
-    label: "Sâu sắc", 
+  {
+    type: "INSIGHTFUL" as ReactionType,
+    icon: Lightbulb,
+    label: "Sâu sắc",
     color: "text-yellow-600"
   },
-  { 
-    type: "HELPFUL" as ReactionType, 
-    icon: CheckCircle, 
-    label: "Hữu ích", 
-    color: "text-green-600" 
+  {
+    type: "HELPFUL" as ReactionType,
+    icon: CheckCircle,
+    label: "Hữu ích",
+    color: "text-green-600"
   },
-  { 
-    type: "CURIOUS" as ReactionType, 
-    icon: HelpCircle, 
-    label: "Tò mò", 
-    color: "text-purple-600" 
+  {
+    type: "CURIOUS" as ReactionType,
+    icon: HelpCircle,
+    label: "Tò mò",
+    color: "text-purple-600"
   },
 ]
 
@@ -120,6 +120,7 @@ export function PostCard({ post }: PostCardProps) {
 
   const images = attachments.filter((att) => att.fileType === "IMAGE")
   const pdfs = attachments.filter((att) => att.fileType === "PDF")
+  const [showComments, setShowComments] = useState(false);
 
   return (
     <Card className="w-full max-w-2xl mx-auto overflow-visible">
@@ -185,53 +186,53 @@ export function PostCard({ post }: PostCardProps) {
           </div>
         )}
         {pdfs.length > 0 && (
-            <div className="mt-4 flex flex-col gap-2">
-                {pdfs.map((pdf) => (
-                <a
-                    key={pdf.id}
-                    href={pdf.storageUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 rounded-md border p-2 text-sm text-blue-600 hover:bg-accent"
-                >
-                    <FileText className="h-5 w-5 flex-shrink-0" />
-                    <span className="truncate">{pdf.fileName}</span>
-                </a>
-                ))}
-            </div>
+          <div className="mt-4 flex flex-col gap-2">
+            {pdfs.map((pdf) => (
+              <a
+                key={pdf.id}
+                href={pdf.storageUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 rounded-md border p-2 text-sm text-blue-600 hover:bg-accent"
+              >
+                <FileText className="h-5 w-5 flex-shrink-0" />
+                <span className="truncate">{pdf.fileName}</span>
+              </a>
+            ))}
+          </div>
         )}
       </CardContent>
 
       <CardFooter className="flex-col items-start gap-4 z-10">
         <div className="flex w-full justify-between text-xs text-muted-foreground">
           <div className="flex items-center gap-1">
-             {activeReactionConfig && (
-                 <activeReactionConfig.icon className={cn("h-4 w-4", activeReactionConfig.color)} />
-             )}
-             <span>{reactionCount} Reactions</span>
+            {activeReactionConfig && (
+              <activeReactionConfig.icon className={cn("h-4 w-4", activeReactionConfig.color)} />
+            )}
+            <span>{reactionCount} Reactions</span>
           </div>
           <span>{post.commentCount} Comments</span>
         </div>
 
         <div className="w-full border-t pt-2 flex relative">
-          
+
           <div className="flex-1 group relative">
             <div className="absolute bottom-full left-0 pb-3 hidden group-hover:block z-50 w-max">
-                <div className="flex items-center gap-1 bg-white border shadow-lg rounded-full p-1.5 animate-in fade-in zoom-in duration-200">
-                  {REACTIONS_CONFIG.map((reaction) => (
-                    <button
-                      key={reaction.type}
-                      onClick={(e) => {
-                          e.stopPropagation();
-                          handleReact(reaction.type);
-                      }}
-                      className="p-2 rounded-full hover:bg-gray-100 transition-transform hover:scale-125 focus:outline-none"
-                      title={reaction.label}
-                    >
-                      <reaction.icon className={cn("h-6 w-6", reaction.color)} />
-                    </button>
-                  ))}
-                </div>
+              <div className="flex items-center gap-1 bg-white border shadow-lg rounded-full p-1.5 animate-in fade-in zoom-in duration-200">
+                {REACTIONS_CONFIG.map((reaction) => (
+                  <button
+                    key={reaction.type}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleReact(reaction.type);
+                    }}
+                    className="p-2 rounded-full hover:bg-gray-100 transition-transform hover:scale-125 focus:outline-none"
+                    title={reaction.label}
+                  >
+                    <reaction.icon className={cn("h-6 w-6", reaction.color)} />
+                  </button>
+                ))}
+              </div>
             </div>
             <Button
               variant="ghost"
@@ -242,18 +243,23 @@ export function PostCard({ post }: PostCardProps) {
               onClick={() => handleReact("LIKE")}
               disabled={isApiLoading}
             >
-                {activeReactionConfig ? (
-                    <activeReactionConfig.icon className={cn("h-5 w-5 mr-2", activeReactionConfig.color)} />
-                ) : (
-                    <ThumbsUp className="h-4 w-4 mr-2" />
-                )}
-                
-                {activeReactionConfig ? activeReactionConfig.label : "Thích"}
+              {activeReactionConfig ? (
+                <activeReactionConfig.icon className={cn("h-5 w-5 mr-2", activeReactionConfig.color)} />
+              ) : (
+                <ThumbsUp className="h-4 w-4 mr-2" />
+              )}
+
+              {activeReactionConfig ? activeReactionConfig.label : "Thích"}
             </Button>
           </div>
 
-          <Button variant="ghost" className="flex-1 flex items-center justify-center">
-            <MessageCircle className="h-4 w-4 mr-2" /> Bình luận
+          <Button
+            variant="ghost"
+            className="flex-1 flex items-center justify-center"
+            onClick={() => setShowComments(!showComments)}
+          >
+            <MessageCircle className="h-4 w-4 mr-2" />
+            Bình luận
           </Button>
           <Button variant="ghost" className="flex-1 flex items-center justify-center">
             <Share2 className="h-4 w-4 mr-2" /> Chia sẻ
@@ -267,6 +273,11 @@ export function PostCard({ post }: PostCardProps) {
                 {tag.name}
               </Badge>
             ))}
+          </div>
+        )}
+        {showComments && (
+          <div className="w-full animate-in slide-in-from-top-2 duration-200">
+             <CommentSection postId={post.id} />
           </div>
         )}
       </CardFooter>
