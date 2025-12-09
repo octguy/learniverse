@@ -1,34 +1,43 @@
 "use client"
 
-import React, { useState } from "react"
+import React, {useEffect, useState} from "react"
 import Image from "next/image"
+import { Camera } from "lucide-react"
 
 interface BackgroundUploaderProps {
     imageUrl: string;
-    onUpload: (url: string) => void;
+    onUpload: (url: string, file: File) => void;
 }
 
-export function BackgroundUploader({onUpload }: BackgroundUploaderProps) {
-    const [background, setBackground] = useState<string | null>(null)
+export function BackgroundUploader({ imageUrl, onUpload }: BackgroundUploaderProps) {
+    const [preview, setPreview] = useState<string>(imageUrl || "/login-banner.jpg");
+
+    useEffect(() => {
+        setPreview(imageUrl || "/login-banner.jpg");
+    }, [imageUrl]);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (file) {
-            const url = URL.createObjectURL(file)
-            setBackground(url)
+            const objectUrl = URL.createObjectURL(file)
+            setPreview(objectUrl)
+            onUpload(objectUrl, file)
         }
     }
 
     return (
-        <div className="relative h-48 w-full">
+        <div className="relative h-48 w-full bg-gray-100 rounded-t-3xl overflow-hidden group">
             <Image
-                src={background || "/favicon.ico"}
+                src={preview}
                 alt="Cover"
                 fill
-                className="object-cover"
+                className="object-cover transition-opacity group-hover:opacity-90"
             />
-            <label className="absolute bottom-3 right-3 bg-white rounded-full p-2 shadow cursor-pointer hover:bg-gray-100">
-                ✏️
+
+            <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+
+            <label className="absolute bottom-3 right-3 bg-white/90 hover:bg-white text-gray-700 rounded-full p-2 shadow-md cursor-pointer transition-transform hover:scale-105 backdrop-blur-sm">
+                <Camera className="w-5 h-5" />
                 <input
                     type="file"
                     accept="image/*"

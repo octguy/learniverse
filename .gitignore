@@ -3,3 +3,8 @@
 
 # Ignore macOS system files
 **/.DS_Store
+
+.vscode/
+.env
+/gradle
+.DS_Store
