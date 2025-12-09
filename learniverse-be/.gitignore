@@ -2,6 +2,7 @@ HELP.md
 .gradle
 build/
 !gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
 !**/src/main/**/build/
 !**/src/test/**/build/
 
@@ -36,11 +37,10 @@ out/
 ### VS Code ###
 .vscode/
 
-### env files ###
-src/main/resources/.env
-
 ### gradle files ###
 /gradle
+
+.env
 
 ### MacOS ###
 .DS_Store
