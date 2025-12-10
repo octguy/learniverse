@@ -1,40 +1,32 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import { TagSelector } from "../auth/tag-selector"
-import { userProfileService } from "@/lib/api/userProfileService"
-import { UserTag } from "@/types/userProfile"
+import { UserTag } from "@/types/userTag"
 
 interface Step3Props {
     onNext?: () => void
     onPrev?: () => void
+    selectedTags: string[]
+    onChange: (tags: string[]) => void
+    availableTags: UserTag[]
 }
 
-export default function Step3({ onNext, onPrev }: Step3Props) {
-    const [mockSelected, setMockSelected] = useState<string[]>([])
-    const [allTags, setAllTags] = useState<UserTag[]>([])
-
-    useEffect(() => {
-        const fetchTags = async () => {
-            try {
-                const tags = await userProfileService.getAllUserTags();
-                setAllTags(tags);
-            } catch (e) {
-                console.error("Step3 fetch tags failed", e);
-            }
-        };
-        fetchTags();
-    }, []);
-
+export default function Step3({
+                                  onNext,
+                                  onPrev,
+                                  selectedTags,
+                                  onChange,
+                                  availableTags
+                              }: Step3Props) {
     return (
         <div>
             <TagSelector
                 mode="onboarding"
-                selectedTags={mockSelected}
-                onChange={setMockSelected}
+                selectedTags={selectedTags}
+                onChange={onChange}
                 onNext={onNext}
                 onPrev={onPrev}
-                availableTags={allTags}
+                availableTags={availableTags}
             />
         </div>
     )

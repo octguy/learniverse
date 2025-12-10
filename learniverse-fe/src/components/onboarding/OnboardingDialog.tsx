@@ -1,14 +1,14 @@
-// File: src/components/onboarding/OnboardingDialog.tsx
 "use client"
 
 import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import WelcomeStep from "./WelcomeStep"
 import Step2 from "./Step2"
+import Step3 from "./Step3"
 import Step4 from "./Step4"
-import { TagSelector } from "@/components/auth/tag-selector"
 import { userProfileService } from "@/lib/api/userProfileService"
-import { UpdateProfileRequest, UserTag } from "@/types/userProfile" // Import UserTag
+import { UpdateProfileRequest } from "@/types/userProfile"
+import { UserTag } from "@/types/userTag"
 
 export default function OnboardingDialog({ user }: { user: any }) {
     const [open, setOpen] = useState(false)
@@ -30,9 +30,11 @@ export default function OnboardingDialog({ user }: { user: any }) {
     useEffect(() => {
         if (user && !user.onboardingCompleted) {
             setOpen(true)
+
             const fetchTags = async () => {
                 try {
                     const tags = await userProfileService.getAllUserTags();
+                    console.log("Fetched tags from DB:", tags);
                     setAllTags(tags);
                 } catch (e) {
                     console.error("Failed to fetch tags", e);
@@ -48,14 +50,17 @@ export default function OnboardingDialog({ user }: { user: any }) {
     const handleFinish = async () => {
         setLoading(true)
         try {
-            const tags = Array.from(new Set([...formData.favoriteTags, ...formData.improveTags]));
+            const uniqueTagIds = Array.from(new Set([...formData.favoriteTags, ...formData.improveTags]));
+
             const payload: UpdateProfileRequest = {
-                displayName: user.username,
+                displayName: user.displayName || user.username || "User",
                 bio: `Mục đích tham gia: ${formData.purpose}`,
-                userTags: tags,
+                userTags: uniqueTagIds,
             }
 
+            console.log("Submitting payload:", payload);
             await userProfileService.onboardProfile(payload)
+
             setOpen(false)
             window.location.reload()
         } catch (error) {
@@ -83,8 +88,7 @@ export default function OnboardingDialog({ user }: { user: any }) {
                 )}
 
                 {step === 2 && (
-                    <TagSelector
-                        mode="onboarding"
+                    <Step3
                         selectedTags={formData.favoriteTags}
                         onChange={(tags) => setFormData({ ...formData, favoriteTags: tags })}
                         onNext={nextStep}

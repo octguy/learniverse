@@ -1,3 +1,4 @@
+// src/components/auth/tag-selector.tsx
 "use client"
 
 import * as React from "react"
@@ -8,7 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { UserTag } from "@/types/userProfile"
+import { UserTag } from "@/types/userTag"
 
 interface TagSelectorProps {
     mode?: "onboarding" | "profile"
@@ -28,7 +29,6 @@ export function TagSelector({
                                 availableTags = [],
                             }: TagSelectorProps) {
     const [searchTerm, setSearchTerm] = React.useState("")
-
     const filteredTags = availableTags.filter((tag) =>
         tag.name.toLowerCase().includes(searchTerm.toLowerCase())
     )
@@ -49,7 +49,6 @@ export function TagSelector({
         const canProceed = selectedTags.length >= MIN_SELECTION && selectedTags.length <= MAX_SELECTION
         return (
             <div className="flex flex-col justify-between bg-gradient-to-b from-[#f6f6ff] to-white w-full max-w-[1250px] h-full min-h-[60vh] lg:min-h-[50vh] xl:min-h-[45vh] 2xl:min-h-[40vh] rounded-xl p-10">
-                {/* ... Header ... */}
                 <div className="mb-6">
                     <div className="flex justify-between items-start">
                         <div>
@@ -57,15 +56,14 @@ export function TagSelector({
                                 Môn học yêu thích của bạn là gì?
                             </h1>
                             <p className="text-gray-500 text-sm">
-                                Hãy chọn từ <strong>3 đến 5</strong> môn học bạn yêu thích nhất nhé.
+                                Hãy chọn từ <strong>{MIN_SELECTION} đến {MAX_SELECTION}</strong> môn học bạn yêu thích nhất nhé.
                             </p>
                         </div>
                         <Image src="/logo.png" alt="Learniverse Mini Logo" width={180} height={50} className="object-contain" />
                     </div>
                 </div>
 
-                {/* ... Main content ... */}
-                <div className="flex-1 flex items-start">
+                <div className="flex-1 flex items-start overflow-y-auto max-h-[400px] pr-2">
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 w-full">
                         {filteredTags.map((tag) => {
                             const isSelected = selectedTags.includes(tag.id)
