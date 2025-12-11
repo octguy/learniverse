@@ -4,6 +4,8 @@ import type { ApiResponse } from "@/types/api"
 export type VoteType = "UPVOTE" | "DOWNVOTE"
 export type VotableType = "CONTENT" | "ANSWER"
 
+export type ReactionType = "LIKE" | "LOVE" | "INSIGHTFUL" | "HELPFUL" | "CURIOUS"
+export type ReactableType = "CONTENT" | "ANSWER" | "COMMENT"
 const BASE_PATH = "/interactions"
 
 function unwrap<T>(response: ApiResponse<T>) {
@@ -22,4 +24,25 @@ export const interactionService = {
         )
         return unwrap(response.data)
     },
+    async react(payload: {
+        reactableType: ReactableType
+        reactableId: string
+        reactionType: ReactionType
+    }) {
+        const response = await apiService.post<ApiResponse<void>>(
+            `${BASE_PATH}/react`,
+            payload
+        )
+        return unwrap(response.data)
+    },
+    async bookmark(contentId: string) {
+        const response = await apiService.post<ApiResponse<any>>(`${BASE_PATH}/bookmark`, {
+            contentId: contentId,
+        })
+        return unwrap(response.data)
+    },
+    async unbookmark(contentId: string) {
+        const response = await apiService.delete<ApiResponse<void>>(`${BASE_PATH}/bookmark/${contentId}`)
+        return unwrap(response.data)
+    }
 }

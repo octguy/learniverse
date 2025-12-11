@@ -18,7 +18,7 @@ import {
 import { Card } from "@/components/ui/card"
 import CreatePostModal from "@/components/post/CreatePostModal"
 
-export function CreatePostTrigger() {
+export function CreatePostTrigger({ onPostCreated }: { onPostCreated?: () => void }) {
     const [open, setOpen] = useState(false)
     const mockUser = {
         displayName: "Khai Nguyen",
@@ -39,7 +39,7 @@ export function CreatePostTrigger() {
           <Button>Đăng bài</Button>
         </Card>
       </DialogTrigger>
-      <CreatePostModal setOpen={setOpen} />
+      <CreatePostModal setOpen={setOpen} onSuccess={onPostCreated ?? (() => {})} />
     </Dialog>
   )
 }

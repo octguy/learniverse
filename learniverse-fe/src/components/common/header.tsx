@@ -60,7 +60,7 @@ export function Header() {
 
         {/* Navigation Icons */}
         <div className="flex items-center justify-end space-x-7">
-          <Link href="/" className="flex flex-col items-center text-gray-600 hover:text-primary">
+          <Link href="/home" className="flex flex-col items-center text-gray-600 hover:text-primary">
             <Home className="w-5 h-5" />
             <span className="text-xs">Home</span>
           </Link>
