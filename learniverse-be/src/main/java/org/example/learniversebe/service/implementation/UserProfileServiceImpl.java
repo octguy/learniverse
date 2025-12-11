@@ -2,10 +2,6 @@ package org.example.learniversebe.service.implementation;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
-import java.io.IOException;
-import java.time.LocalDateTime;
-import java.util.*;
-
 import jakarta.transaction.Transactional;
 import org.example.learniversebe.dto.request.UserProfileRequest;
 import org.example.learniversebe.dto.response.UserProfileResponse;
@@ -14,6 +10,7 @@ import org.example.learniversebe.model.User;
 import org.example.learniversebe.model.UserProfile;
 import org.example.learniversebe.model.UserProfileTag;
 import org.example.learniversebe.model.UserTag;
+import org.example.learniversebe.model.composite_key.UserProfileTagId;
 import org.example.learniversebe.repository.UserProfileRepository;
 import org.example.learniversebe.repository.UserProfileTagRepository;
 import org.example.learniversebe.repository.UserRepository;
@@ -21,6 +18,11 @@ import org.example.learniversebe.repository.UserTagRepository;
 import org.example.learniversebe.service.IUserProfileService;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class UserProfileServiceImpl implements IUserProfileService {
@@ -59,29 +61,23 @@ public class UserProfileServiceImpl implements IUserProfileService {
             profile.setCreatedAt(LocalDateTime.now());
         }
 
-        profile.setDisplayName(request.getDisplayName());
+        if (request.getDisplayName() != null) {
+            profile.setDisplayName(request.getDisplayName());
+        }
         profile.setBio(request.getBio());
         profile.setUpdatedAt(LocalDateTime.now());
 
         String avatarUrl = uploadAvatar(request.getAvatar());
         if (avatarUrl != null) profile.setAvatarUrl(avatarUrl);
 
-        UserProfile savedProfile = userProfileRepository.save(profile);
-        if (request.getUserTags() != null && !request.getUserTags().isEmpty()) {
-            userProfileTagRepository.deleteAllByUserProfile(savedProfile);
+        synchronizeUserTags(profile, request.getUserTags());
 
-            for (UUID tagId : request.getUserTags()) {
-                UserTag tag = userTagRepository.findById(tagId)
-                        .orElseThrow(() -> new RuntimeException("Tag not found: " + tagId));
-
-                UserProfileTag relation = new UserProfileTag();
-                relation.setUserProfile(savedProfile);
-                relation.setUserTag(tag);
-
-                userProfileTagRepository.save(relation);
-            }
+        if (!user.isOnboarded()) {
+            user.setOnboarded(true);
+            userRepository.save(user);
         }
 
+        UserProfile savedProfile = userProfileRepository.save(profile);
         return toResponse(savedProfile);
     }
 
@@ -112,23 +108,42 @@ public class UserProfileServiceImpl implements IUserProfileService {
         if (avatarUrl != null)
             profile.setAvatarUrl(avatarUrl);
 
+        synchronizeUserTags(profile, request.getUserTags());
+
         UserProfile savedProfile = userProfileRepository.save(profile);
+        return toResponse(savedProfile);
+    }
 
-        if (request.getUserTags() != null) {
-            userProfileTagRepository.deleteAllByUserProfile(savedProfile);
+    private void synchronizeUserTags(UserProfile profile, Set<UUID> requestedTagIds) {
+        if (requestedTagIds == null) return;
 
-            for (UUID tagId : request.getUserTags()) {
+        if (profile.getUserTags() == null) {
+            profile.setUserTags(new HashSet<>());
+        }
+        Set<UserProfileTag> currentTags = profile.getUserTags();
+
+        currentTags.removeIf(existing -> !requestedTagIds.contains(existing.getUserTag().getId()));
+
+        Set<UUID> existingTagIds = currentTags.stream()
+                .map(t -> t.getUserTag().getId())
+                .collect(Collectors.toSet());
+
+        for (UUID tagId : requestedTagIds) {
+            if (!existingTagIds.contains(tagId)) {
                 UserTag tag = userTagRepository.findById(tagId)
                         .orElseThrow(() -> new RuntimeException("Tag not found: " + tagId));
 
                 UserProfileTag relation = new UserProfileTag();
-                relation.setUserProfile(savedProfile);
+
+                UserProfileTagId id = new UserProfileTagId(profile.getId(), tag.getId());
+                relation.setUserProfileTagId(id);
+
+                relation.setUserProfile(profile);
                 relation.setUserTag(tag);
-                userProfileTagRepository.save(relation);
+
+                currentTags.add(relation);
             }
         }
-
-        return toResponse(savedProfile);
     }
 
     private String uploadAvatar(MultipartFile avatar) {

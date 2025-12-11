@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.example.learniversebe.model.composite_key.UserProfileTagId;
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 @Entity
 @Table(name="user_profile_tag")
@@ -13,14 +14,14 @@ import java.time.LocalDateTime;
 public class UserProfileTag extends BaseEntity {
 
     @EmbeddedId
-    private UserProfileTagId userProfileTagId = new UserProfileTagId();
+    private UserProfileTagId userProfileTagId;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("userProfileId")
     @JoinColumn(name="user_profile_id", nullable = false)
     private UserProfile userProfile;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("userTagId")
     @JoinColumn(name="user_tag_id", nullable = false)
     private UserTag userTag;
@@ -28,12 +29,25 @@ public class UserProfileTag extends BaseEntity {
     @PrePersist
     protected void onCreate() {
         LocalDateTime now = LocalDateTime.now();
-        this.setCreatedAt(now);
+        if (this.getCreatedAt() == null) this.setCreatedAt(now);
         this.setUpdatedAt(now);
     }
 
     @PreUpdate
     protected void onUpdate() {
         this.setUpdatedAt(LocalDateTime.now());
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        UserProfileTag that = (UserProfileTag) o;
+        return Objects.equals(userProfileTagId, that.userProfileTagId);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(userProfileTagId);
     }
 }

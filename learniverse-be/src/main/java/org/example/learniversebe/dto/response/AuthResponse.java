@@ -2,6 +2,7 @@ package org.example.learniversebe.dto.response;
 
 import lombok.Builder;
 import lombok.Data;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.UUID;
 
@@ -13,4 +14,7 @@ public class AuthResponse {
     private String email;
     private String accessToken;
     private String refreshToken;
+
+    @JsonProperty("isOnboarded")
+    private boolean isOnboarded;
 }

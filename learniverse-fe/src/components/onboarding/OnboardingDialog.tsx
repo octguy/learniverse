@@ -9,12 +9,13 @@ import Step4 from "./Step4"
 import { userProfileService } from "@/lib/api/userProfileService"
 import { UpdateProfileRequest } from "@/types/userProfile"
 import { UserTag } from "@/types/userTag"
+import { useAuth } from "@/context/AuthContext"
 
-export default function OnboardingDialog({ user }: { user: any }) {
+export default function OnboardingDialog() {
+    const { user, completeOnboarding } = useAuth();
     const [open, setOpen] = useState(false)
     const [step, setStep] = useState(0)
     const [loading, setLoading] = useState(false)
-
     const [allTags, setAllTags] = useState<UserTag[]>([])
 
     const [formData, setFormData] = useState<{
@@ -28,21 +29,22 @@ export default function OnboardingDialog({ user }: { user: any }) {
     })
 
     useEffect(() => {
-        if (user && !user.onboardingCompleted) {
-            setOpen(true)
-
+        if (user && !user.isOnboarded) {
+            setOpen(true);
+            // Tải danh sách tags ngay khi mở dialog
             const fetchTags = async () => {
                 try {
                     const tags = await userProfileService.getAllUserTags();
-                    console.log("Fetched tags from DB:", tags);
                     setAllTags(tags);
                 } catch (e) {
                     console.error("Failed to fetch tags", e);
                 }
             };
             fetchTags();
+        } else {
+            setOpen(false);
         }
-    }, [user])
+    }, [user]);
 
     const nextStep = () => setStep((s) => s + 1)
     const prevStep = () => setStep((s) => Math.max(s - 1, 0))
@@ -53,29 +55,37 @@ export default function OnboardingDialog({ user }: { user: any }) {
             const uniqueTagIds = Array.from(new Set([...formData.favoriteTags, ...formData.improveTags]));
 
             const payload: UpdateProfileRequest = {
-                displayName: user.displayName || user.username || "User",
+                displayName: user?.username || "Người dùng mới",
                 bio: `Mục đích tham gia: ${formData.purpose}`,
                 userTags: uniqueTagIds,
             }
 
-            console.log("Submitting payload:", payload);
+            console.log("Submitting onboarding data:", payload);
+
             await userProfileService.onboardProfile(payload)
 
-            setOpen(false)
-            window.location.reload()
+            completeOnboarding();
+
+            setOpen(false);
+
         } catch (error) {
             console.error("Onboarding error:", error)
-            alert("Có lỗi xảy ra, vui lòng thử lại.")
+            alert("Có lỗi xảy ra khi lưu thông tin. Vui lòng thử lại.")
         } finally {
             setLoading(false)
         }
     }
 
-    return (
-        <Dialog open={open} onOpenChange={() => {}}>
-            <DialogTitle className="hidden">Onboarding</DialogTitle>
-            <DialogContent className="min-w-[1000px] max-w-[1000px] p-0 bg-transparent shadow-none border-none overflow-hidden [&>button]:hidden">
+    if (!open) return null;
 
+    return (
+        <Dialog open={open} onOpenChange={() => {  }}>
+            <DialogTitle className="hidden">Chào mừng bạn đến với Learniverse</DialogTitle>
+            <DialogContent
+                className="min-w-[95vw] md:min-w-[1000px] max-w-[1000px] p-0 bg-transparent shadow-none border-none overflow-hidden [&>button]:hidden focus:outline-none"
+                onPointerDownOutside={(e) => e.preventDefault()}
+                onEscapeKeyDown={(e) => e.preventDefault()}
+            >
                 {step === 0 && <WelcomeStep onNext={nextStep} />}
 
                 {step === 1 && (

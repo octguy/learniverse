@@ -28,13 +28,17 @@ export const userProfileService = {
             });
         }
 
-        const res = await apiService.put<UserProfileResponse>(`${BASE_URL}/me`, formData);
+        const res = await apiService.put<UserProfileResponse>(`${BASE_URL}/me`, formData, {
+            headers: {
+                "Content-Type": "multipart/form-data",
+            },
+        });
         return res.data;
     },
 
     onboardProfile: async (data: UpdateProfileRequest) => {
         const formData = new FormData();
-        if (data.displayName) formData.append("display_name", data.displayName);
+        if (data.displayName) formData.append("displayName", data.displayName);
         if (data.bio) formData.append("bio", data.bio);
         if (data.avatar) formData.append("avatar", data.avatar);
 
@@ -44,7 +48,11 @@ export const userProfileService = {
             });
         }
 
-        const res = await apiService.post<UserProfileResponse>(`${BASE_URL}/onboard`, formData);
+        const res = await apiService.post<UserProfileResponse>(`${BASE_URL}/onboard`, formData, {
+            headers: {
+                "Content-Type": "multipart/form-data",
+            },
+        });
         return res.data;
     }
 };
