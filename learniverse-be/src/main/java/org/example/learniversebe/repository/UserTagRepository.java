@@ -7,4 +7,5 @@ import java.util.UUID;
 
 public interface UserTagRepository extends JpaRepository<UserTag, UUID> {
     UserTag findByName(String name);
+    boolean existsByName(String name);
 }

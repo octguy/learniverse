@@ -48,7 +48,7 @@ export default function LoginPage() {
         try {
             const apiResponse = await authService.login(formData);
             await login(apiResponse.data);
-            window.location.href = "/";
+            window.location.href = "/home";
         } catch (err: any) {
             let errMsg = getErrorMessage(err);
             const isUnverified = err.httpStatus === 403 || err.errorCode === "EMAIL_NOT_VERIFIED";

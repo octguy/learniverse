@@ -53,11 +53,11 @@ export default function MainPage() {
     const detailResponses = await Promise.all(detailPromises)
 
     const fullPosts = detailResponses.map((response) => {
-      console.log("getPostById response:", response) // 👈 xem structure ở đây
-      return response.data // có thể cần response.data.data tùy API
+      console.log("getPostById response:", response) 
+      return response.data 
     })
 
-    console.log("fullPosts:", fullPosts) // 👈 kiểm tra có field title không
+    console.log("fullPosts:", fullPosts) 
 
     setPosts(fullPosts)
   } catch (err) {
@@ -75,7 +75,7 @@ export default function MainPage() {
 
   return (
     <div className="max-w-2xl mx-auto flex flex-col gap-6">
-      <CreatePostTrigger />
+      <CreatePostTrigger onPostCreated={fetchPosts} />
       {loading && (
         <div className="flex justify-center py-10">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />

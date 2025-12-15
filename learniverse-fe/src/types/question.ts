@@ -71,3 +71,5 @@ export interface QuestionDetail extends QuestionSummary {
     currentUserVote: QuestionVoteType
     currentUserReaction: string | null
 }
+
+export type QuestionResponse = QuestionDetail;
