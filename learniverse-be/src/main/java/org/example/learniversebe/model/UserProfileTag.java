@@ -23,43 +23,21 @@ public class UserProfileTag extends BaseEntity {
     private UserProfile userProfile;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @MapsId("userTagId")
-    @JoinColumn(name="user_tag_id", nullable = false)
-    private UserTag userTag;
+    @MapsId("tagId")
+    @JoinColumn(name="tag_id", nullable = false)
+    private Tag tag;
 
-    public UserTagType getType() {
-        return userProfileTagId != null ? userProfileTagId.getType() : null;
-    }
-
-    public void setType(UserTagType type) {
-        if (this.userProfileTagId == null) {
-            this.userProfileTagId = new UserProfileTagId();
-        }
-        this.userProfileTagId.setType(type);
-    }
+    private UserTagType type;
 
     @PrePersist
     protected void onCreate() {
         LocalDateTime now = LocalDateTime.now();
-        if (this.getCreatedAt() == null) this.setCreatedAt(now);
+        this.setCreatedAt(now);
         this.setUpdatedAt(now);
     }
 
     @PreUpdate
     protected void onUpdate() {
         this.setUpdatedAt(LocalDateTime.now());
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        UserProfileTag that = (UserProfileTag) o;
-        return Objects.equals(userProfileTagId, that.userProfileTagId);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(userProfileTagId);
     }
 }

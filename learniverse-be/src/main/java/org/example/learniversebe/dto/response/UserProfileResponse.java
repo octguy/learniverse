@@ -20,7 +20,6 @@ public class UserProfileResponse {
     private String coverUrl;
     private int postCount;
     private int answeredQuestionCount;
-    private UserResponse user;
-    private List<UserTagResponse> interestTags;
-    private List<UserTagResponse> skillTags;
+    private List<TagResponse> interestTags;
+    private List<TagResponse> skillTags;
 }

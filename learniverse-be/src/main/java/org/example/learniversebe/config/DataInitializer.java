@@ -1,49 +1,62 @@
 package org.example.learniversebe.config;
 
 import org.example.learniversebe.enums.UserRole;
-import org.example.learniversebe.model.UserTag;
-import org.example.learniversebe.repository.UserTagRepository;
+import org.example.learniversebe.model.Tag;
+import org.example.learniversebe.repository.TagRepository;
 import org.example.learniversebe.service.IRoleService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Component
 public class DataInitializer implements CommandLineRunner {
 
     private final IRoleService roleService;
-    private final UserTagRepository userTagRepository;
+    private final TagRepository tagRepository;
 
-    public DataInitializer(IRoleService roleService, UserTagRepository userTagRepository) {
+    public DataInitializer(IRoleService roleService, TagRepository tagRepository) {
         this.roleService = roleService;
-        this.userTagRepository = userTagRepository;
+        this.tagRepository = tagRepository;
     }
 
     @Override
     public void run(String... args) throws Exception {
         System.out.println("DataInitializer run method executed.");
         initializeRoles();
-        initializeUserTags();
+        initializeTags();
     }
 
-    private void initializeUserTags() {
+    private void initializeTags() {
+        // Chỉ khởi tạo khi bảng tag đang rỗng
+        if (tagRepository.count() > 0) {
+            return;
+        }
+
         String[] subjects = {
                 "Toán học", "Ngữ văn", "Tiếng Anh", "Vật lý", "Hóa học",
-                "Sinh học", "Lịch sử", "Địa lý", "Giáo dục công dân", "Tin học", "Công nghệ", "Khác"
+                "Sinh học", "Lịch sử", "Địa lý", "Giáo dục công dân",
+                "Tin học", "Công nghệ", "Khác"
         };
 
+        List<Tag> tags = new ArrayList<>();
+
+        LocalDateTime now = LocalDateTime.now();
+
         for (String name : subjects) {
-            if (!userTagRepository.existsByName(name)) {
-                UserTag tag = new UserTag();
-                tag.setId(UUID.randomUUID());
-                tag.setName(name);
-                tag.setCreatedAt(java.time.LocalDateTime.now());
-                tag.setUpdatedAt(java.time.LocalDateTime.now());
-                userTagRepository.save(tag);
-            }
+            Tag tag = new Tag();
+            tag.setId(UUID.randomUUID());
+            tag.setName(name);
+            tag.setCreatedAt(now);
+            tag.setUpdatedAt(now);
+            tags.add(tag);
         }
-        System.out.println("Initialized default user tags.");
+
+        tagRepository.saveAll(tags);
+        System.out.println("Initialized default tags.");
     }
 
     private void initializeRoles() {
