@@ -34,6 +34,9 @@ public class UserProfile extends BaseEntity {
     @Column(name="avatar_url")
     private String avatarUrl;
 
+    @Column(name="cover_url")
+    private String coverUrl;
+
     @Column(name="post_count")
     private int postCount = 0;
 

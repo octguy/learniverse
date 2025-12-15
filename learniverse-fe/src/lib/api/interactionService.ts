@@ -1,5 +1,6 @@
 import apiService from "@/lib/apiService"
-import type { ApiResponse } from "@/types/api"
+import type {ApiResponse, PageResponse} from "@/types/api"
+import {BookmarkResponse} from "@/types/post";
 
 export type VoteType = "UPVOTE" | "DOWNVOTE"
 export type VotableType = "CONTENT" | "ANSWER"
@@ -44,5 +45,12 @@ export const interactionService = {
     async unbookmark(contentId: string) {
         const response = await apiService.delete<ApiResponse<void>>(`${BASE_PATH}/bookmark/${contentId}`)
         return unwrap(response.data)
-    }
+    },
+    getMyBookmarks: async (page = 0, size = 10) => {
+        const res = await apiService.get<ApiResponse<PageResponse<BookmarkResponse>>>(
+            `${BASE_PATH}/bookmarks/me`,
+            { params: { page, size } }
+        );
+        return res.data.data;
+    },
 }

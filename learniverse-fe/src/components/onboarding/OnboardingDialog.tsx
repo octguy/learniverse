@@ -52,20 +52,17 @@ export default function OnboardingDialog() {
     const handleFinish = async () => {
         setLoading(true)
         try {
-            const uniqueTagIds = Array.from(new Set([...formData.favoriteTags, ...formData.improveTags]));
-
             const payload: UpdateProfileRequest = {
                 displayName: user?.username || "Người dùng mới",
                 bio: `Mục đích tham gia: ${formData.purpose}`,
-                userTags: uniqueTagIds,
+                interestTagIds: formData.favoriteTags,
+                skillTagIds: formData.improveTags,
             }
-
             console.log("Submitting onboarding data:", payload);
 
             await userProfileService.onboardProfile(payload)
 
             completeOnboarding();
-
             setOpen(false);
 
         } catch (error) {

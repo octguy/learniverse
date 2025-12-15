@@ -1,6 +1,6 @@
 import apiService from "@/lib/apiService"
 import type { ApiResponse, PageResponse } from "@/types/api"
-import type { QuestionDetail, QuestionSummary } from "@/types/question"
+import type {QuestionDetail, QuestionResponse, QuestionSummary} from "@/types/question"
 
 export interface QuestionQuery {
     page?: number
@@ -45,5 +45,8 @@ export const questionService = {
             payload
         )
         return unwrap(response.data)
+    },
+    getQuestionsByUserId: async (userId: string, page = 0, size = 10) => {
+        return apiService.get<PageResponse<QuestionResponse>>(`/questions/user/${userId}?page=${page}&size=${size}`);
     },
 }

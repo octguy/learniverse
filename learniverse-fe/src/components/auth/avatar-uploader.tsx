@@ -3,7 +3,7 @@
 import * as React from "react"
 import * as AvatarPrimitive from "@radix-ui/react-avatar"
 import { cn } from "@/lib/utils"
-import { CameraIcon } from "lucide-react"
+import { CameraIcon, User } from "lucide-react"
 
 interface AvatarUploaderProps {
     imageUrl: string
@@ -31,29 +31,26 @@ export function AvatarUploader({ imageUrl, onUpload, className }: AvatarUploader
     return (
         <AvatarPrimitive.Root
             className={cn(
-                "relative shrink-0 overflow-hidden rounded-full border border-border shadow-sm group cursor-pointer",
+                "relative flex shrink-0 overflow-hidden rounded-full border-4 border-white dark:border-zinc-900 shadow-md group cursor-pointer bg-white dark:bg-zinc-800",
                 className
             )}
             onClick={() => inputRef.current?.click()}
         >
-            {image ? (
-                <AvatarPrimitive.Image
-                    src={image}
-                    alt="Avatar"
-                    className="w-full h-full object-cover"
-                />
-            ) : (
-                <AvatarPrimitive.Fallback className="bg-muted flex w-full h-full items-center justify-center rounded-full text-sm text-muted-foreground">
-                    No Image
-                </AvatarPrimitive.Fallback>
-            )}
+            <AvatarPrimitive.Image
+                src={image || ""}
+                alt="Avatar"
+                className="w-full h-full object-cover"
+            />
 
-            {/* Overlay + icon upload */}
+            <AvatarPrimitive.Fallback className="flex w-full h-full items-center justify-center text-gray-300 dark:text-zinc-600 bg-gray-100 dark:bg-zinc-800">
+                <User className="w-3/5 h-3/5" />
+            </AvatarPrimitive.Fallback>
+
             <div
-                className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10"
             >
-                <CameraIcon className="text-white w-8 h-8 mb-1" />
-                <span className="text-white text-[10px] font-medium">Đổi ảnh</span>
+                <CameraIcon className="text-white w-8 h-8 mb-1 opacity-90 drop-shadow-md" />
+                <span className="text-white text-[10px] font-medium tracking-wide drop-shadow-md">Đổi ảnh</span>
             </div>
 
             <input

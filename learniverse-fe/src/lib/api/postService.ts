@@ -32,5 +32,11 @@ export const postService = {
     getPostById: async (id: string) => {
     const response = await apiService.get<ApiResponse<Post>>(`/posts/${id}`);
     return response.data;
-  }
+  },
+    getPostsByUser: async (userId: string, page = 0, size = 10) => {
+        const response = await apiService.get<ApiResponse<PageResponse<Post>>>(`/posts/author/${userId}`, {
+            params: { page, size }
+        });
+        return response.data.data;
+    },
 };

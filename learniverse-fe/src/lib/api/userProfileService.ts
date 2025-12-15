@@ -10,6 +10,11 @@ export const userProfileService = {
         return res.data;
     },
 
+    getUserProfile: async (userId: string) => {
+        const res = await apiService.get<UserProfileResponse>(`${BASE_URL}/${userId}`);
+        return res.data;
+    },
+
     getAllUserTags: async () => {
         const res = await apiService.get<UserTag[]>("/user-tags/all");
         return res.data;
@@ -19,19 +24,20 @@ export const userProfileService = {
         const formData = new FormData();
         if (data.displayName) formData.append("displayName", data.displayName);
         if (data.bio) formData.append("bio", data.bio);
-        if (data.avatar) formData.append("avatar", data.avatar);
-        if (data.coverImage) formData.append("coverImage", data.coverImage);
 
-        if (data.userTags && data.userTags.length > 0) {
-            data.userTags.forEach((tagId) => {
-                formData.append("userTags", tagId);
-            });
+        if (data.avatar instanceof File) formData.append("avatar", data.avatar);
+        if (data.cover instanceof File) formData.append("cover", data.cover);
+
+        if (data.interestTagIds && data.interestTagIds.length > 0) {
+            data.interestTagIds.forEach((tagId) => formData.append("interestTagIds", tagId));
+        }
+
+        if (data.skillTagIds && data.skillTagIds.length > 0) {
+            data.skillTagIds.forEach((tagId) => formData.append("skillTagIds", tagId));
         }
 
         const res = await apiService.put<UserProfileResponse>(`${BASE_URL}/me`, formData, {
-            headers: {
-                "Content-Type": "multipart/form-data",
-            },
+            headers: { "Content-Type": "multipart/form-data" },
         });
         return res.data;
     },
@@ -40,18 +46,19 @@ export const userProfileService = {
         const formData = new FormData();
         if (data.displayName) formData.append("displayName", data.displayName);
         if (data.bio) formData.append("bio", data.bio);
-        if (data.avatar) formData.append("avatar", data.avatar);
+        if (data.avatar instanceof File) formData.append("avatar", data.avatar);
+        if (data.cover instanceof File) formData.append("cover", data.cover);
 
-        if (data.userTags && data.userTags.length > 0) {
-            data.userTags.forEach((tagId) => {
-                formData.append("userTags", tagId);
-            });
+        if (data.interestTagIds && data.interestTagIds.length > 0) {
+            data.interestTagIds.forEach((tagId) => formData.append("interestTagIds", tagId));
+        }
+
+        if (data.skillTagIds && data.skillTagIds.length > 0) {
+            data.skillTagIds.forEach((tagId) => formData.append("skillTagIds", tagId));
         }
 
         const res = await apiService.post<UserProfileResponse>(`${BASE_URL}/onboard`, formData, {
-            headers: {
-                "Content-Type": "multipart/form-data",
-            },
+            headers: { "Content-Type": "multipart/form-data" },
         });
         return res.data;
     }

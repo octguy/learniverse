@@ -22,5 +22,9 @@ public class UserProfileRequest {
 
     private MultipartFile avatar;
 
-    private Set<UUID> userTags = new HashSet<>();
+    private MultipartFile cover;
+
+    private Set<UUID> interestTagIds = new HashSet<>();
+
+    private Set<UUID> skillTagIds = new HashSet<>();
 }

@@ -3,6 +3,7 @@ package org.example.learniversebe.model;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.example.learniversebe.enums.UserTagType;
 import org.example.learniversebe.model.composite_key.UserProfileTagId;
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -25,6 +26,17 @@ public class UserProfileTag extends BaseEntity {
     @MapsId("userTagId")
     @JoinColumn(name="user_tag_id", nullable = false)
     private UserTag userTag;
+
+    public UserTagType getType() {
+        return userProfileTagId != null ? userProfileTagId.getType() : null;
+    }
+
+    public void setType(UserTagType type) {
+        if (this.userProfileTagId == null) {
+            this.userProfileTagId = new UserProfileTagId();
+        }
+        this.userProfileTagId.setType(type);
+    }
 
     @PrePersist
     protected void onCreate() {
