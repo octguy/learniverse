@@ -10,6 +10,8 @@ import { commentService } from "@/lib/api/commentService";
 import type { Comment } from "@/types/comment";
 import { toast } from "sonner";
 
+import { CommentItem } from "./CommentItem";
+
 interface CommentSectionProps {
   postId: string;
   onCommentAdded?: () => void;
@@ -38,7 +40,7 @@ export function CommentSection({ postId, onCommentAdded }: CommentSectionProps) 
   };
   const handleSubmit = async () => {
     if (!newComment.trim()) return;
-    
+
     setIsSubmitting(true);
     try {
       const createdComment = await commentService.createComment({
@@ -50,8 +52,8 @@ export function CommentSection({ postId, onCommentAdded }: CommentSectionProps) 
       setComments([createdComment, ...comments]);
       setNewComment("");
       onCommentAdded?.();
-      
-      toast.success("Đã gửi bình luận!"); 
+
+      toast.success("Đã gửi bình luận!");
 
     } catch (error) {
       console.error("Lỗi gửi bình luận:", error);
@@ -66,22 +68,22 @@ export function CommentSection({ postId, onCommentAdded }: CommentSectionProps) 
       <h3 className="text-sm font-semibold mb-4">Bình luận</h3>
       <div className="flex gap-3 mb-6">
         <Avatar className="w-8 h-8">
-          <AvatarImage src="https://github.com/shadcn.png" /> 
+          <AvatarImage src="https://github.com/shadcn.png" />
           <AvatarFallback>Me</AvatarFallback>
         </Avatar>
         <div className="flex-1 gap-2 flex flex-col min-w-0">
-          <Textarea 
-            placeholder="Viết bình luận của bạn..." 
+          <Textarea
+            placeholder="Viết bình luận của bạn..."
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
             className="min-h-[80px] text-sm"
           />
           <div className="flex justify-end">
-            <Button 
-                size="sm" 
-                onClick={handleSubmit}
-                 
-                disabled={!newComment.trim() || isSubmitting}
+            <Button
+              size="sm"
+              onClick={handleSubmit}
+
+              disabled={!newComment.trim() || isSubmitting}
             >
               {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
               Gửi
@@ -96,36 +98,10 @@ export function CommentSection({ postId, onCommentAdded }: CommentSectionProps) 
       ) : (
         <div className="space-y-6">
           {comments.map((comment) => (
-            <CommentItem key={comment.id} comment={comment} />
+            <CommentItem key={comment.id} comment={comment} postId={postId} />
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-function CommentItem({ comment }: { comment: Comment }) {
-  return (
-    <div className="flex gap-3">
-      <Avatar className="w-8 h-8">
-        <AvatarImage src={comment.author.avatarUrl} />
-        <AvatarFallback>{comment.author.username.charAt(0)}</AvatarFallback>
-      </Avatar>
-      <div className="flex-1 space-y-1">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold">{comment.author.username}</span>
-          <span className="text-xs text-muted-foreground">
-            {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true, locale: vi })}
-          </span>
-        </div>
-        <div className="text-sm text-foreground/90 whitespace-pre-line">
-          {comment.body}
-        </div>
-        <div className="flex gap-4 mt-1">
-          <button className="text-xs font-medium text-muted-foreground hover:text-foreground">Thích</button>
-          <button className="text-xs font-medium text-muted-foreground hover:text-foreground">Phản hồi</button>
-        </div>
-      </div>
     </div>
   );
 }
