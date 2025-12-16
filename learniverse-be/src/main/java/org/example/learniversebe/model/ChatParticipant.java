@@ -39,7 +39,7 @@ public class ChatParticipant extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name="invited_by")
-    private User invitedBy; // null for direct messages
+    private User invitedBy; // null for who creates direct messages
 
     @Column(name="joined_at")
     private LocalDateTime joinedAt;
@@ -53,6 +53,7 @@ public class ChatParticipant extends BaseEntity {
         LocalDateTime now = LocalDateTime.now();
         this.setCreatedAt(now);
         this.setUpdatedAt(now);
+        this.setJoinedAt(LocalDateTime.now());
     }
 
     @PreUpdate

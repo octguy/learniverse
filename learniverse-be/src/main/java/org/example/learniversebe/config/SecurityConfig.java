@@ -79,6 +79,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/tags/**").permitAll()
 
                         .requestMatchers("/api/v1/dummy/**", "/api/v1/auth/change-password").hasRole("USER")
+                        .requestMatchers("/api/v1/chat/**").hasRole("USER")
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(authenticationEntryPoint))

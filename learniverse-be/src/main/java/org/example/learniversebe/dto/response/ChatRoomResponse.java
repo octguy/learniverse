@@ -14,8 +14,6 @@ public class ChatRoomResponse {
 
     private UUID id;
 
-    private UUID creatorId;
-
     private String name;
 
     private Set<UUID> members;

@@ -21,7 +21,7 @@ public class ChatRoom extends BaseEntity {
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by", nullable = false)
+    @JoinColumn(name = "created_by")
     private User host; // chat host,
 
     @Column(name="name")
