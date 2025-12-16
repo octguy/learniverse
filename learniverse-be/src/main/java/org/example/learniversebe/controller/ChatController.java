@@ -6,11 +6,10 @@ import org.example.learniversebe.model.ApiResponse;
 import org.example.learniversebe.service.IChatRoomService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import javax.swing.*;
+import java.util.List;
 import java.util.UUID;
 
 @RequestMapping("/api/v1/chat")
@@ -38,4 +37,17 @@ public class ChatController {
         return ResponseEntity.ok(apiResponse);
     }
 
+    @GetMapping
+    public ResponseEntity<?> getAllChatRoomsByUser() {
+        List<ChatRoomResponse> chatRoomResponses = chatRoomService.getAllChatRoomsByUser();
+
+        ApiResponse<?> apiResponse = new ApiResponse<>(
+                HttpStatus.OK,
+                "Chat rooms fetched successfully",
+                chatRoomResponses,
+                null
+        );
+
+        return ResponseEntity.ok(apiResponse);
+    }
 }

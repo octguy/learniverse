@@ -76,6 +76,14 @@ public class ChatRoomServiceImpl implements IChatRoomService {
         return roomResponse(room, participants);
     }
 
+    @Override
+    public List<ChatRoomResponse> getAllChatRoomsByUser() {
+        User currentUser = SecurityUtils.getCurrentUser();
+        List<ChatRoom> rooms = chatRoomRepository.findChatRoomsByUserId(currentUser.getId());
+        return rooms.stream().map(room -> roomResponse(room, null)).collect(Collectors.toList());
+    }
+
+
     private ChatParticipant createChatParticipant(ChatRoom room, User user, User invitedBy) {
         ChatParticipant participant = new ChatParticipant();
 

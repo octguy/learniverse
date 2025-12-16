@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -20,4 +21,11 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, UUID> {
             "limit 1", nativeQuery = true)
     Optional<ChatRoom> existsDirectMessage(@Param("userId1") UUID userId1,
                                            @Param("userId2") UUID userId2);
+    @Query(value = """
+            select cr.*
+            from chat_room cr
+            join chat_participant cp on cr.id = cp.chat_room_id
+            where cp.participant_id = :userId
+            """, nativeQuery = true)
+    List<ChatRoom> findChatRoomsByUserId(@Param("userId") UUID userId);
 }
