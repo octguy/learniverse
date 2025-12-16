@@ -1,6 +1,7 @@
 package org.example.learniversebe.service.implementation;
 
 import jakarta.mail.MessagingException;
+import lombok.extern.slf4j.Slf4j;
 import org.example.learniversebe.dto.request.*;
 import org.example.learniversebe.dto.response.AuthResponse;
 import org.example.learniversebe.enums.UserRole;
@@ -33,6 +34,7 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 
+@Slf4j
 @Service
 public class AuthServiceImpl implements IAuthService {
 
@@ -82,10 +84,12 @@ public class AuthServiceImpl implements IAuthService {
 
     @Override
     public AuthResponse login(LoginRequest request) {
+        log.info("Login attempt for email: {}", request.getEmail());
         User user = userRepository.findByEmail(request.getEmail()).orElseThrow(() -> new BadCredentialsException("Bad credentials"));
 
         // Still throw BadCredentialsException to avoid giving hints to attackers
         if (!user.isEnabled()) {
+            log.warn("Login failed - email not verified for user: {}", request.getEmail());
             throw new AccountNotActivatedException("Email not verified!");
         }
 
@@ -104,6 +108,7 @@ public class AuthServiceImpl implements IAuthService {
         String accessToken = jwtUtil.generateToken(userDetails);
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
         String token = refreshToken.getToken();
+        log.info("User logged in successfully: {}", user.getUsername());
 
         return AuthResponse.builder()
                 .id(user.getId())
@@ -118,11 +123,14 @@ public class AuthServiceImpl implements IAuthService {
     @Override
     @Transactional
     public AuthResponse register(RegisterRequest request) {
+        log.info("Registration attempt for email: {} and username: {}", request.getEmail(), request.getUsername());
         if (userRepository.existsByEmail(request.getEmail())) {
+            log.warn("Registration failed - email already in use: {}", request.getEmail());
             throw new UserAlreadyExistException("Email already in use");
         }
 
         if (userRepository.existsByUsername(request.getUsername())) {
+            log.warn("Registration failed - username already in use: {}", request.getUsername());
             throw new UserAlreadyExistException("Username already in use");
         }
 

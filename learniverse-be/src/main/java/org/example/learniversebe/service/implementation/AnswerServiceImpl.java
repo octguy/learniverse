@@ -1,5 +1,6 @@
 package org.example.learniversebe.service.implementation;
 
+import lombok.extern.slf4j.Slf4j;
 import org.example.learniversebe.dto.request.CreateAnswerRequest;
 import org.example.learniversebe.dto.request.UpdateAnswerRequest;
 import org.example.learniversebe.dto.response.AnswerResponse;
@@ -31,6 +32,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
+@Slf4j
 @Service
 public class AnswerServiceImpl implements IAnswerService {
 
@@ -67,12 +69,14 @@ public class AnswerServiceImpl implements IAnswerService {
     @Override
     @Transactional
     public AnswerResponse addAnswer(CreateAnswerRequest request) {
+        log.info("Adding answer to question ID: {}", request.getQuestionId());
         User author = serviceHelper.getCurrentUser();
         Content question = contentRepository.findById(request.getQuestionId())
                 .orElseThrow(() -> new ResourceNotFoundException("Question not found with id: " + request.getQuestionId()));
 
         // Kiểm tra xem content có phải là question không
         if (question.getContentType() != ContentType.QUESTION) {
+            log.error("Cannot add answer to content type: {}", question.getContentType());
             throw new BadRequestException("Cannot add answer to content type: " + question.getContentType());
         }
 
@@ -83,6 +87,7 @@ public class AnswerServiceImpl implements IAnswerService {
         // @PrePersist sẽ set ID và timestamps
 
         Answer savedAnswer = answerRepository.save(answer);
+        log.info("Answer created with ID: {} for question ID: {} by user: {}", savedAnswer.getId(), question.getId(), author.getUsername());
 
         // Cập nhật answer count trên Question
         question.setAnswerCount(question.getAnswerCount() + 1);

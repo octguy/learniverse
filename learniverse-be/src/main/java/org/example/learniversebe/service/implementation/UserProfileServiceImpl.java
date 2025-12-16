@@ -3,6 +3,7 @@ package org.example.learniversebe.service.implementation;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
 import org.example.learniversebe.dto.request.UserProfileRequest;
 import org.example.learniversebe.dto.response.TagResponse;
 import org.example.learniversebe.dto.response.UserProfileResponse;
@@ -24,6 +25,7 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
 
+@Slf4j
 @Service
 public class UserProfileServiceImpl implements IUserProfileService {
     private final UserProfileRepository userProfileRepository;
@@ -48,6 +50,7 @@ public class UserProfileServiceImpl implements IUserProfileService {
     @Override
     @Transactional
     public UserProfileResponse onboardProfile(UUID userId, UserProfileRequest request, MultipartFile avatar, MultipartFile cover) {
+        log.info("Onboarding profile for user ID: {}", userId);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -75,6 +78,7 @@ public class UserProfileServiceImpl implements IUserProfileService {
         }
 
         UserProfile savedProfile = userProfileRepository.save(profile);
+        log.info("Profile onboarded successfully for user ID: {}", userId);
         return toResponse(savedProfile);
     }
 
@@ -104,6 +108,7 @@ public class UserProfileServiceImpl implements IUserProfileService {
     @Override
     @Transactional
     public UserProfileResponse updateProfile(UUID userId, UserProfileRequest request, MultipartFile avatar, MultipartFile cover) {
+        log.info("Updating profile for user ID: {}", userId);
         UserProfile profile = userProfileRepository.findByUserId(userId);
         if (profile == null) throw new RuntimeException("Profile not found");
 
