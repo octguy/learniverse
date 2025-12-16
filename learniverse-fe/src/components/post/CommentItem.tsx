@@ -11,12 +11,15 @@ import { commentService } from "@/lib/api/commentService";
 import type { Comment } from "@/types/comment";
 import { toast } from "sonner";
 
+import { useAuth } from "@/context/AuthContext";
+
 interface CommentItemProps {
     comment: Comment;
     postId: string;
 }
 
 export function CommentItem({ comment, postId }: CommentItemProps) {
+    const { user } = useAuth();
     const [isReplying, setIsReplying] = useState(false);
     const [showReplies, setShowReplies] = useState(false);
     const [replies, setReplies] = useState<Comment[]>([]);
@@ -115,7 +118,7 @@ export function CommentItem({ comment, postId }: CommentItemProps) {
                 {isReplying && (
                     <div className="flex gap-3 mt-3 animate-in slide-in-from-top-2">
                         <Avatar className="w-6 h-6">
-                            <AvatarImage src="https://github.com/shadcn.png" />
+                            <AvatarImage src={user?.avatarUrl} />
                             <AvatarFallback>Me</AvatarFallback>
                         </Avatar>
                         <div className="flex-1 gap-2 flex flex-col">

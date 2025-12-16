@@ -73,7 +73,7 @@ interface PostCardProps {
 }
 
 export function PostCard({ post }: PostCardProps) {
-  const { author, title, body, tags, attachments, createdAt, lastEditedAt } = post
+  const { author, title, body, tags = [], attachments = [], createdAt, lastEditedAt } = post
 
   const [currentReaction, setCurrentReaction] = useState<ReactionType | null>(
     (post.currentUserReaction as ReactionType) || null
@@ -165,7 +165,11 @@ export function PostCard({ post }: PostCardProps) {
             </p>
             <div className="mt-1 text-xs text-muted-foreground">
               <span>
-                {formatDistanceToNow(postDate, { addSuffix: true, locale: vi })}
+                {!isNaN(postDate.getTime()) ? (
+                  formatDistanceToNow(postDate, { addSuffix: true, locale: vi })
+                ) : (
+                  "Vừa xong"
+                )}
               </span>
               {lastEditedAt && <span> • (Đã chỉnh sửa)</span>}
             </div>

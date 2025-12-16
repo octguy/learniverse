@@ -67,7 +67,7 @@ export function SideBar() {
                 ) : user ? (
                     <div className="flex items-center gap-3 p-3 rounded-lg bg-sidebar-accent hover:bg-accent transition-colors border shadow-sm">
                         <Avatar className="h-12 w-12 border-2 border-background">
-                            <AvatarImage src={'https://github.com/shadcn.png'} alt={user.username} />
+                            <AvatarImage src={user.avatarUrl} alt={user.username} />
                             <AvatarFallback>{user.username?.charAt(0).toUpperCase()}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">

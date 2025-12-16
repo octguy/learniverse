@@ -3,6 +3,7 @@
 import React, { useState, useEffect, ReactNode, useCallback } from 'react';
 import { AuthContext, AuthContextType, UserProfile } from './AuthContext';
 import { authService } from '@/lib/api/authService';
+import { userProfileService } from '@/lib/api/userProfileService';
 import type { AuthResponse, RegisterRequest } from '@/types/api';
 
 interface AuthProviderProps {
@@ -52,11 +53,21 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const login = async (data: AuthResponse) => {
         const { id, username, email, accessToken, refreshToken, isOnboarded } = data;
 
+        let avatarUrl: string | undefined;
+        try {
+            sessionStorage.setItem('accessToken', accessToken);
+            const profile = await userProfileService.getMyProfile();
+            avatarUrl = profile.avatarUrl;
+        } catch (error) {
+            console.error("Error fetching profile during login:", error);
+        }
+
         const userProfile: UserProfile = {
             id,
             username,
             email,
-            isOnboarded: isOnboarded ?? false
+            isOnboarded: isOnboarded ?? false,
+            avatarUrl
         };
 
         setUser(userProfile);

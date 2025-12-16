@@ -10,6 +10,7 @@ import { commentService } from "@/lib/api/commentService";
 import type { Comment } from "@/types/comment";
 import { toast } from "sonner";
 
+import { useAuth } from "@/context/AuthContext";
 import { CommentItem } from "./CommentItem";
 
 interface CommentSectionProps {
@@ -18,6 +19,7 @@ interface CommentSectionProps {
 }
 
 export function CommentSection({ postId, onCommentAdded }: CommentSectionProps) {
+  const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [newComment, setNewComment] = useState("");
@@ -38,6 +40,7 @@ export function CommentSection({ postId, onCommentAdded }: CommentSectionProps) 
       setIsLoading(false);
     }
   };
+
   const handleSubmit = async () => {
     if (!newComment.trim()) return;
 
@@ -68,7 +71,7 @@ export function CommentSection({ postId, onCommentAdded }: CommentSectionProps) 
       <h3 className="text-sm font-semibold mb-4">Bình luận</h3>
       <div className="flex gap-3 mb-6">
         <Avatar className="w-8 h-8">
-          <AvatarImage src="https://github.com/shadcn.png" />
+          <AvatarImage src={user?.avatarUrl} />
           <AvatarFallback>Me</AvatarFallback>
         </Avatar>
         <div className="flex-1 gap-2 flex flex-col min-w-0">
@@ -82,7 +85,6 @@ export function CommentSection({ postId, onCommentAdded }: CommentSectionProps) 
             <Button
               size="sm"
               onClick={handleSubmit}
-
               disabled={!newComment.trim() || isSubmitting}
             >
               {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
