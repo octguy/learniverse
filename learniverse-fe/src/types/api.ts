@@ -7,12 +7,24 @@ export interface ApiResponse<T> {
     httpStatus?: number;
 }
 
+export interface PageResponse<T> {
+    content: T[];
+    totalElements: number;
+    totalPages: number;
+    currentPage: number;
+    pageSize: number;
+    last: boolean;
+    first: boolean;
+    numberOfElements: number;
+}
+
 export interface AuthResponse {
     id: string;
     username: string;
     email: string;
     accessToken: string;
     refreshToken: string;
+    isOnboarded: boolean;
 }
 
 export interface RegisterRequest {

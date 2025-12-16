@@ -111,6 +111,7 @@ public class AuthServiceImpl implements IAuthService {
                 .username(user.getUsername())
                 .accessToken(accessToken)
                 .refreshToken(token)
+                .isOnboarded(user.isOnboarded())
                 .build();
     }
 
@@ -130,6 +131,7 @@ public class AuthServiceImpl implements IAuthService {
         user.setId(UUID.randomUUID());
         user.setEmail(request.getEmail());
         user.setUsername(request.getUsername());
+        user.setOnboarded(false);
         user.setEnabled(false);
         user.setStatus(UserStatus.PENDING_VERIFICATION);
         user.setCreatedAt(LocalDateTime.now());
@@ -162,6 +164,7 @@ public class AuthServiceImpl implements IAuthService {
                 .username(user.getUsername())
                 .accessToken(null)
                 .refreshToken(null)
+                .isOnboarded(false)
                 .build();
     }
 
@@ -234,7 +237,9 @@ public class AuthServiceImpl implements IAuthService {
             // Return 401 http, frontend should catch this and redirect to login
         }
 
-        User user = refreshToken.getUser();
+        UUID userId = refreshToken.getUser().getId();
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
         UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
         String accessToken = jwtUtil.generateToken(userDetails);
         String newRefreshToken = refreshTokenService.createRefreshToken(user).getToken();
@@ -245,6 +250,7 @@ public class AuthServiceImpl implements IAuthService {
                 .username(user.getUsername())
                 .accessToken(accessToken)
                 .refreshToken(newRefreshToken)
+                .isOnboarded(user.isOnboarded())
                 .build();
     }
 

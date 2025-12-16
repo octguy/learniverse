@@ -10,7 +10,18 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
-    const [user, setUser] = useState<UserProfile | null>(null);
+    const [user, setUser] = useState<UserProfile | null>(() => {
+        if (typeof window !== 'undefined') {
+            const storedUser = sessionStorage.getItem('user');
+            try {
+                return storedUser ? JSON.parse(storedUser) : null;
+            } catch (e) {
+                console.error("Error parsing user from session", e);
+                return null;
+            }
+        }
+        return null;
+    });
     const [accessToken, setAccessToken] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -32,8 +43,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             setLoading(false);
         }
     }, []);
-    // eslint-disable-line react-hooks/exhaustive-deps
-
 
     useEffect(() => {
         refreshAuth();
@@ -41,9 +50,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
 
     const login = async (data: AuthResponse) => {
-        const { id, username, email, accessToken, refreshToken } = data;
+        const { id, username, email, accessToken, refreshToken, isOnboarded } = data;
 
-        const userProfile: UserProfile = { id, username, email };
+        const userProfile: UserProfile = {
+            id,
+            username,
+            email,
+            isOnboarded: isOnboarded ?? false
+        };
 
         setUser(userProfile);
         setAccessToken(accessToken);
@@ -51,6 +65,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         sessionStorage.setItem('accessToken', accessToken);
         sessionStorage.setItem('refreshToken', refreshToken);
         sessionStorage.setItem('user', JSON.stringify(userProfile));
+    };
+
+    const completeOnboarding = () => {
+        if (user) {
+            const updatedUser = { ...user, isOnboarded: true };
+            setUser(updatedUser);
+            sessionStorage.setItem('user', JSON.stringify(updatedUser));
+        }
     };
 
     const logout = async () => {
@@ -85,7 +107,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         loading,
         login,
         logout,
-        register
+        register,
+        completeOnboarding
     };
 
     return (
