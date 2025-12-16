@@ -12,7 +12,7 @@ const apiService = axios.create({
 
 apiService.interceptors.request.use(
     (config) => {
-        const accessToken = sessionStorage.getItem('accessToken');
+        const accessToken = localStorage.getItem('accessToken');
         if (accessToken) {
             config.headers['Authorization'] = `Bearer ${accessToken}`;
         }
@@ -53,10 +53,10 @@ apiService.interceptors.response.use(
             originalRequest._retry = true;
             isRefreshing = true;
 
-            const refreshToken = sessionStorage.getItem('refreshToken');
+            const refreshToken = localStorage.getItem('refreshToken');
             if (!refreshToken) {
                 isRefreshing = false;
-                sessionStorage.clear();
+                localStorage.clear();
                 window.location.href = '/login';
                 return Promise.reject(error);
             }
@@ -65,8 +65,8 @@ apiService.interceptors.response.use(
                 const rs = await authService.refreshToken({ refreshToken });
                 const { accessToken, refreshToken: newRefreshToken } = rs.data;
 
-                sessionStorage.setItem('accessToken', accessToken);
-                sessionStorage.setItem('refreshToken', newRefreshToken);
+                localStorage.setItem('accessToken', accessToken);
+                localStorage.setItem('refreshToken', newRefreshToken);
 
                 apiService.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
                 originalRequest.headers['Authorization'] = `Bearer ${accessToken}`;
@@ -76,7 +76,7 @@ apiService.interceptors.response.use(
 
             } catch (refreshError) {
                 processQueue(refreshError, null);
-                sessionStorage.clear();
+                localStorage.clear();
                 window.location.href = '/login';
                 return Promise.reject(refreshError);
             } finally {

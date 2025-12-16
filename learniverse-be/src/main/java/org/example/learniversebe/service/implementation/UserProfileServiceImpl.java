@@ -163,12 +163,11 @@ public class UserProfileServiceImpl implements IUserProfileService {
 
             UserProfileTag relation = new UserProfileTag();
 
-            UserProfileTagId id = new UserProfileTagId(profile.getId(), tag.getId());
-            relation.setUserProfileTagId(id);
+            UserProfileTagId id = new UserProfileTagId(profile.getId(), tag.getId(), type);
 
+            relation.setUserProfileTagId(id);
             relation.setUserProfile(profile);
             relation.setTag(tag);
-            relation.setType(type);
 
             currentTags.add(relation);
         }

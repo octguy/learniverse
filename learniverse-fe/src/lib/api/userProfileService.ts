@@ -1,6 +1,7 @@
 import apiService from "@/lib/apiService";
 import { UserProfileResponse, UpdateProfileRequest } from "@/types/userProfile";
 import { UserTag } from "@/types/userTag";
+import {ApiResponse} from "@/types/api";
 
 const BASE_URL = "/user_profile";
 
@@ -16,24 +17,27 @@ export const userProfileService = {
     },
 
     getAllUserTags: async () => {
-        const res = await apiService.get<UserTag[]>("/user-tags/all");
-        return res.data;
+        const res = await apiService.get<ApiResponse<UserTag[]>>("/tags/all");
+        return res.data.data;
     },
 
     updateMyProfile: async (data: UpdateProfileRequest) => {
         const formData = new FormData();
-        if (data.displayName) formData.append("displayName", data.displayName);
-        if (data.bio) formData.append("bio", data.bio);
 
-        if (data.avatar instanceof File) formData.append("avatar", data.avatar);
-        if (data.cover instanceof File) formData.append("cover", data.cover);
+        const jsonBody = {
+            displayName: data.displayName,
+            bio: data.bio,
+            interestTagIds: data.interestTagIds || [],
+            skillTagIds: data.skillTagIds || []
+        };
 
-        if (data.interestTagIds && data.interestTagIds.length > 0) {
-            data.interestTagIds.forEach((tagId) => formData.append("interestTagIds", tagId));
+        formData.append("data", new Blob([JSON.stringify(jsonBody)], { type: "application/json" }));
+
+        if (data.avatar instanceof File) {
+            formData.append("avatar", data.avatar);
         }
-
-        if (data.skillTagIds && data.skillTagIds.length > 0) {
-            data.skillTagIds.forEach((tagId) => formData.append("skillTagIds", tagId));
+        if (data.cover instanceof File) {
+            formData.append("cover", data.cover);
         }
 
         const res = await apiService.put<UserProfileResponse>(`${BASE_URL}/me`, formData, {
@@ -44,17 +48,21 @@ export const userProfileService = {
 
     onboardProfile: async (data: UpdateProfileRequest) => {
         const formData = new FormData();
-        if (data.displayName) formData.append("displayName", data.displayName);
-        if (data.bio) formData.append("bio", data.bio);
-        if (data.avatar instanceof File) formData.append("avatar", data.avatar);
-        if (data.cover instanceof File) formData.append("cover", data.cover);
 
-        if (data.interestTagIds && data.interestTagIds.length > 0) {
-            data.interestTagIds.forEach((tagId) => formData.append("interestTagIds", tagId));
+        const jsonBody = {
+            displayName: data.displayName,
+            bio: data.bio,
+            interestTagIds: data.interestTagIds || [],
+            skillTagIds: data.skillTagIds || []
+        };
+
+        formData.append("data", new Blob([JSON.stringify(jsonBody)], { type: "application/json" }));
+
+        if (data.avatar instanceof File) {
+            formData.append("avatar", data.avatar);
         }
-
-        if (data.skillTagIds && data.skillTagIds.length > 0) {
-            data.skillTagIds.forEach((tagId) => formData.append("skillTagIds", tagId));
+        if (data.cover instanceof File) {
+            formData.append("cover", data.cover);
         }
 
         const res = await apiService.post<UserProfileResponse>(`${BASE_URL}/onboard`, formData, {

@@ -12,11 +12,11 @@ interface AuthProviderProps {
 export const AuthProvider = ({ children }: AuthProviderProps) => {
     const [user, setUser] = useState<UserProfile | null>(() => {
         if (typeof window !== 'undefined') {
-            const storedUser = sessionStorage.getItem('user');
+            const storedUser = localStorage.getItem('user');
             try {
                 return storedUser ? JSON.parse(storedUser) : null;
             } catch (e) {
-                console.error("Error parsing user from session", e);
+                console.error("Error parsing user from local", e);
                 return null;
             }
         }
@@ -26,7 +26,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const [loading, setLoading] = useState(true);
 
     const refreshAuth = useCallback(async () => {
-        const storedRefreshToken = sessionStorage.getItem('refreshToken');
+        const storedRefreshToken = localStorage.getItem('refreshToken');
 
         if (!storedRefreshToken) {
             setLoading(false);
@@ -62,21 +62,21 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setUser(userProfile);
         setAccessToken(accessToken);
 
-        sessionStorage.setItem('accessToken', accessToken);
-        sessionStorage.setItem('refreshToken', refreshToken);
-        sessionStorage.setItem('user', JSON.stringify(userProfile));
+        localStorage.setItem('accessToken', accessToken);
+        localStorage.setItem('refreshToken', refreshToken);
+        localStorage.setItem('user', JSON.stringify(userProfile));
     };
 
     const completeOnboarding = () => {
         if (user) {
             const updatedUser = { ...user, isOnboarded: true };
             setUser(updatedUser);
-            sessionStorage.setItem('user', JSON.stringify(updatedUser));
+            localStorage.setItem('user', JSON.stringify(updatedUser));
         }
     };
 
     const logout = async () => {
-        const token = sessionStorage.getItem('accessToken');
+        const token = localStorage.getItem('accessToken');
 
         if (token) {
             try {
@@ -89,9 +89,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setUser(null);
         setAccessToken(null);
 
-        sessionStorage.removeItem('accessToken');
-        sessionStorage.removeItem('refreshToken');
-        sessionStorage.removeItem('user');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
 
         window.location.href = '/login';
     };
