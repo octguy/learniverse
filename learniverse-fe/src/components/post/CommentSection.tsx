@@ -12,9 +12,10 @@ import { toast } from "sonner";
 
 interface CommentSectionProps {
   postId: string;
+  onCommentAdded?: () => void;
 }
 
-export function CommentSection({ postId }: CommentSectionProps) {
+export function CommentSection({ postId, onCommentAdded }: CommentSectionProps) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [newComment, setNewComment] = useState("");
@@ -48,6 +49,7 @@ export function CommentSection({ postId }: CommentSectionProps) {
 
       setComments([createdComment, ...comments]);
       setNewComment("");
+      onCommentAdded?.();
       
       toast.success("Đã gửi bình luận!"); 
 
