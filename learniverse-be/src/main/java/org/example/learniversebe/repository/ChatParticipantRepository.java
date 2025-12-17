@@ -7,13 +7,12 @@ import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 public interface ChatParticipantRepository extends JpaRepository<ChatParticipant, UUID> {
 
-//    List<ChatParticipant> findByChatRoomId(UUID chatRoomId);
-//
-//    List<ChatParticipant> findAllByChatRoomIdIn(List<UUID> chatRoomIds);
+    List<ChatParticipant> findByChatRoomId(UUID chatRoomId);
 
     @Query(value = """
         select cp
@@ -40,6 +39,29 @@ public interface ChatParticipantRepository extends JpaRepository<ChatParticipant
     """, nativeQuery = true)
     long countByChatRoomId(UUID chatRoomId);
 
+    @Query(value = """
+        select cp.participant_id, cp.deleted_at
+        from chat_participant cp
+        where cp.chat_room_id = :chatRoomId
+    """, nativeQuery = true)
+    List<Object[]> findParticipantStatesByChatRoomId(UUID chatRoomId);
+
+//    @Query(value = """
+//        select cp.participant_id
+//        from chat_participant cp
+//        where cp.chat_room_id = :chatRoomId
+//        and cp.deleted_at is null
+//        """, nativeQuery = true)
+//    List<UUID> findAllParticipantIdsByChatRoomId(UUID chatRoomId);
+//
+//    @Query(value = """
+//        select cp.participant_id
+//        from chat_participant cp
+//        where cp.chat_room_id = :chatRoomId
+//        and cp.deleted_at is not null
+//        """, nativeQuery = true)
+//    List<UUID> findAllOldParticipantIdsByChatRoomId(UUID chatRoomId);
+
     @Modifying
     @Query("""
         update ChatParticipant cp
@@ -56,4 +78,28 @@ public interface ChatParticipantRepository extends JpaRepository<ChatParticipant
           and cp.participant.id = :id
     """)
     void softDeleteByChatRoomIdAndParticipantId(UUID chatRoomId, UUID id);
+
+    @Query(value = """
+        select exists(
+            select 1
+            from chat_participant
+            where chat_room_id = :chatRoomId
+              and participant_id = :userId
+              and deleted_at is null
+        )
+    """, nativeQuery = true)
+    boolean existsByChatRoomIdAndParticipantId(UUID chatRoomId, UUID userId);
+
+    @Modifying
+    @Query(value = """
+        update chat_participant
+        set deleted_at = null,
+            joined_at = now(),
+            updated_at = now(),
+            invited_by = :userId
+        where chat_room_id = :chatRoomId
+            and participant_id in :toRestore
+            and deleted_at is not null
+    """, nativeQuery = true)
+    void restoreParticipants(UUID chatRoomId, UUID userId, Set<UUID> toRestore);
 }
