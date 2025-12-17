@@ -2,6 +2,7 @@ package org.example.learniversebe.repository;
 
 import org.example.learniversebe.model.ChatRoom;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -49,4 +50,12 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, UUID> {
           )
     """, nativeQuery = true)
     List<ChatRoom> findAllGroupChatRoomsByUserId(UUID userId);
+
+    @Modifying
+    @Query("""
+        update ChatRoom cr
+        set cr.deletedAt = current_timestamp
+        where cr.id = :id
+    """)
+    void softDeleteChatRoom(UUID id);
 }

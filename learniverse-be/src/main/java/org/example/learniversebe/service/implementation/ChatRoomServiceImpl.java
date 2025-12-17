@@ -7,9 +7,7 @@ import org.example.learniversebe.enums.GroupChatRole;
 import org.example.learniversebe.model.ChatParticipant;
 import org.example.learniversebe.model.ChatRoom;
 import org.example.learniversebe.model.User;
-import org.example.learniversebe.repository.ChatParticipantRepository;
-import org.example.learniversebe.repository.ChatRoomRepository;
-import org.example.learniversebe.repository.UserRepository;
+import org.example.learniversebe.repository.*;
 import org.example.learniversebe.service.IChatRoomService;
 import org.example.learniversebe.util.SecurityUtils;
 import org.springframework.stereotype.Service;
@@ -31,9 +29,17 @@ public class ChatRoomServiceImpl implements IChatRoomService {
 
     private final ChatParticipantRepository chatParticipantRepository;
 
+    private final ChatMessageRepository chatMessageRepository;
+
+    private final MessageReceiptRepository messageReceiptRepository;
+
     public ChatRoomServiceImpl(ChatRoomRepository chatRoomRepository,
                                UserRepository userRepository,
-                               ChatParticipantRepository chatParticipantRepository) {
+                               ChatParticipantRepository chatParticipantRepository,
+                               ChatMessageRepository chatMessageRepository,
+                               MessageReceiptRepository messageReceiptRepository) {
+        this.chatMessageRepository = chatMessageRepository;
+        this.messageReceiptRepository = messageReceiptRepository;
         this.chatParticipantRepository = chatParticipantRepository;
         this.userRepository = userRepository;
         this.chatRoomRepository = chatRoomRepository;
@@ -180,6 +186,79 @@ public class ChatRoomServiceImpl implements IChatRoomService {
                 .orElseThrow(() -> new RuntimeException("Chat room not found: " + chatRoomId));
 
         return buildRoomResponse(room);
+    }
+
+    @Override
+    @Transactional
+    public void leaveChatRoom(UUID chatRoomId) {
+        User currentUser = SecurityUtils.getCurrentUser();
+
+        ChatRoom room = chatRoomRepository.findById(chatRoomId)
+                .orElseThrow(() -> new RuntimeException("Chat room not found: " + chatRoomId));
+
+        if (!room.isGroupChat()) {
+            log.error("Cannot leave direct chat room");
+            throw new RuntimeException("Cannot leave direct chat room");
+        }
+
+        ChatParticipant participant = findParticipant(chatRoomId, currentUser.getId());
+
+        // Count members
+        long participantsCount = chatParticipantRepository.countByChatRoomId(chatRoomId);
+
+        if (participant.getChatRole() == GroupChatRole.ADMIN) {
+            handleAdminLeaving(chatRoomId, participantsCount, currentUser);
+        }
+
+        chatParticipantRepository.softDeleteByChatRoomIdAndParticipantId(chatRoomId, currentUser.getId());
+        log.info("Left chat room {} by user id {}", room.getName(), currentUser.getId());
+    }
+
+    @Override
+    public void deleteChatRoom(UUID chatRoomId) {
+        ChatRoom room = chatRoomRepository.findById(chatRoomId)
+                .orElseThrow(() -> new RuntimeException("Chat room not found"));
+
+        messageReceiptRepository.softDeleteMessageReceiptsByRoom(chatRoomId);
+        chatMessageRepository.softDeleteChatMessagesByRoom(chatRoomId);
+        chatParticipantRepository.softDeleteChatParticipantsByRoom(chatRoomId);
+
+        chatRoomRepository.softDeleteChatRoom(chatRoomId);
+
+        log.info("Deleted chat room {}", room.getName());
+    }
+
+    private ChatParticipant findParticipant(UUID chatRoomId, UUID participantId) {
+        Optional<ChatParticipant> participant = chatParticipantRepository.findByChatRoomIdAndParticipantId(chatRoomId, participantId);
+
+        if (participant.isEmpty()) {
+            log.error("Participant not found in chat room {}", chatRoomId);
+            throw new RuntimeException("Participant not found in chat room");
+        }
+
+        return participant.get();
+    }
+
+    private void handleAdminLeaving(UUID chatRoomId, long participantCount, User currentUser) {
+        if (participantCount == 1) {
+            deleteChatRoom(chatRoomId);
+            return;
+        }
+
+        assignNewAdmin(chatRoomId, currentUser.getId());
+    }
+
+    private void assignNewAdmin(UUID chatRoomId, UUID leavingUserId) {
+        List<ChatParticipant> others = chatParticipantRepository.findOtherParticipants(chatRoomId, leavingUserId);
+
+        if (others.isEmpty()) {
+            throw new RuntimeException("No participants to assign ADMIN role");
+        }
+
+        ChatParticipant newAdmin = others.get(0);
+        newAdmin.setChatRole(GroupChatRole.ADMIN);
+        chatParticipantRepository.save(newAdmin);
+        log.info("Assigned new admin {} to chat room {}", newAdmin.getParticipant().getUsername(), chatRoomId);
     }
 
     private Map<UUID, Set<UUID>> loadParticipantMap(List<UUID> roomIds) {

@@ -108,4 +108,18 @@ public class ChatRoomController {
 
         return ResponseEntity.ok(apiResponse);
     }
+
+    @PostMapping("/{id}/leave")
+    public ResponseEntity<?> leaveChatRoom(@PathVariable UUID id) {
+        chatRoomService.leaveChatRoom(id);
+
+        ApiResponse<?> apiResponse = new ApiResponse<>(
+                HttpStatus.OK,
+                "Left chat room successfully",
+                null,
+                null
+        );
+
+        return ResponseEntity.ok(apiResponse);
+    }
 }

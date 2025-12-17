@@ -4,7 +4,6 @@ import org.example.learniversebe.dto.request.CreateGroupChatRequest;
 import org.example.learniversebe.dto.response.ChatRoomResponse;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 public interface IChatRoomService {
@@ -20,4 +19,8 @@ public interface IChatRoomService {
     List<ChatRoomResponse> getAllGroupChatRooms();
 
     ChatRoomResponse getChatRoomById(UUID chatRoomId);
+
+    void leaveChatRoom(UUID chatRoomId);
+
+    void deleteChatRoom(UUID chatRoomId);
 }
