@@ -16,7 +16,7 @@ public class ChatRoomResponse {
 
     private String name;
 
-    private Set<UUID> members;
+    private Set<UUID> participants;
 
     private boolean isGroupChat;
 

@@ -28,4 +28,25 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, UUID> {
             where cp.participant_id = :userId
             """, nativeQuery = true)
     List<ChatRoom> findChatRoomsByUserId(@Param("userId") UUID userId);
+
+    @Query(value = """
+        select distinct cr.*
+        from chat_room cr
+        join chat_participant cp on cr.id = cp.chat_room_id
+        where cr.is_group_chat = false
+    """, nativeQuery = true)
+    List<ChatRoom> findAllDirectChatRoomsByUserId(UUID userId);
+
+    @Query(value = """
+        select cr.*
+        from chat_room cr
+        where cr.is_group_chat = true
+          and exists (
+            select 1
+            from chat_participant cp
+            where cp.chat_room_id = cr.id
+              and cp.participant_id = :userId
+          )
+    """, nativeQuery = true)
+    List<ChatRoom> findAllGroupChatRoomsByUserId(UUID userId);
 }

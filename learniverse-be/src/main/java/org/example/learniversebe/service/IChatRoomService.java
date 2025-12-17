@@ -1,5 +1,6 @@
 package org.example.learniversebe.service;
 
+import org.example.learniversebe.dto.request.CreateGroupChatRequest;
 import org.example.learniversebe.dto.response.ChatRoomResponse;
 
 import java.util.List;
@@ -7,8 +8,16 @@ import java.util.UUID;
 
 public interface IChatRoomService {
 
-    ChatRoomResponse createDirectChatRoom(UUID recipientId);
+    ChatRoomResponse createDirectChat(UUID recipientId);
 
-    List<ChatRoomResponse> getAllChatRoomsByUser();
+    ChatRoomResponse createGroupChat(CreateGroupChatRequest request);
+
+    List<ChatRoomResponse> getAllChatRooms();
+
+    List<ChatRoomResponse> getAllDirectChatRooms();
+
+    List<ChatRoomResponse> getAllGroupChatRooms();
+
+
 
 }
