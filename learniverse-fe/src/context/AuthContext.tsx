@@ -8,6 +8,7 @@ export interface UserProfile {
     username: string;
     email: string;
     isOnboarded: boolean;
+    avatarUrl?: string;
 }
 
 export interface AuthContextType {
