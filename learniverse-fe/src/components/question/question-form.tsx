@@ -27,6 +27,10 @@ import {
     Globe2,
     Image as ImageIcon,
     FileText,
+    Eye,
+    MessageSquare,
+    ThumbsUp,
+    Bookmark,
 } from "lucide-react"
 
 import { useAuth } from "@/context/AuthContext"
@@ -46,8 +50,7 @@ import {
     type TagOption,
 } from "@/components/question/tag-multi-select"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { QuestionCard } from "@/components/question/question-card"
-import type { QuestionSummary } from "@/types/question"
+import type { QuestionDetail, QuestionSummary } from "@/types/question"
 
 const TITLE_LIMIT = 300
 const MIN_TITLE_LENGTH = 10
@@ -89,6 +92,14 @@ type MarkdownComponents = Components
 interface ApiResponse<T> {
     data?: T
     message?: string
+}
+
+type FormMode = "create" | "edit"
+
+interface QuestionFormProps {
+    mode?: FormMode
+    initialQuestion?: QuestionDetail | null
+    onSuccess?: (slug: string) => void
 }
 
 const MarkdownH1 = ({ className, children, ...props }: HeadingProps) => (
@@ -259,7 +270,11 @@ function createPreviewExcerpt(source: string, maxLength = 220) {
     return `${plain.slice(0, maxLength - 1)}…`
 }
 
-export function QuestionForm() {
+export function QuestionForm({
+    mode = "create",
+    initialQuestion = null,
+    onSuccess,
+}: QuestionFormProps = {}) {
     const textareaRef = useRef<HTMLTextAreaElement | null>(null)
     const imageInputRef = useRef<HTMLInputElement | null>(null)
     const documentInputRef = useRef<HTMLInputElement | null>(null)
@@ -275,10 +290,17 @@ export function QuestionForm() {
             .join("")
             .slice(0, 2) || "LV"
 
-    const [title, setTitle] = useState("")
-    const [body, setBody] = useState("")
+    const [title, setTitle] = useState(initialQuestion?.title ?? "")
+    const [body, setBody] = useState(initialQuestion?.body ?? "")
     const [tags, setTags] = useState<TagOption[]>([])
-    const [selectedTags, setSelectedTags] = useState<TagOption[]>([])
+    const [selectedTags, setSelectedTags] = useState<TagOption[]>(
+        initialQuestion?.tags?.map((t) => ({
+            id: t.id,
+            name: t.name,
+            slug: t.slug,
+            description: t.description ?? undefined,
+        })) ?? []
+    )
     const [isLoadingTags, setIsLoadingTags] = useState(false)
     const [tagError, setTagError] = useState<string | null>(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -336,6 +358,20 @@ export function QuestionForm() {
         }
     }, [])
 
+    useEffect(() => {
+        if (!initialQuestion) return
+        setTitle(initialQuestion.title ?? "")
+        setBody(initialQuestion.body ?? "")
+        setSelectedTags(
+            initialQuestion.tags?.map((t) => ({
+                id: t.id,
+                name: t.name,
+                slug: t.slug,
+                description: t.description ?? undefined,
+            })) ?? []
+        )
+    }, [initialQuestion])
+
     const trimmedTitle = useMemo(() => title.trim(), [title])
     const titleLength = trimmedTitle.length
     const bodyLength = useMemo(() => body.trim().length, [body])
@@ -345,6 +381,8 @@ export function QuestionForm() {
         bodyLength >= MIN_BODY_LENGTH &&
         bodyLength <= MAX_BODY_LENGTH &&
         selectedTags.length > 0
+
+    const submitLabel = mode === "edit" ? "Cập nhật câu hỏi" : "Đăng câu hỏi"
 
     const previewQuestion = useMemo<QuestionSummary>(
         () => ({
@@ -372,6 +410,57 @@ export function QuestionForm() {
             })),
         }),
         [body, displayName, selectedTags, trimmedTitle, user?.id]
+    )
+
+    const previewPublished = useMemo(
+        () =>
+            new Date(previewQuestion.publishedAt).toLocaleString("vi-VN", {
+                hour12: false,
+            }),
+        [previewQuestion.publishedAt]
+    )
+
+    const previewMetrics = useMemo(
+        () => [
+            {
+                icon: MessageSquare,
+                label: "Trả lời",
+                value: previewQuestion.answerCount,
+                container: "border-emerald-200/60 bg-emerald-50",
+                iconWrapper: "bg-emerald-100 text-emerald-600",
+                valueClass: "text-emerald-700",
+            },
+            {
+                icon: Eye,
+                label: "Lượt xem",
+                value: previewQuestion.viewCount,
+                container: "border-sky-200/60 bg-sky-50",
+                iconWrapper: "bg-sky-100 text-sky-600",
+                valueClass: "text-sky-700",
+            },
+            {
+                icon: ThumbsUp,
+                label: "Đánh giá",
+                value: previewQuestion.voteScore,
+                container: "border-amber-200/60 bg-amber-50",
+                iconWrapper: "bg-amber-100 text-amber-600",
+                valueClass: "text-amber-700",
+            },
+            {
+                icon: Bookmark,
+                label: "Lưu trữ",
+                value: previewQuestion.bookmarkCount,
+                container: "border-purple-200/60 bg-purple-50",
+                iconWrapper: "bg-purple-100 text-purple-600",
+                valueClass: "text-purple-700",
+            },
+        ],
+        [
+            previewQuestion.answerCount,
+            previewQuestion.bookmarkCount,
+            previewQuestion.viewCount,
+            previewQuestion.voteScore,
+        ]
     )
 
     const imagePreviews = useMemo<PreviewFile[]>(
@@ -545,6 +634,19 @@ export function QuestionForm() {
                 tagIds: selectedTags.map((tag) => tag.id),
             }
 
+            if (mode === "edit" && initialQuestion?.id) {
+                const updated = await questionService.update(
+                    initialQuestion.id,
+                    payload
+                )
+                const slug = updated?.slug ?? initialQuestion.slug
+                if (slug) {
+                    if (onSuccess) onSuccess(slug)
+                    else router.push(`/questions/${slug}`)
+                }
+                return
+            }
+
             const createdQuestion = await questionService.create(payload)
             const slug = createdQuestion?.slug ?? null
             setTitle("")
@@ -555,7 +657,8 @@ export function QuestionForm() {
             setAttachmentError(null)
 
             if (slug) {
-                router.push(`/questions/${slug}`)
+                if (onSuccess) onSuccess(slug)
+                else router.push(`/questions/${slug}`)
                 return
             }
 
@@ -1002,7 +1105,7 @@ export function QuestionForm() {
                                     {isSubmitting && (
                                         <Loader2 className="mr-2 size-4 animate-spin" />
                                     )}
-                                    Đăng câu hỏi
+                                    {submitLabel}
                                 </Button>
                                 <Button
                                     type="button"
@@ -1028,22 +1131,107 @@ export function QuestionForm() {
                 <TabsContent value="preview">
                     <Card>
                         <CardContent className="space-y-5 pt-6">
-                            <QuestionCard question={previewQuestion} />
+                            <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
+                                <div className="border-b px-5 py-4">
+                                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                        <span className="rounded-full bg-primary/10 px-2 py-1 font-medium text-primary">
+                                            Xem trước
+                                        </span>
+                                        <span>
+                                            Hiển thị tương tự trang chi tiết
+                                        </span>
+                                    </div>
+                                    <h2 className="mt-3 text-xl font-semibold text-foreground">
+                                        {previewQuestion.title}
+                                    </h2>
+                                    <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                                        <div className="flex items-center gap-2">
+                                            <Avatar className="h-8 w-8">
+                                                <AvatarFallback className="bg-[#f97362] text-[10px] font-semibold uppercase leading-none tracking-wide text-white">
+                                                    {avatarFallback}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <span className="font-medium text-foreground">
+                                                {
+                                                    previewQuestion.author
+                                                        .username
+                                                }
+                                            </span>
+                                        </div>
+                                        <span
+                                            className="h-1 w-1 rounded-full bg-border"
+                                            aria-hidden
+                                        />
+                                        <span>{previewPublished}</span>
+                                    </div>
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                        {previewQuestion.tags.length > 0 ? (
+                                            previewQuestion.tags.map((tag) => (
+                                                <Badge
+                                                    key={tag.id}
+                                                    variant="secondary"
+                                                    className="rounded-full bg-primary/10 text-xs font-medium text-primary hover:bg-primary/20"
+                                                >
+                                                    {tag.name}
+                                                </Badge>
+                                            ))
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground">
+                                                Thẻ sẽ xuất hiện ở đây.
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
 
-                            <div className="rounded-lg border bg-white px-4 py-3 text-sm leading-6">
-                                {body.trim() ? (
-                                    <ReactMarkdown
-                                        remarkPlugins={[remarkGfm]}
-                                        components={markdownComponents}
-                                    >
-                                        {body}
-                                    </ReactMarkdown>
-                                ) : (
-                                    <p className="text-sm text-muted-foreground">
-                                        Nội dung chi tiết sẽ hiển thị tại đây
-                                        khi bạn hoàn thành phần mô tả.
-                                    </p>
-                                )}
+                                <div className="grid gap-3 border-b bg-muted/40 px-5 py-3 sm:grid-cols-2 lg:grid-cols-4">
+                                    {previewMetrics.map((metric) => (
+                                        <div
+                                            key={metric.label}
+                                            className={cn(
+                                                "flex min-w-[120px] flex-col items-center gap-1 rounded-lg border px-3 py-2 text-center shadow-sm",
+                                                metric.container
+                                            )}
+                                        >
+                                            <div
+                                                className={cn(
+                                                    "flex size-7 items-center justify-center rounded-full",
+                                                    metric.iconWrapper
+                                                )}
+                                            >
+                                                <metric.icon className="size-3.5" />
+                                            </div>
+                                            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                                {metric.label}
+                                            </p>
+                                            <p
+                                                className={cn(
+                                                    "text-sm font-semibold",
+                                                    metric.valueClass
+                                                )}
+                                            >
+                                                {metric.value}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="px-5 py-4 text-sm leading-6">
+                                    {body.trim() ? (
+                                        <div className="space-y-4 pb-4">
+                                            <ReactMarkdown
+                                                remarkPlugins={[remarkGfm]}
+                                                components={markdownComponents}
+                                            >
+                                                {body}
+                                            </ReactMarkdown>
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground pb-2">
+                                            Nội dung chi tiết sẽ hiển thị tại
+                                            đây khi bạn hoàn thành phần mô tả.
+                                        </p>
+                                    )}
+                                </div>
                             </div>
 
                             {(imagePreviews.length > 0 ||
@@ -1100,7 +1288,7 @@ export function QuestionForm() {
                                     {isSubmitting && (
                                         <Loader2 className="mr-2 size-4 animate-spin" />
                                     )}
-                                    Đăng câu hỏi
+                                    {submitLabel}
                                 </Button>
                                 <Button
                                     type="button"
