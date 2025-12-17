@@ -94,4 +94,18 @@ public class ChatRoomController {
 
         return ResponseEntity.ok(apiResponse);
     }
+
+    @GetMapping("{id}")
+    public ResponseEntity<?> getChatRoomById(@PathVariable UUID id) {
+        ChatRoomResponse chatRoomResponse = chatRoomService.getChatRoomById(id);
+
+        ApiResponse<?> apiResponse = new ApiResponse<>(
+                HttpStatus.OK,
+                "Chat room fetched successfully",
+                chatRoomResponse,
+                null
+        );
+
+        return ResponseEntity.ok(apiResponse);
+    }
 }

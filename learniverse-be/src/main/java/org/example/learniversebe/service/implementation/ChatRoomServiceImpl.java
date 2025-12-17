@@ -18,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static java.util.Collections.emptyList;
+import static java.util.Collections.*;
 import static java.util.stream.Collectors.*;
 
 @Slf4j
@@ -148,14 +148,9 @@ public class ChatRoomServiceImpl implements IChatRoomService {
     public List<ChatRoomResponse> getAllChatRooms() {
         User currentUser = SecurityUtils.getCurrentUser();
 
-        // get all rooms where the user is a participant (not contain participants)
         List<ChatRoom> rooms = chatRoomRepository.findChatRoomsByUserId(currentUser.getId());
 
-        if (rooms.isEmpty()) {
-            return new ArrayList<>();
-        }
-
-        return getRooms(rooms);
+        return buildRoomResponses(rooms);
     }
 
     @Override
@@ -165,11 +160,7 @@ public class ChatRoomServiceImpl implements IChatRoomService {
 
         List<ChatRoom> rooms = chatRoomRepository.findAllDirectChatRoomsByUserId(currentUser.getId());
 
-        if (rooms.isEmpty()) {
-            return new ArrayList<>();
-        }
-
-        return getRooms(rooms);
+        return buildRoomResponses(rooms);
     }
 
     @Override
@@ -179,39 +170,63 @@ public class ChatRoomServiceImpl implements IChatRoomService {
 
         List<ChatRoom> rooms = chatRoomRepository.findAllGroupChatRoomsByUserId(currentUser.getId());
 
-        if (rooms.isEmpty()) {
-            return new ArrayList<>();
-        }
-
-        return getRooms(rooms);
+        return buildRoomResponses(rooms);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public ChatRoomResponse getChatRoomById(UUID chatRoomId) {
+        ChatRoom room = chatRoomRepository.findById(chatRoomId)
+                .orElseThrow(() -> new RuntimeException("Chat room not found: " + chatRoomId));
 
-    private List<ChatRoomResponse> getRooms(List<ChatRoom> rooms) {
-        // Get room Ids
-        List<UUID> roomIds = rooms.stream()
-                .map(ChatRoom::getId)
-                .toList();
+        return buildRoomResponse(room);
+    }
+
+    private Map<UUID, Set<UUID>> loadParticipantMap(List<UUID> roomIds) {
+        if (roomIds.isEmpty()) {
+            return emptyMap();
+        }
 
         // get all participants in these rooms
         // rows contain (roomId, participantId)
         // less depends on entity graph
         List<Object[]> rows = chatParticipantRepository.findAllParticipantsIdInRoomsId(roomIds);
+        // rows: (roomId, participantId)
 
-        // Collect into a map (roomId: key, participants: value)
-        Map<UUID, List<UUID>> participantsMap = rows
-                .stream()
+        return rows.stream()
                 .collect(groupingBy(
                         row -> (UUID) row[0],
-                        mapping(row -> (UUID) row[1], toList())
+                        mapping(row -> (UUID) row[1], toSet())
                 ));
+    }
+
+    private List<ChatRoomResponse> buildRoomResponses(List<ChatRoom> rooms) {
+        if (rooms.isEmpty()) {
+            return emptyList();
+        }
+
+        List<UUID> roomIds = rooms.stream()
+                .map(ChatRoom::getId)
+                .toList();
+
+        Map<UUID, Set<UUID>> participantMap = loadParticipantMap(roomIds);
 
         return rooms.stream()
-                .map(room -> {
-                    Set<UUID> participantIds = new HashSet<>(participantsMap.getOrDefault(room.getId(), emptyList()));
-                    return roomResponse(room, participantIds);
-                })
-                .collect(toList());
+                .map(room ->
+                        roomResponse(
+                                room,
+                                participantMap.getOrDefault(room.getId(), emptySet())
+                        )
+                )
+                .toList();
+    }
+
+    private ChatRoomResponse buildRoomResponse(ChatRoom room) {
+        Map<UUID, Set<UUID>> participantMap = loadParticipantMap(List.of(room.getId()));
+
+        Set<UUID> participantIds = participantMap.getOrDefault(room.getId(), emptySet());
+
+        return roomResponse(room, participantIds);
     }
 
     private ChatParticipant createParticipant(ChatRoom room, User user, User invitedBy, GroupChatRole role) {

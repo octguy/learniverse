@@ -1,8 +1,12 @@
 package org.example.learniversebe.config;
 
+import lombok.extern.slf4j.Slf4j;
+import org.example.learniversebe.dto.request.RegisterRequest;
 import org.example.learniversebe.enums.UserRole;
 import org.example.learniversebe.model.Tag;
+import org.example.learniversebe.repository.RoleUserRepository;
 import org.example.learniversebe.repository.TagRepository;
+import org.example.learniversebe.service.IAuthService;
 import org.example.learniversebe.service.IRoleService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
@@ -13,13 +17,22 @@ import java.util.List;
 import java.util.UUID;
 
 @Component
+@Slf4j
 public class DataInitializer implements CommandLineRunner {
 
     private final IRoleService roleService;
     private final TagRepository tagRepository;
+    private final RoleUserRepository roleUserRepository;
+    private final IAuthService authService;
 
-    public DataInitializer(IRoleService roleService, TagRepository tagRepository) {
+
+    public DataInitializer(IRoleService roleService,
+                           TagRepository tagRepository,
+                           RoleUserRepository roleUserRepository,
+                           IAuthService authService) {
+        this.authService = authService;
         this.roleService = roleService;
+        this.roleUserRepository = roleUserRepository;
         this.tagRepository = tagRepository;
     }
 
@@ -28,6 +41,16 @@ public class DataInitializer implements CommandLineRunner {
         System.out.println("DataInitializer run method executed.");
         initializeRoles();
         initializeTags();
+        initOnlyOneAdmin();
+    }
+
+    private void initOnlyOneAdmin() {
+        if (roleUserRepository.existsOneAdmin()) {
+            log.debug("Exist admin user.");
+        } else {
+            authService.createAdmin(new RegisterRequest("admin1@gmail.com", "Admin1", "123456@A"));
+            log.info("Created admin user.");
+        }
     }
 
     private void initializeTags() {
