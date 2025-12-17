@@ -21,10 +21,6 @@ public class UserProfileTagId implements Serializable {
     @Column(name="user_profile_id", columnDefinition = "uuid")
     private UUID userProfileId;
 
-    @Column(name="user_tag_id", columnDefinition = "uuid")
-    private UUID userTagId;
-
-    @Column(name = "type")
-    @Enumerated(EnumType.STRING)
-    private UserTagType type;
+    @Column(name="tag_id", columnDefinition = "uuid")
+    private UUID tagId;
 }

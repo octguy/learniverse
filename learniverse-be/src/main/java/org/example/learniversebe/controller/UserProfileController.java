@@ -2,6 +2,7 @@ package org.example.learniversebe.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.example.learniversebe.dto.request.UserProfileRequest;
 import org.example.learniversebe.dto.response.UserProfileResponse;
 import org.example.learniversebe.model.CustomUserDetails;
@@ -11,6 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.UUID;
 
@@ -25,26 +27,30 @@ public class UserProfileController {
     }
 
     @Operation(summary = "Onboard profile")
-    @PostMapping(value = "/onboard", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = "/onboard")
     public ResponseEntity<UserProfileResponse> onboardProfile(Authentication authentication,
-                                                      @ModelAttribute UserProfileRequest request
+                                                              @RequestBody @Valid UserProfileRequest data,
+                                                              @RequestParam(required = false) MultipartFile avatar,
+                                                              @RequestParam(required = false) MultipartFile cover
     ) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
         UUID userId = userDetails.getId();
-        UserProfileResponse profile = service.onboardProfile(userId, request);
+        UserProfileResponse profile = service.onboardProfile(userId, data, avatar, cover);
         return new ResponseEntity<>(profile, HttpStatus.CREATED);
     }
 
     @Operation(summary = "Update current user profile")
-    @PutMapping(value = "/me", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PutMapping(value = "/me")
     public UserProfileResponse updateMyProfile(
             Authentication authentication,
-            @ModelAttribute UserProfileRequest request
+            @RequestBody @Valid UserProfileRequest data,
+            @RequestParam(required = false) MultipartFile avatar,
+            @RequestParam(required = false) MultipartFile cover
     ) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
         UUID userId = userDetails.getId();
 
-        return service.updateProfile(userId, request);
+        return service.updateProfile(userId, data, avatar, cover);
     }
 
     @Operation(summary = "Read current user profile")

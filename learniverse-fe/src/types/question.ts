@@ -46,6 +46,7 @@ export interface QuestionSummary {
     contentType: "QUESTION"
     title: string
     slug: string
+    body?: string | null
     viewCount?: number | null
     commentCount?: number | null
     bookmarkCount?: number | null
@@ -72,4 +73,4 @@ export interface QuestionDetail extends QuestionSummary {
     currentUserReaction: string | null
 }
 
-export type QuestionResponse = QuestionDetail;
+export type QuestionResponse = QuestionDetail

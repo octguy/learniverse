@@ -4,18 +4,17 @@ import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import jakarta.transaction.Transactional;
 import org.example.learniversebe.dto.request.UserProfileRequest;
+import org.example.learniversebe.dto.response.TagResponse;
 import org.example.learniversebe.dto.response.UserProfileResponse;
-import org.example.learniversebe.dto.response.UserTagResponse;
-import org.example.learniversebe.mapper.UserMapper;
 import org.example.learniversebe.model.User;
 import org.example.learniversebe.model.UserProfile;
 import org.example.learniversebe.model.UserProfileTag;
-import org.example.learniversebe.model.UserTag;
+import org.example.learniversebe.model.Tag;
 import org.example.learniversebe.model.composite_key.UserProfileTagId;
 import org.example.learniversebe.repository.UserProfileRepository;
 import org.example.learniversebe.repository.UserProfileTagRepository;
 import org.example.learniversebe.repository.UserRepository;
-import org.example.learniversebe.repository.UserTagRepository;
+import org.example.learniversebe.repository.TagRepository;
 import org.example.learniversebe.service.IUserProfileService;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -24,37 +23,31 @@ import org.example.learniversebe.enums.UserTagType;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 public class UserProfileServiceImpl implements IUserProfileService {
     private final UserProfileRepository userProfileRepository;
-    private final UserTagRepository userTagRepository;
-    private final UserProfileTagRepository userProfileTagRepository;
+    private final TagRepository userTagRepository;
     private final UserRepository userRepository;
     private final Cloudinary cloudinary;
     private final String cloudinaryFolder;
-    private final UserMapper userMapper;
 
     public UserProfileServiceImpl(UserProfileRepository userProfileRepository,
-                                  UserTagRepository userTagRepository,
+                                  TagRepository userTagRepository,
                                   UserProfileTagRepository userProfileTagRepository,
                                   UserRepository userRepository,
                                   Cloudinary cloudinary,
-                                  String cloudinaryFolder,
-                                  UserMapper userMapper) {
+                                  String cloudinaryFolder) {
         this.userProfileRepository = userProfileRepository;
         this.userTagRepository = userTagRepository;
-        this.userProfileTagRepository = userProfileTagRepository;
         this.userRepository = userRepository;
         this.cloudinary = cloudinary;
         this.cloudinaryFolder = cloudinaryFolder;
-        this.userMapper = userMapper;
     }
 
     @Override
     @Transactional
-    public UserProfileResponse onboardProfile(UUID userId, UserProfileRequest request) {
+    public UserProfileResponse onboardProfile(UUID userId, UserProfileRequest request, MultipartFile avatar, MultipartFile cover) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -65,13 +58,13 @@ public class UserProfileServiceImpl implements IUserProfileService {
             profile.setUser(user);
         }
 
-        if (request.getDisplayName() != null) profile.setDisplayName(request.getDisplayName());
-        if (request.getBio() != null) profile.setBio(request.getBio());
+        profile.setDisplayName(request.getDisplayName());
+        profile.setBio(request.getBio());
 
-        String avatarUrl = uploadImage(request.getAvatar());
+        String avatarUrl = uploadImage(avatar);
         if (avatarUrl != null) profile.setAvatarUrl(avatarUrl);
 
-        String coverUrl = uploadImage(request.getCover());
+        String coverUrl = uploadImage(cover);
         if (coverUrl != null) profile.setCoverUrl(coverUrl);
 
         synchronizeUserTags(profile, request.getInterestTagIds(), request.getSkillTagIds());
@@ -110,17 +103,17 @@ public class UserProfileServiceImpl implements IUserProfileService {
 
     @Override
     @Transactional
-    public UserProfileResponse updateProfile(UUID userId, UserProfileRequest request) {
+    public UserProfileResponse updateProfile(UUID userId, UserProfileRequest request, MultipartFile avatar, MultipartFile cover) {
         UserProfile profile = userProfileRepository.findByUserId(userId);
         if (profile == null) throw new RuntimeException("Profile not found");
 
         if (request.getDisplayName() != null) profile.setDisplayName(request.getDisplayName());
         if (request.getBio() != null) profile.setBio(request.getBio());
 
-        String avatarUrl = uploadImage(request.getAvatar());
+        String avatarUrl = uploadImage(avatar);
         if (avatarUrl != null) profile.setAvatarUrl(avatarUrl);
 
-        String coverUrl = uploadImage(request.getCover());
+        String coverUrl = uploadImage(cover);
         if (coverUrl != null) profile.setCoverUrl(coverUrl);
 
         synchronizeUserTags(profile, request.getInterestTagIds(), request.getSkillTagIds());
@@ -128,14 +121,18 @@ public class UserProfileServiceImpl implements IUserProfileService {
         return toResponse(userProfileRepository.save(profile));
     }
 
-    private void synchronizeUserTags(UserProfile profile, Set<UUID> interestIds, Set<UUID> skillIds) {
-        if (profile.getUserTags() == null) profile.setUserTags(new HashSet<>());
-        Set<UserProfileTag> currentTags = profile.getUserTags();
+    private void synchronizeUserTags(UserProfile userProfile,
+                                     Set<UUID> interestIds,
+                                     Set<UUID> skillIds) {
+        if (userProfile.getUserProfileTags() == null)
+            userProfile.setUserProfileTags(new HashSet<>());
+
+        Set<UserProfileTag> currentTags = userProfile.getUserProfileTags();
         currentTags.clear();
 
-        addTagsByType(profile, currentTags, interestIds, UserTagType.INTEREST);
+        addTagsByType(userProfile, currentTags, interestIds, UserTagType.INTEREST);
 
-        addTagsByType(profile, currentTags, skillIds, UserTagType.SKILL_IMPROVE);
+        addTagsByType(userProfile, currentTags, skillIds, UserTagType.SKILL_IMPROVE);
     }
 
     private String uploadAvatar(MultipartFile avatar) {
@@ -161,16 +158,17 @@ public class UserProfileServiceImpl implements IUserProfileService {
     private void addTagsByType(UserProfile profile, Set<UserProfileTag> currentTags, Set<UUID> tagIds, UserTagType type) {
         if (tagIds == null) return;
         for (UUID tagId : tagIds) {
-            UserTag tag = userTagRepository.findById(tagId)
+            Tag tag = userTagRepository.findById(tagId)
                     .orElseThrow(() -> new RuntimeException("Tag not found: " + tagId));
 
             UserProfileTag relation = new UserProfileTag();
 
-            UserProfileTagId id = new UserProfileTagId(profile.getId(), tag.getId(), type);
+            UserProfileTagId id = new UserProfileTagId(profile.getId(), tag.getId());
             relation.setUserProfileTagId(id);
 
             relation.setUserProfile(profile);
-            relation.setUserTag(tag);
+            relation.setTag(tag);
+            relation.setType(type);
 
             currentTags.add(relation);
         }
@@ -179,35 +177,46 @@ public class UserProfileServiceImpl implements IUserProfileService {
     private String uploadImage(MultipartFile file) {
         if (file == null || file.isEmpty()) return null;
         try {
+            @SuppressWarnings("unchecked")
             Map<String, Object> uploadResult = (Map<String, Object>) cloudinary.uploader()
                     .upload(file.getBytes(),
                             ObjectUtils.asMap(
                                     "folder", cloudinaryFolder,
-                                    "resource_type", "image"
+                                    "resource_type", "image",
+                                    "use_filename", true,
+                                    "unique_filename", true
                             )
                     );
-            return uploadResult.get("secure_url").toString();
+            Object secureUrl = uploadResult.get("secure_url");
+            return secureUrl != null ? secureUrl.toString() : null;
         } catch (IOException e) {
-            throw new RuntimeException("Failed to upload image", e);
+            throw new RuntimeException("Failed to upload avatar to Cloudinary", e);
         }
     }
 
     private UserProfileResponse toResponse(UserProfile profile) {
-        List<UserTagResponse> interestTags = new ArrayList<>();
-        List<UserTagResponse> skillTags = new ArrayList<>();
+        List<TagResponse> interestTags = new ArrayList<>();
+        List<TagResponse> skillTags = new ArrayList<>();
 
-        if (profile.getUserTags() != null) {
-            for (UserProfileTag pt : profile.getUserTags()) {
-                UserTagResponse dto = UserTagResponse.builder()
-                        .id(pt.getUserTag().getId())
-                        .name(pt.getUserTag().getName())
+        for (UserProfileTag relation : profile.getUserProfileTags()) {
+            if (relation.getType() == UserTagType.INTEREST) {
+                TagResponse response = TagResponse.builder()
+                                .id(relation.getTag().getId())
+                                .name(relation.getTag().getName())
+                                .slug(relation.getTag().getSlug())
+                                .description(relation.getTag().getSlug())
+                                .build();
+
+                interestTags.add(response);
+            } else if (relation.getType() == UserTagType.SKILL_IMPROVE) {
+                TagResponse response = TagResponse.builder()
+                        .id(relation.getTag().getId())
+                        .name(relation.getTag().getName())
+                        .slug(relation.getTag().getSlug())
+                        .description(relation.getTag().getSlug())
                         .build();
 
-                if (pt.getType() == org.example.learniversebe.enums.UserTagType.INTEREST) {
-                    interestTags.add(dto);
-                } else if (pt.getType() == org.example.learniversebe.enums.UserTagType.SKILL_IMPROVE) {
-                    skillTags.add(dto);
-                }
+                skillTags.add(response);
             }
         }
 
@@ -219,7 +228,6 @@ public class UserProfileServiceImpl implements IUserProfileService {
                 .coverUrl(profile.getCoverUrl())
                 .postCount(profile.getPostCount())
                 .answeredQuestionCount(profile.getAnsweredQuestionCount())
-                .user(userMapper.toUserResponse(profile.getUser()))
                 .interestTags(interestTags)
                 .skillTags(skillTags)
                 .build();

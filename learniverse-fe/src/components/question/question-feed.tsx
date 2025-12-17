@@ -7,7 +7,7 @@ import { SlidersHorizontal } from "lucide-react"
 
 import { questionService } from "@/lib/api/questionService"
 import type { PageResponse } from "@/types/api"
-import type { QuestionDetail, QuestionSummary } from "@/types/question"
+import type { QuestionSummary } from "@/types/question"
 import { QuestionCard } from "@/components/question/question-card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -79,71 +79,12 @@ export function QuestionFeed() {
                 }
 
                 const content = pageData?.content ?? []
-                let items: QuestionSummary[] = content
-
-                if (content.length > 0) {
-                    try {
-                        const detailResponses = await Promise.all(
-                            content.map((summary) =>
-                                questionService
-                                    .getById(summary.id)
-                                    .catch(() => null)
-                            )
-                        )
-
-                        if (cancelled) {
-                            return
-                        }
-
-                        const detailMap = new Map<string, QuestionDetail>()
-                        detailResponses.forEach((detail) => {
-                            if (detail) {
-                                detailMap.set(detail.id, detail)
-                            }
-                        })
-
-                        items = content.map((summary) => {
-                            const detail = detailMap.get(summary.id)
-                            if (!detail) {
-                                return {
-                                    ...summary,
-                                    excerpt: createExcerpt(
-                                        summary.excerpt ?? ""
-                                    ),
-                                }
-                            }
-
-                            return {
-                                ...summary,
-                                excerpt: createExcerpt(detail.body),
-                                commentCount:
-                                    detail.commentCount ?? summary.commentCount,
-                                bookmarkCount:
-                                    detail.bookmarkCount ??
-                                    summary.bookmarkCount,
-                                voteScore:
-                                    detail.voteScore ?? summary.voteScore,
-                                currentUserVote:
-                                    detail.currentUserVote ??
-                                    summary.currentUserVote,
-                                answerCount:
-                                    detail.answerCount ?? summary.answerCount,
-                                viewCount:
-                                    detail.viewCount ?? summary.viewCount,
-                                tags:
-                                    detail.tags && detail.tags.length > 0
-                                        ? detail.tags
-                                        : summary.tags,
-                            }
-                        })
-                    } catch (detailError) {
-                        console.error("Failed to enrich questions", detailError)
-                        items = content.map((summary) => ({
-                            ...summary,
-                            excerpt: createExcerpt(summary.excerpt ?? ""),
-                        }))
-                    }
-                }
+                const items: QuestionSummary[] = content.map((summary) => ({
+                    ...summary,
+                    excerpt: createExcerpt(
+                        summary.body ?? summary.excerpt ?? ""
+                    ),
+                }))
 
                 setState({
                     items,

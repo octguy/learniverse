@@ -17,7 +17,7 @@ import {
     Settings,
     Hash,
     LogOut,
-    Bookmark
+    Bookmark,
 } from "lucide-react"
 import { tagService, Tag } from "@/lib/api/tagService"
 import { cn } from "@/lib/utils"
@@ -25,7 +25,10 @@ import { cn } from "@/lib/utils"
 export function SideBar() {
     const pathname = usePathname()
     const { user, logout } = useAuth()
-    const isAuthLoading = !user
+    const [hydrated, setHydrated] = useState(false)
+    useEffect(() => setHydrated(true), [])
+
+    const isAuthLoading = !hydrated || !user
     const [tags, setTags] = useState<Tag[]>([])
     const [isTagsLoading, setIsTagsLoading] = useState(true)
 
@@ -54,7 +57,6 @@ export function SideBar() {
 
     return (
         <aside className="w-64 hidden md:flex flex-col h-[calc(100vh-4rem)] sticky top-16 border-r pr-4 pb-4">
-
             <div className="py-4">
                 {isAuthLoading ? (
                     <div className="flex items-center space-x-4">
@@ -71,8 +73,12 @@ export function SideBar() {
                             <AvatarFallback>{user.username?.charAt(0).toUpperCase()}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold truncate">{user.username}</p>
-                            <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                            <p className="text-sm font-semibold truncate">
+                                {user.username}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                                {user.email}
+                            </p>
                         </div>
                     </div>
                 ) : (
@@ -88,7 +94,9 @@ export function SideBar() {
             <Separator className="my-2" />
             <nav className="flex flex-col gap-1 py-2">
                 {navItems.map((item) => {
-                    const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
+                    const isActive =
+                        pathname === item.href ||
+                        pathname.startsWith(`${item.href}/`)
                     return (
                         <Link key={item.href} href={item.href}>
                             <Button
@@ -131,26 +139,38 @@ export function SideBar() {
                 <div className="flex flex-wrap gap-2 px-1">
                     {isTagsLoading ? (
                         Array.from({ length: 5 }).map((_, i) => (
-                            <Skeleton key={i} className="h-6 w-16 rounded-full" />
+                            <Skeleton
+                                key={i}
+                                className="h-6 w-16 rounded-full"
+                            />
                         ))
                     ) : tags.length > 0 ? (
                         tags.map((tag) => (
                             <Link key={tag.id} href={`/tags/${tag.slug}`}>
-                                <Badge variant="outline" className="hover:bg-accent cursor-pointer transition-colors">
+                                <Badge
+                                    variant="outline"
+                                    className="hover:bg-accent cursor-pointer transition-colors"
+                                >
                                     # {tag.name}
                                 </Badge>
                             </Link>
                         ))
                     ) : (
-                        <p className="text-xs text-muted-foreground px-2">Chưa có thẻ nào.</p>
+                        <p className="text-xs text-muted-foreground px-2">
+                            Chưa có thẻ nào.
+                        </p>
                     )}
                 </div>
 
-                <Button variant="link" size="sm" className="px-0 mt-2 text-xs w-full text-muted-foreground" asChild>
+                <Button
+                    variant="link"
+                    size="sm"
+                    className="px-0 mt-2 text-xs w-full text-muted-foreground"
+                    asChild
+                >
                     <Link href="/tags">Xem tất cả Tags</Link>
                 </Button>
             </div>
-
         </aside>
     )
 }

@@ -56,4 +56,7 @@ public class QuestionSummaryResponse {
 
     @Schema(description = "Danh sách các tag")
     private Set<TagResponse> tags;
+
+    @Schema(description = "Nội dung tóm tắt/đầy đủ của câu hỏi")
+    private String body;
 }
