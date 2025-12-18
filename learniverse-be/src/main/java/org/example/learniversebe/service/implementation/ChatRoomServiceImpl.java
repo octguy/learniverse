@@ -29,17 +29,9 @@ public class ChatRoomServiceImpl implements IChatRoomService {
 
     private final ChatParticipantRepository chatParticipantRepository;
 
-    private final ChatMessageRepository chatMessageRepository;
-
-    private final MessageReceiptRepository messageReceiptRepository;
-
     public ChatRoomServiceImpl(ChatRoomRepository chatRoomRepository,
                                UserRepository userRepository,
-                               ChatParticipantRepository chatParticipantRepository,
-                               ChatMessageRepository chatMessageRepository,
-                               MessageReceiptRepository messageReceiptRepository) {
-        this.chatMessageRepository = chatMessageRepository;
-        this.messageReceiptRepository = messageReceiptRepository;
+                               ChatParticipantRepository chatParticipantRepository) {
         this.chatParticipantRepository = chatParticipantRepository;
         this.userRepository = userRepository;
         this.chatRoomRepository = chatRoomRepository;
@@ -219,9 +211,9 @@ public class ChatRoomServiceImpl implements IChatRoomService {
         ChatRoom room = chatRoomRepository.findById(chatRoomId)
                 .orElseThrow(() -> new RuntimeException("Chat room not found"));
 
-        messageReceiptRepository.softDeleteMessageReceiptsByRoom(chatRoomId);
-        chatMessageRepository.softDeleteChatMessagesByRoom(chatRoomId);
-        chatParticipantRepository.softDeleteChatParticipantsByRoom(chatRoomId);
+//        messageReceiptRepository.softDeleteMessageReceiptsByRoom(chatRoomId);
+//        chatMessageRepository.softDeleteChatMessagesByRoom(chatRoomId);
+//        chatParticipantRepository.softDeleteChatParticipantsByRoom(chatRoomId);
 
         chatRoomRepository.softDeleteChatRoom(chatRoomId);
 

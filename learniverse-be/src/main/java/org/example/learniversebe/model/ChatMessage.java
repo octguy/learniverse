@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import org.example.learniversebe.enums.MessageType;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -12,6 +13,7 @@ import java.util.UUID;
 @Table(name="chat_message")
 @Getter
 @Setter
+@SQLRestriction("deleted_at IS NULL")
 public class ChatMessage extends BaseEntity {
 
     @Id
