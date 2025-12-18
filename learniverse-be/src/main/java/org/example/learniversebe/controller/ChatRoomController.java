@@ -8,6 +8,7 @@ import org.example.learniversebe.model.ApiResponse;
 import org.example.learniversebe.service.IChatRoomService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -95,6 +96,7 @@ public class ChatRoomController {
         return ResponseEntity.ok(apiResponse);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("{id}")
     public ResponseEntity<?> getChatRoomById(@PathVariable UUID id) {
         ChatRoomResponse chatRoomResponse = chatRoomService.getChatRoomById(id);
@@ -116,6 +118,21 @@ public class ChatRoomController {
         ApiResponse<?> apiResponse = new ApiResponse<>(
                 HttpStatus.OK,
                 "Left chat room successfully",
+                null,
+                null
+        );
+
+        return ResponseEntity.ok(apiResponse);
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @DeleteMapping("{id}")
+    public ResponseEntity<?> deleteChatRoom(@PathVariable UUID id) {
+        chatRoomService.deleteChatRoom(id);
+
+        ApiResponse<?> apiResponse = new ApiResponse<>(
+                HttpStatus.OK,
+                "Chat room deleted successfully",
                 null,
                 null
         );

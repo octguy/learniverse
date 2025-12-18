@@ -81,7 +81,7 @@ public class ChatParticipantServiceImpl implements IChatParticipantService {
         Set<UUID> duplicatedParticipants = new HashSet<>(participantsToAdd);
         duplicatedParticipants.retainAll(activeSet);
         if (!duplicatedParticipants.isEmpty()) {
-            log.error("Cannot add participants who are currently active in the chat room {}", chatRoomId);
+            log.error("Cannot add participants who are currently active in the chat room {}, duplicated participant IDs: {}", chatRoomId, duplicatedParticipants);
             throw new RuntimeException("Cannot add participants who are currently active in the chat room");
         }
 
@@ -93,13 +93,13 @@ public class ChatParticipantServiceImpl implements IChatParticipantService {
 
         if (!toRestore.isEmpty()) {
             chatParticipantRepository.restoreParticipants(chatRoomId, userId, toRestore);
-            log.info("Restored participants {} from chat room {}", toRestore, chatRoomId);
+            log.info("Restored participant IDs {} to chat room {}", toRestore, chatRoomId);
         }
 
         if (!toAdd.isEmpty()) {
             List<User> newParticipants = userRepository.findAllById(toAdd);
             if (newParticipants.size() != toAdd.size()) {
-                log.error("Cannot find participants with ids {}", toAdd);
+                log.error("Cannot find participants with IDs: {}", toAdd);
                 throw new RuntimeException("Cannot find participants with ids");
             }
 
@@ -114,7 +114,7 @@ public class ChatParticipantServiceImpl implements IChatParticipantService {
                     }).toList();
 
             chatParticipantRepository.saveAll(newbies);
-            log.info("Added new participants {} to chat room {}", toAdd, chatRoomId);
+            log.info("Added new participant IDs {} to chat room {}", toAdd, chatRoomId);
         }
 
         return AddParticipantsResponse.builder()
