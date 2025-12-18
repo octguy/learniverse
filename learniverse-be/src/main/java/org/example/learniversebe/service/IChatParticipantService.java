@@ -8,4 +8,6 @@ import java.util.UUID;
 public interface IChatParticipantService {
 
     AddParticipantsResponse addParticipant(UUID chatRoomId, AddParticipantsRequest request);
+
+    void removeParticipant(UUID chatRoomId, UUID participantId);
 }

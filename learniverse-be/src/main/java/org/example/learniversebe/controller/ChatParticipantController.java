@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
-@RequestMapping("/api/v1/chat-participants")
+@RequestMapping("/api/v1/chats")
 @RestController
 @Tag(name = "Chat Participant", description = "Endpoints for chat participant functionalities")
 public class ChatParticipantController {
@@ -32,6 +32,20 @@ public class ChatParticipantController {
                 HttpStatus.OK,
                 "Participants added successfully",
                 res,
+                null
+        );
+
+        return ResponseEntity.ok(apiResponse);
+    }
+
+    @DeleteMapping("/{roomId}/participants/{userId}")
+    public ResponseEntity<?> removeParticipant(@PathVariable UUID roomId, @PathVariable UUID userId) {
+        chatParticipantService.removeParticipant(roomId, userId);
+
+        ApiResponse<?> apiResponse = new ApiResponse<>(
+                HttpStatus.OK,
+                "Participant removed successfully",
+                null,
                 null
         );
 
