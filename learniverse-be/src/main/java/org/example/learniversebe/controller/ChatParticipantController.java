@@ -4,12 +4,14 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.example.learniversebe.dto.request.AddParticipantsRequest;
 import org.example.learniversebe.dto.response.AddParticipantsResponse;
+import org.example.learniversebe.dto.response.ChatParticipantInRoomResponse;
 import org.example.learniversebe.model.ApiResponse;
 import org.example.learniversebe.service.IChatParticipantService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RequestMapping("/api/v1/chats")
@@ -46,6 +48,20 @@ public class ChatParticipantController {
                 HttpStatus.OK,
                 "Participant removed successfully",
                 null,
+                null
+        );
+
+        return ResponseEntity.ok(apiResponse);
+    }
+
+    @GetMapping("/{roomId}/participants")
+    public ResponseEntity<?> getAllParticipants(@PathVariable UUID roomId) {
+        List<ChatParticipantInRoomResponse> participants = chatParticipantService.getParticipantsInRoom(roomId);
+
+        ApiResponse<?> apiResponse = new ApiResponse<>(
+                HttpStatus.OK,
+                "Participants fetched successfully",
+                participants,
                 null
         );
 

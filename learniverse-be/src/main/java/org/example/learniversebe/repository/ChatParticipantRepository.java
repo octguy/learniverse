@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -102,4 +103,23 @@ public interface ChatParticipantRepository extends JpaRepository<ChatParticipant
             and deleted_at is not null
     """, nativeQuery = true)
     void restoreParticipants(UUID chatRoomId, UUID userId, Set<UUID> toRestore);
+
+//    @Query(value = """
+//        select u.id, up.display_name, cp.chat_role, up.avatar_url, cp.joined_at
+//        from chat_participant cp
+//        join "user" u on cp.participant_id = u.id
+//        join user_profile up on u.id = up.user_id
+//        join chat_room cr on cr.id = cp.chat_room_id
+//        where cp.chat_room_id = :chatRoomId and cr.deleted_at is null
+//    """, nativeQuery = true)
+    @Query(value = """
+        select up.user_id, up.display_name, cp.chat_role, up.avatar_url, cp.joined_at
+        from chat_participant cp
+        join user_profile up on cp.participant_id = up.user_id
+        join chat_room cr on cr.id = cp.chat_room_id
+        where cp.chat_room_id = :chatRoomId
+            and cr.deleted_at is null
+            and cp.deleted_at is null
+    """, nativeQuery = true)
+    List<Object[]> getUsersInChatRoom(UUID chatRoomId);
 }

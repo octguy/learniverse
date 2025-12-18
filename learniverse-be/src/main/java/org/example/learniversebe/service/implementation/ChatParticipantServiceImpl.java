@@ -3,7 +3,9 @@ package org.example.learniversebe.service.implementation;
 import lombok.extern.slf4j.Slf4j;
 import org.example.learniversebe.dto.request.AddParticipantsRequest;
 import org.example.learniversebe.dto.response.AddParticipantsResponse;
+import org.example.learniversebe.dto.response.ChatParticipantInRoomResponse;
 import org.example.learniversebe.enums.GroupChatRole;
+import org.example.learniversebe.enums.UserRole;
 import org.example.learniversebe.exception.UnauthorizedException;
 import org.example.learniversebe.model.ChatParticipant;
 import org.example.learniversebe.model.ChatRoom;
@@ -16,6 +18,7 @@ import org.example.learniversebe.util.SecurityUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.Timestamp;
 import java.util.*;
 
 import static java.util.stream.Collectors.toList;
@@ -77,6 +80,37 @@ public class ChatParticipantServiceImpl implements IChatParticipantService {
 
         chatParticipantRepository.softDeleteByChatRoomIdAndParticipantId(chatRoomId, participantId);
         log.info("Removed participant {} from chat room {}", participantId, chatRoomId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ChatParticipantInRoomResponse> getParticipantsInRoom(UUID chatRoomId) {
+        getChatRoom(chatRoomId);
+
+        User currentUser = SecurityUtils.getCurrentUser();
+        validateAccessToViewParticipants(chatRoomId, currentUser);
+
+        List<Object[]> rows = chatParticipantRepository.getUsersInChatRoom(chatRoomId);
+
+        List<ChatParticipantInRoomResponse> arr = new ArrayList<>();
+
+        for (Object[] r : rows) {
+            UUID r1 = (UUID) r[0];
+            String r2 = (String) r[1];
+            String r3 = (String) r[2];
+            String r4 = (String) r[3];
+            Timestamp r5 = (Timestamp) r[4];
+
+            arr.add(ChatParticipantInRoomResponse.builder()
+                    .participantId(r1)
+                    .displayName(r2)
+                    .avatarUrl(r3)
+                    .role(r4)
+                    .joinedAt(r5.toLocalDateTime())
+                    .build());
+        }
+
+        return arr;
     }
 
     private ChatRoom getChatRoom(UUID chatRoomId) {
@@ -224,6 +258,22 @@ public class ChatParticipantServiceImpl implements IChatParticipantService {
         if (targetParticipant.getChatRole() == GroupChatRole.ADMIN) {
             log.error("Cannot remove admin from chat room {}", chatRoomId);
             throw new RuntimeException("Cannot remove admin from chat room");
+        }
+    }
+
+    private void validateAccessToViewParticipants(UUID chatRoomId, User currentUser) {
+        boolean isAdmin = currentUser.getRoleUsers().stream()
+                .anyMatch(roleUser -> roleUser.getRole().getName() == UserRole.ROLE_ADMIN);
+
+        if (!isAdmin) {
+            boolean isParticipant = chatParticipantRepository.existsByChatRoomIdAndParticipantId(
+                    chatRoomId, currentUser.getId());
+            
+            if (!isParticipant) {
+                log.error("User {} is not authorized to view participants in chat room {}", 
+                        currentUser.getId(), chatRoomId);
+                throw new UnauthorizedException("You must be a participant or admin to view chat room participants");
+            }
         }
     }
 
