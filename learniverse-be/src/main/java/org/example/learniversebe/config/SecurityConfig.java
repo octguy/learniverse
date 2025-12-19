@@ -85,6 +85,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/register-admin").hasRole("ADMIN")
                         
                         .requestMatchers("/api/v1/chats/**").authenticated()
+                        .requestMatchers("/api/v1/messages/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(authenticationEntryPoint))
