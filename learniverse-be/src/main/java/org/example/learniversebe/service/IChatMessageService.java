@@ -4,8 +4,10 @@ import org.example.learniversebe.dto.request.EditMessageRequest;
 import org.example.learniversebe.dto.request.SendMessageRequest;
 import org.example.learniversebe.dto.response.MessagePageResponse;
 import org.example.learniversebe.dto.response.MessageResponse;
+import org.example.learniversebe.dto.response.pagination.PageResponse;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 public interface IChatMessageService {
@@ -18,7 +20,9 @@ public interface IChatMessageService {
     
     void deleteMessage(UUID messageId);
     
-    MessagePageResponse getMessagesByChatRoom(UUID chatRoomId, int page, int size);
-    
+    PageResponse<MessageResponse> getAllMessagesInChatRoom(UUID chatRoomId, LocalDateTime cursor, int limit);
+
+    MessagePageResponse getMessagesBefore(UUID messageId);
+
     MessageResponse getMessageById(UUID messageId);
 }

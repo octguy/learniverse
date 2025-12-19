@@ -4,7 +4,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.example.learniversebe.dto.request.EditMessageRequest;
 import org.example.learniversebe.dto.request.SendMessageRequest;
-import org.example.learniversebe.dto.response.MessagePageResponse;
 import org.example.learniversebe.dto.response.MessageResponse;
 import org.example.learniversebe.dto.websocket.UserStatusDTO;
 import org.example.learniversebe.enums.MessageType;
@@ -13,6 +12,7 @@ import org.example.learniversebe.model.User;
 import org.example.learniversebe.service.IChatMessageService;
 import org.example.learniversebe.service.IPresenceService;
 import org.example.learniversebe.util.SecurityUtils;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +20,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @RequestMapping("/api/v1/messages")
@@ -135,19 +136,10 @@ public class ChatMessageController {
     @GetMapping("/room/{chatRoomId}")
     public ResponseEntity<?> getMessagesByChatRoom(
             @PathVariable UUID chatRoomId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "50") int size) {
-
-        MessagePageResponse messages = chatMessageService.getMessagesByChatRoom(chatRoomId, page, size);
-
-        ApiResponse<?> apiResponse = new ApiResponse<>(
-                HttpStatus.OK,
-                "Messages fetched successfully",
-                messages,
-                null
-        );
-
-        return ResponseEntity.ok(apiResponse);
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime cursor,
+            @RequestParam(defaultValue = "20") int limit) {
+        return ResponseEntity.ok(chatMessageService.getAllMessagesInChatRoom(chatRoomId, cursor, limit));
     }
 
     @GetMapping("/{messageId}")

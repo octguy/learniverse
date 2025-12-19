@@ -7,6 +7,9 @@ import org.example.learniversebe.dto.request.EditMessageRequest;
 import org.example.learniversebe.dto.request.SendMessageRequest;
 import org.example.learniversebe.dto.response.MessagePageResponse;
 import org.example.learniversebe.dto.response.MessageResponse;
+import org.example.learniversebe.dto.response.pagination.PageResponse;
+import org.example.learniversebe.dto.response.SenderResponse;
+import org.example.learniversebe.dto.response.pagination.PaginationMeta;
 import org.example.learniversebe.enums.MessageType;
 import org.example.learniversebe.exception.ResourceNotFoundException;
 import org.example.learniversebe.exception.UnauthorizedException;
@@ -17,12 +20,9 @@ import org.example.learniversebe.model.User;
 import org.example.learniversebe.repository.ChatMessageRepository;
 import org.example.learniversebe.repository.ChatParticipantRepository;
 import org.example.learniversebe.repository.ChatRoomRepository;
+import org.example.learniversebe.repository.projection.ChatMessageProjection;
 import org.example.learniversebe.service.IChatMessageService;
 import org.example.learniversebe.util.SecurityUtils;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -31,7 +31,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -204,34 +203,93 @@ public class ChatMessageServiceImpl implements IChatMessageService {
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public MessagePageResponse getMessagesByChatRoom(UUID chatRoomId, int page, int size) {
+    public PageResponse<MessageResponse> getAllMessagesInChatRoom(UUID chatRoomId,
+                                                                  LocalDateTime cursor,
+                                                                  int limit) {
         User currentUser = SecurityUtils.getCurrentUser();
+        boolean isParticipant = chatParticipantRepository.existsByChatRoomIdAndParticipantId(chatRoomId, currentUser.getId());
 
-        // Validate chat room exists
-        ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
-                .orElseThrow(() -> new ResourceNotFoundException("Chat room not found"));
+        if (!isParticipant) {
+            log.error("User {} is not authorized to view messages in chat room {}", currentUser.getId(), chatRoomId);
+            throw new UnauthorizedException("You must be a participant to view chat room messages");
+        }
 
-        // Validate user is participant
-        validateParticipant(chatRoomId, currentUser.getId());
+        List<ChatMessageProjection> projections = chatMessageRepository.findMessagesByChatRoomId(chatRoomId, cursor, limit);
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<ChatMessage> messagePage = chatMessageRepository.findByChatRoomId(chatRoomId, pageable);
+        List<MessageResponse> data = projections.stream()
+                .map(
+            p -> MessageResponse.builder()
+                    .id(p.getId())
+                    .chatRoomId(p.getChatRoomId())
+                    .sender(
+                        SenderResponse.builder()
+                            .senderId(p.getSenderId())
+                            .senderName(p.getSenderName())
+                            .senderAvatar(p.getSenderAvatar())
+                            .build()
+                    )
+                    .messageType(p.getMessageType())
+                    .textContent(p.getTextContent())
+                    .metadata(p.getMetadata())
+                    .parentMessageId(p.getParentMessageId())
+                    .createdAt(p.getSendAt())
+                    .build()
+                ).toList();
 
-        List<MessageResponse> messages = messagePage.getContent().stream()
-                .map(this::mapToMessageResponse)
-                .collect(Collectors.toList());
+        LocalDateTime nextCursor = null;
+        boolean hasNext = false;
 
-        MessagePageResponse response = new MessagePageResponse();
-        response.setMessages(messages);
-        response.setCurrentPage(messagePage.getNumber());
-        response.setTotalPages(messagePage.getTotalPages());
-        response.setTotalElements(messagePage.getTotalElements());
-        response.setHasNext(messagePage.hasNext());
-        response.setHasPrevious(messagePage.hasPrevious());
+        if (!data.isEmpty()) {
+            nextCursor = data.get(data.size() - 1).getCreatedAt();
 
-        return response;
+            hasNext = chatMessageRepository.existsByChatRoomIdAndCreatedAtBefore(chatRoomId, nextCursor);
+        }
+
+        return PageResponse.<MessageResponse>builder()
+                .data(data)
+                .pagination(
+                    PaginationMeta.builder()
+                        .nextCursor(nextCursor)
+                        .hasNext(hasNext)
+                        .build()
+                )
+                .build();
     }
+
+    @Override
+    public MessagePageResponse getMessagesBefore(UUID messageId) {
+        return null;
+    }
+
+//    @Override
+//    @Transactional(readOnly = true)
+//    public MessagePageResponse getMessagesByChatRoom(UUID chatRoomId, int page, int size) {
+//        User currentUser = SecurityUtils.getCurrentUser();
+//
+//        // Validate chat room exists
+//        ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
+//                .orElseThrow(() -> new ResourceNotFoundException("Chat room not found"));
+//
+//        // Validate user is participant
+//        validateParticipant(chatRoomId, currentUser.getId());
+//
+//        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+//        Page<ChatMessage> messagePage = chatMessageRepository.findByChatRoomId(chatRoomId, pageable);
+//
+//        List<MessageResponse> messages = messagePage.getContent().stream()
+//                .map(this::mapToMessageResponse)
+//                .collect(Collectors.toList());
+//
+//        MessagePageResponse response = new MessagePageResponse();
+//        response.setMessages(messages);
+//        response.setCurrentPage(messagePage.getNumber());
+//        response.setTotalPages(messagePage.getTotalPages());
+//        response.setTotalElements(messagePage.getTotalElements());
+//        response.setHasNext(messagePage.hasNext());
+//        response.setHasPrevious(messagePage.hasPrevious());
+//
+//        return response;
+//    }
 
     @Override
     @Transactional(readOnly = true)
