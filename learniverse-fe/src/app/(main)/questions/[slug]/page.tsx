@@ -23,6 +23,7 @@ import {
     Loader2,
     MessageCircle,
     Share2,
+    Bookmark,
     ThumbsDown,
     ThumbsUp,
 } from "lucide-react"
@@ -90,10 +91,7 @@ const MarkdownParagraph = ({
     children,
     ...props
 }: ParagraphProps) => (
-    <p
-        className={cn("mt-3 leading-7 text-muted-foreground", className)}
-        {...props}
-    >
+    <p className={cn("mt-3 leading-7 text-foreground", className)} {...props}>
         {children}
     </p>
 )
@@ -230,9 +228,15 @@ export default function QuestionDetailPage() {
     const [answerSuccess, setAnswerSuccess] = useState<string | null>(null)
     const [isAnswerFormOpen, setIsAnswerFormOpen] = useState(false)
     const [isVotingQuestion, setIsVotingQuestion] = useState(false)
+    const [isBookmarking, setIsBookmarking] = useState(false)
+    const [isReacting, setIsReacting] = useState(false)
+    const [isDeleting, setIsDeleting] = useState(false)
     const [answerVoteLoading, setAnswerVoteLoading] = useState<
         Record<string, boolean>
     >({})
+    const [acceptLoading, setAcceptLoading] = useState<Record<string, boolean>>(
+        {}
+    )
     const [voteError, setVoteError] = useState<string | null>(null)
 
     const answerFormRef = useRef<HTMLDivElement | null>(null)
@@ -504,6 +508,144 @@ export default function QuestionDetailPage() {
         }
     }
 
+    const handleBookmarkToggle = async () => {
+        if (!user || !state.question) {
+            router.push("/login")
+            return
+        }
+        if (isBookmarking) return
+
+        setIsBookmarking(true)
+        const currentlyBookmarked = state.question.bookmarkedByCurrentUser
+        try {
+            if (currentlyBookmarked) {
+                await interactionService.unbookmark(state.question.id)
+            } else {
+                await interactionService.bookmark(state.question.id)
+            }
+
+            setState((prev) => {
+                if (!prev.question) return prev
+                const nextBookmarked = !currentlyBookmarked
+                return {
+                    ...prev,
+                    question: {
+                        ...prev.question,
+                        bookmarkedByCurrentUser: nextBookmarked,
+                        bookmarkCount:
+                            (prev.question.bookmarkCount ?? 0) +
+                            (nextBookmarked ? 1 : -1),
+                    },
+                }
+            })
+        } finally {
+            setIsBookmarking(false)
+        }
+    }
+
+    const handleReactionToggle = async () => {
+        if (!user || !state.question) {
+            router.push("/login")
+            return
+        }
+        if (isReacting) return
+
+        setIsReacting(true)
+        const current = state.question.currentUserReaction
+        const nextReaction = current ? null : "LIKE"
+
+        try {
+            if (nextReaction) {
+                await interactionService.react({
+                    reactableType: "CONTENT",
+                    reactableId: state.question.id,
+                    reactionType: nextReaction,
+                })
+            } else {
+                // Send empty to remove reaction (backend may ignore but keeps UI consistent)
+                await interactionService.react({
+                    reactableType: "CONTENT",
+                    reactableId: state.question.id,
+                    reactionType: "LIKE",
+                })
+            }
+
+            setState((prev) => {
+                if (!prev.question) return prev
+                return {
+                    ...prev,
+                    question: {
+                        ...prev.question,
+                        currentUserReaction: nextReaction,
+                    },
+                }
+            })
+        } finally {
+            setIsReacting(false)
+        }
+    }
+
+    const handleDeleteQuestion = async () => {
+        if (!state.question || !user) {
+            router.push("/login")
+            return
+        }
+        if (isDeleting) return
+        const confirmed = window.confirm("Xóa câu hỏi này?")
+        if (!confirmed) return
+
+        setIsDeleting(true)
+        try {
+            await questionService.remove(state.question.id)
+            router.push("/questions")
+        } finally {
+            setIsDeleting(false)
+        }
+    }
+
+    const handleToggleAccepted = async (
+        answerId: string,
+        nextState: boolean
+    ) => {
+        if (!state.question) return
+        if (!user) {
+            router.push("/login")
+            return
+        }
+        setAcceptLoading((prev) => ({ ...prev, [answerId]: true }))
+        try {
+            if (nextState) {
+                await questionService.acceptAnswer(state.question.id, answerId)
+            } else {
+                await questionService.unacceptAnswer(
+                    state.question.id,
+                    answerId
+                )
+            }
+
+            setState((prev) => {
+                if (!prev.question) return prev
+                return {
+                    ...prev,
+                    question: {
+                        ...prev.question,
+                        acceptedAnswerId: nextState ? answerId : null,
+                        isAnswered: nextState,
+                        answers: prev.question.answers.map((a) => ({
+                            ...a,
+                            isAccepted: a.id === answerId ? nextState : false,
+                        })),
+                    },
+                }
+            })
+        } finally {
+            setAcceptLoading((prev) => {
+                const { [answerId]: _removed, ...rest } = prev
+                return rest
+            })
+        }
+    }
+
     if (state.status === "loading") {
         return (
             <div className="mx-auto w-full max-w-6xl space-y-6 pb-12">
@@ -554,6 +696,7 @@ export default function QuestionDetailPage() {
 
     const question = state.question!
     const authorName = question.author?.username ?? "Ẩn danh"
+    const isAuthor = user?.id === question.author?.id
     const statusLabel =
         question.status === "PUBLISHED"
             ? "Đang hiển thị"
@@ -577,10 +720,57 @@ export default function QuestionDetailPage() {
                     <ArrowLeft className="size-4" />
                     Quay lại
                 </Button>
-                <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" className="gap-1">
-                        <Share2 className="size-4" /> Chia sẻ
+                <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className={cn(
+                            "h-9 w-9 border border-transparent transition-colors",
+                            question.bookmarkedByCurrentUser &&
+                                "bg-amber-50 text-amber-600 hover:bg-amber-100 hover:text-amber-700"
+                        )}
+                        disabled={isBookmarking}
+                        onClick={handleBookmarkToggle}
+                        title={
+                            question.bookmarkedByCurrentUser
+                                ? "Bỏ lưu câu hỏi"
+                                : "Lưu câu hỏi"
+                        }
+                        aria-pressed={question.bookmarkedByCurrentUser}
+                    >
+                        <Bookmark
+                            className={cn(
+                                "size-4",
+                                question.bookmarkedByCurrentUser &&
+                                    "fill-current"
+                            )}
+                        />
                     </Button>
+                    {isAuthor && (
+                        <>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-1"
+                                onClick={() =>
+                                    router.push(
+                                        `/questions/${question.slug}/edit`
+                                    )
+                                }
+                            >
+                                Chỉnh sửa
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                size="sm"
+                                className="gap-1"
+                                disabled={isDeleting}
+                                onClick={handleDeleteQuestion}
+                            >
+                                Xóa
+                            </Button>
+                        </>
+                    )}
                 </div>
             </div>
 
@@ -962,11 +1152,18 @@ export default function QuestionDetailPage() {
                                 const formattedAnswerScore = formatMetric(
                                     answer.voteScore ?? 0
                                 )
+                                const isAccepted =
+                                    answer.isAccepted ||
+                                    question.acceptedAnswerId === answer.id
 
                                 return (
                                     <article
                                         key={answer.id}
-                                        className="rounded-xl border bg-background p-5 shadow-sm"
+                                        className={cn(
+                                            "rounded-xl border bg-background p-5 shadow-sm",
+                                            isAccepted &&
+                                                "border-emerald-300 bg-emerald-50"
+                                        )}
                                     >
                                         <div className="flex flex-wrap items-center justify-between gap-3">
                                             <div className="flex items-center gap-3">
@@ -1048,6 +1245,37 @@ export default function QuestionDetailPage() {
                                                 >
                                                     <ThumbsDown className="size-4" />
                                                 </Button>
+                                                {isAuthor && (
+                                                    <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        variant={
+                                                            isAccepted
+                                                                ? "secondary"
+                                                                : "outline"
+                                                        }
+                                                        disabled={Boolean(
+                                                            acceptLoading[
+                                                                answer.id
+                                                            ]
+                                                        )}
+                                                        onClick={() =>
+                                                            handleToggleAccepted(
+                                                                answer.id,
+                                                                !isAccepted
+                                                            )
+                                                        }
+                                                    >
+                                                        {acceptLoading[
+                                                            answer.id
+                                                        ] && (
+                                                            <Loader2 className="mr-2 size-3 animate-spin" />
+                                                        )}
+                                                        {isAccepted
+                                                            ? "Bỏ chấp nhận"
+                                                            : "Chấp nhận"}
+                                                    </Button>
+                                                )}
                                             </div>
                                         </div>
 

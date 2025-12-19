@@ -1,5 +1,6 @@
 package org.example.learniversebe.service.implementation;
 
+import lombok.extern.java.Log;
 import org.example.learniversebe.dto.request.BookmarkRequest;
 import org.example.learniversebe.dto.request.ReactionRequest;
 import org.example.learniversebe.dto.request.VoteRequest;
@@ -7,6 +8,7 @@ import org.example.learniversebe.dto.response.BookmarkResponse;
 import org.example.learniversebe.dto.response.PageResponse;
 import org.example.learniversebe.enums.ContentType;
 import org.example.learniversebe.enums.ReactableType;
+import org.example.learniversebe.enums.ReactionType;
 import org.example.learniversebe.enums.VotableType;
 import org.example.learniversebe.exception.BadRequestException;
 import org.example.learniversebe.exception.ResourceNotFoundException;
@@ -15,6 +17,9 @@ import org.example.learniversebe.model.*;
 import org.example.learniversebe.repository.*;
 import org.example.learniversebe.service.IInteractionService;
 import org.example.learniversebe.util.ServiceHelper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -31,22 +36,24 @@ public class InteractionServiceImpl implements IInteractionService {
     private final VoteRepository voteRepository;
     private final ReactionRepository reactionRepository;
     private final BookmarkRepository bookmarkRepository;
-    private final ContentRepository contentRepository; // Để cập nhật score/count
-    private final AnswerRepository answerRepository;   // Để cập nhật score/count
-    private final CommentRepository commentRepository; // Để cập nhật count
-    private final UserRepository userRepository;       // Để lấy user
+    private final ContentRepository contentRepository;
+    private final AnswerRepository answerRepository;
+    private final CommentRepository commentRepository;
+    private final UserRepository userRepository;
     private final ServiceHelper serviceHelper;
-    private final BookmarkMapper bookmarkMapper; // Inject BookmarkMapper
+    private final BookmarkMapper bookmarkMapper;
+
+    private static final Logger log = LoggerFactory.getLogger(InteractionServiceImpl.class);
 
     public InteractionServiceImpl(VoteRepository voteRepository,
                                   ReactionRepository reactionRepository,
                                   BookmarkRepository bookmarkRepository,
                                   ContentRepository contentRepository,
                                   AnswerRepository answerRepository,
-                                  CommentRepository commentRepository, // Inject
+                                  CommentRepository commentRepository,
                                   UserRepository userRepository,
                                   ServiceHelper serviceHelper,
-                                  BookmarkMapper bookmarkMapper // Inject
+                                  BookmarkMapper bookmarkMapper
     ) {
         this.voteRepository = voteRepository;
         this.reactionRepository = reactionRepository;
@@ -119,35 +126,56 @@ public class InteractionServiceImpl implements IInteractionService {
         ReactableType reactableType = request.getReactableType();
         int countDelta = 0;
 
-        // 1. Tìm entity được react
         Object reactableEntity = findReactableEntity(reactableType, reactableId);
 
-        // 2. Tìm reaction hiện tại
-        Optional<Reaction> existingReactionOpt = reactionRepository.findByReactableTypeAndReactableIdAndUserIdAndReactionType(
-                reactableType, reactableId, currentUser.getId(), request.getReactionType());
+        Optional<Reaction> currentReactionOpt = reactionRepository.findByUserIdAndReactableTypeAndReactableId(
+                currentUser.getId(), reactableType, reactableId);
 
-        // 3. Xử lý toggle/update
-        if (existingReactionOpt.isPresent()) {
-            // Nếu react lại cùng loại -> Xóa reaction
-            reactionRepository.delete(existingReactionOpt.get());
-            countDelta = -1;
+        if (currentReactionOpt.isPresent()) {
+            Reaction currentReaction = currentReactionOpt.get();
+            if (currentReaction.getReactionType() == request.getReactionType()) {
+                reactionRepository.delete(currentReaction);
+                countDelta = -1;
+            }
+            else {
+                currentReaction.setReactionType(request.getReactionType());
+                reactionRepository.save(currentReaction);
+            }
         } else {
-            // Nếu chưa có hoặc khác loại -> Tạo/Cập nhật reaction (logic đơn giản: xóa cũ nếu có, tạo mới)
-            // Xóa reaction cũ (nếu có loại khác)
-            reactionRepository.deleteByReactableTypeAndReactableIdAndUserId(reactableType, reactableId, currentUser.getId()); // Cần method này
-
-            // Tạo reaction mới
             Reaction newReaction = new Reaction();
+            newReaction.setId(UUID.randomUUID());
             newReaction.setUser(currentUser);
             newReaction.setReactableType(reactableType);
             newReaction.setReactableId(reactableId);
             newReaction.setReactionType(request.getReactionType());
-            reactionRepository.save(newReaction);
-            countDelta = 1; // Luôn là +1 vì ta vừa tạo mới
+
+            try {
+                reactionRepository.save(newReaction);
+                countDelta = 1;
+            } catch (DataIntegrityViolationException e) {
+                log.warn("Duplicate reaction ignored for user {} on item {}", currentUser.getId(), reactableId);
+                return;
+            }
         }
 
-        // 4. Cập nhật reaction count
-        updateReactionCount(reactableEntity, countDelta);
+        if (countDelta != 0) {
+            updateReactionCountManual(reactableEntity, countDelta);
+        }
+    }
+
+    private void updateReactionCountManual(Object reactableEntity, int countDelta) {
+        if (reactableEntity instanceof Content content) {
+            int newCount = Math.max(0, content.getReactionCount() + countDelta);
+            content.setReactionCount(newCount);
+            contentRepository.save(content);
+        } else if (reactableEntity instanceof Answer answer) {
+            // answer.setReactionCount(...);
+            // answerRepository.save(answer);
+        } else if (reactableEntity instanceof Comment comment) {
+            int newCount = Math.max(0, comment.getReactionCount() + countDelta);
+            comment.setReactionCount(newCount);
+            commentRepository.save(comment);
+        }
     }
 
     @Override
@@ -157,7 +185,6 @@ public class InteractionServiceImpl implements IInteractionService {
         Content content = contentRepository.findById(request.getContentId())
                 .orElseThrow(() -> new ResourceNotFoundException("Content not found with id: " + request.getContentId()));
 
-        // Kiểm tra xem đã bookmark chưa
         if (bookmarkRepository.existsByUserIdAndContentId(currentUser.getId(), content.getId())) {
             throw new BadRequestException("Content already bookmarked by this user");
         }
@@ -171,11 +198,10 @@ public class InteractionServiceImpl implements IInteractionService {
 
         Bookmark savedBookmark = bookmarkRepository.save(bookmark);
 
-        // Cập nhật bookmark count trên Content
         content.setBookmarkCount(content.getBookmarkCount() + 1);
         contentRepository.save(content);
 
-        return bookmarkMapper.toBookmarkResponse(savedBookmark); // Map sang DTO response
+        return bookmarkMapper.toBookmarkResponse(savedBookmark);
     }
 
     @Override
@@ -185,11 +211,10 @@ public class InteractionServiceImpl implements IInteractionService {
         Bookmark bookmark = bookmarkRepository.findByUserIdAndContentId(currentUser.getId(), contentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Bookmark not found for user " + currentUser.getId() + " and content " + contentId));
 
-        Content content = bookmark.getContent(); // Lấy content trước khi xóa bookmark
+        Content content = bookmark.getContent();
 
         bookmarkRepository.delete(bookmark);
 
-        // Cập nhật bookmark count (đảm bảo không âm)
         if (content != null) {
             content.setBookmarkCount(Math.max(0, content.getBookmarkCount() - 1));
             contentRepository.save(content);
@@ -219,6 +244,17 @@ public class InteractionServiceImpl implements IInteractionService {
             return false; // Chưa đăng nhập thì không bookmark
         }
         return bookmarkRepository.existsByUserIdAndContentId(currentUserId, contentId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ReactionType getCurrentUserReaction(ReactableType type, UUID reactableId) {
+        User currentUser = serviceHelper.getCurrentUser();
+        if (currentUser == null) return null;
+
+        return reactionRepository.findByUserIdAndReactableTypeAndReactableId(currentUser.getId(), type, reactableId)
+                .map(Reaction::getReactionType)
+                .orElse(null);
     }
 
     // --- Helper Methods ---

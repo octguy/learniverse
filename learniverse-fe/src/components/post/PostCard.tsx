@@ -73,7 +73,7 @@ interface PostCardProps {
 }
 
 export function PostCard({ post }: PostCardProps) {
-  const { author, title, body, tags, attachments, createdAt, lastEditedAt } = post
+  const { author, title, body, tags = [], attachments = [], createdAt, lastEditedAt } = post
 
   const [currentReaction, setCurrentReaction] = useState<ReactionType | null>(
     (post.currentUserReaction as ReactionType) || null
@@ -82,6 +82,8 @@ export function PostCard({ post }: PostCardProps) {
   const [isApiLoading, setIsApiLoading] = useState(false)
   const [isBookmarked, setIsBookmarked] = useState(post.bookmarkedByCurrentUser);
   const [isBookmarkLoading, setIsBookmarkLoading] = useState(false);
+
+  const [commentCount, setCommentCount] = useState(post.commentCount)
 
   const handleReact = async (type: ReactionType) => {
     if (isApiLoading) return
@@ -118,7 +120,7 @@ export function PostCard({ post }: PostCardProps) {
     if (isBookmarkLoading) return;
     setIsBookmarkLoading(true);
     const prevIsBookmarked = isBookmarked;
-    
+
     setIsBookmarked(!isBookmarked);
 
     try {
@@ -163,7 +165,11 @@ export function PostCard({ post }: PostCardProps) {
             </p>
             <div className="mt-1 text-xs text-muted-foreground">
               <span>
-                {formatDistanceToNow(postDate, { addSuffix: true, locale: vi })}
+                {!isNaN(postDate.getTime()) ? (
+                  formatDistanceToNow(postDate, { addSuffix: true, locale: vi })
+                ) : (
+                  "Vừa xong"
+                )}
               </span>
               {lastEditedAt && <span> • (Đã chỉnh sửa)</span>}
             </div>
@@ -191,23 +197,23 @@ export function PostCard({ post }: PostCardProps) {
               </DropdownMenuContent>
             </DropdownMenu>
             <Button
-            variant="ghost"
-            size="icon" 
-            className={cn(
-                "flex-none w-12 transition-colors", 
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "flex-none w-12 transition-colors",
                 isBookmarked && "text-yellow-600 hover:text-yellow-700 bg-yellow-50"
-            )}
-            onClick={handleBookmark}
-            disabled={isBookmarkLoading}
-            title={isBookmarked ? "Bỏ lưu" : "Lưu bài viết"}
-          >
-            <Bookmark 
+              )}
+              onClick={handleBookmark}
+              disabled={isBookmarkLoading}
+              title={isBookmarked ? "Bỏ lưu" : "Lưu bài viết"}
+            >
+              <Bookmark
                 className={cn(
-                    "h-4 w-4", 
-                    isBookmarked && "fill-current"
-                )} 
-            />
-          </Button>
+                  "h-4 w-4",
+                  isBookmarked && "fill-current"
+                )}
+              />
+            </Button>
           </div>
         </div>
         {title && (
@@ -256,7 +262,7 @@ export function PostCard({ post }: PostCardProps) {
             )}
             <span>{reactionCount} Reactions</span>
           </div>
-          <span>{post.commentCount} Comments</span>
+          <span>{commentCount} Comments</span>
         </div>
 
         <div className="w-full border-t pt-2 flex relative">
@@ -309,7 +315,7 @@ export function PostCard({ post }: PostCardProps) {
           <Button variant="ghost" className="flex-1 flex items-center justify-center">
             <Share2 className="h-4 w-4 mr-2" /> Chia sẻ
           </Button>
-          
+
         </div>
 
         {tags.length > 0 && (
@@ -323,7 +329,7 @@ export function PostCard({ post }: PostCardProps) {
         )}
         {showComments && (
           <div className="w-full animate-in slide-in-from-top-2 duration-200">
-             <CommentSection postId={post.id} />
+            <CommentSection postId={post.id} onCommentAdded={() => setCommentCount(prev => prev + 1)} />
           </div>
         )}
       </CardFooter>

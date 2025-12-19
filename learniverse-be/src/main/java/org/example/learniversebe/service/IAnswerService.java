@@ -5,7 +5,9 @@ import org.example.learniversebe.dto.request.UpdateAnswerRequest;
 import org.example.learniversebe.dto.response.AnswerResponse;
 import org.example.learniversebe.dto.response.PageResponse;
 import org.springframework.data.domain.Pageable;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -24,7 +26,7 @@ public interface IAnswerService {
      * @throws org.example.learniversebe.exception.ResourceNotFoundException if the question is not found.
      * @throws org.example.learniversebe.exception.BadRequestException if the target content is not a QUESTION or other validation fails.
      */
-    AnswerResponse addAnswer(CreateAnswerRequest request);
+    AnswerResponse addAnswer(CreateAnswerRequest request, List<MultipartFile> files);
 
     /**
      * Retrieves a paginated list of answers for a specific question.

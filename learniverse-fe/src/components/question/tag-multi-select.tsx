@@ -122,7 +122,7 @@ export function TagMultiSelect({
                             Đang tải danh sách thẻ…
                         </div>
                     ) : (
-                        <ScrollArea className="max-h-64 pr-1">
+                        <ScrollArea className="h-64 pr-1">
                             <div className="space-y-1">
                                 {filteredOptions.length === 0 && (
                                     <p className="rounded-md border border-dashed px-3 py-8 text-center text-sm text-muted-foreground">

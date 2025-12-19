@@ -6,7 +6,9 @@ import org.example.learniversebe.dto.response.PageResponse;
 import org.example.learniversebe.dto.response.PostResponse;
 import org.example.learniversebe.dto.response.PostSummaryResponse;
 import org.springframework.data.domain.Pageable;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -20,10 +22,20 @@ public interface IPostService {
      * associates tags, handles attachments (if any), and saves the post.
      *
      * @param request Data transfer object containing post details (title, body, tags).
+     * @param files Attachment
      * @return DTO representing the newly created post, including generated ID and slug.
      * @throws org.example.learniversebe.exception.BadRequestException if tag IDs are invalid.
      */
-    PostResponse createPost(CreatePostRequest request);
+    PostResponse createPost(CreatePostRequest request,  List<MultipartFile> files);
+
+    /**
+     * Publish a draft post
+     *
+     * @param postId The UUID of the post to retrieve.
+     * @return
+     * @throws org.example.learniversebe.exception.BadRequestException if post ID is invalid.
+     */
+    PostResponse publishPost(UUID postId);
 
     /**
      * Retrieves a paginated list of all published posts suitable for the general newsfeed.
