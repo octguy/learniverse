@@ -21,4 +21,8 @@ public class ChatRoomResponse {
     private boolean isGroupChat;
 
     private LocalDateTime createdAt;
+    
+    private MessageResponse lastMessage;
+    
+    private Integer unreadCount;
 }

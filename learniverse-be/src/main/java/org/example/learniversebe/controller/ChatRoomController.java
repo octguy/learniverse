@@ -111,6 +111,25 @@ public class ChatRoomController {
         return ResponseEntity.ok(apiResponse);
     }
 
+    @GetMapping("/rooms/{roomId}/messages")
+    public ResponseEntity<?> getChatHistory(
+            @PathVariable UUID roomId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        
+        org.example.learniversebe.dto.response.MessagePageResponse messagePageResponse = 
+            chatRoomService.getChatHistory(roomId, page, size);
+
+        ApiResponse<?> apiResponse = new ApiResponse<>(
+                HttpStatus.OK,
+                "Chat history fetched successfully",
+                messagePageResponse,
+                null
+        );
+
+        return ResponseEntity.ok(apiResponse);
+    }
+
     @PostMapping("/{id}/leave")
     public ResponseEntity<?> leaveChatRoom(@PathVariable UUID id) {
         chatRoomService.leaveChatRoom(id);
