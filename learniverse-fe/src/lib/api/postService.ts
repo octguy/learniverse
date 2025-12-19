@@ -19,8 +19,20 @@ export const postService = {
         return response.data;
     },
 
-    createPost: async (data: CreatePostRequest) => {
-        const response = await apiService.post<ApiResponse<PostResponse>>("/posts", data);
+    createPost: async (data: CreatePostRequest, files: File[]) => {
+        const formData = new FormData();
+        const jsonBlob = new Blob([JSON.stringify(data)], { type: "application/json" });
+        formData.append("post", jsonBlob);
+        if (files && files.length > 0) {
+            files.forEach((file) => {
+                formData.append("files", file);
+            });
+        }
+        const response = await apiService.post<ApiResponse<PostResponse>>("/posts", formData, {
+            headers: {
+                "Content-Type": "multipart/form-data",
+            },
+        });
         return response.data;
     },
     getNewsfeed: async (page = 0, size = 10) => {
