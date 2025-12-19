@@ -1,0 +1,475 @@
+{
+  "info": {
+    "name": "Learniverse Chat Module",
+    "description": "Complete API collection for testing chat features",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Chat Room",
+      "item": [
+        {
+          "name": "Create Direct Chat",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/chats/direct/:recipientId",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "chats", "direct", ":recipientId"],
+              "variable": [
+                {
+                  "key": "recipientId",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get All Chat Rooms",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/chats",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "chats"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Messages",
+      "item": [
+        {
+          "name": "Send Text Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"chatRoomId\": \"{{chatRoomId}}\",\n  \"messageType\": \"TEXT\",\n  \"textContent\": \"Hello, this is a test message!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/messages/send",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "messages", "send"]
+            }
+          }
+        },
+        {
+          "name": "Send Message with Image",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "chatRoomId",
+                  "value": "{{chatRoomId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "messageType",
+                  "value": "IMAGE",
+                  "type": "text"
+                },
+                {
+                  "key": "textContent",
+                  "value": "Check out this image!",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/messages/send-with-file",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "messages", "send-with-file"]
+            }
+          }
+        },
+        {
+          "name": "Send Message with Video",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "chatRoomId",
+                  "value": "{{chatRoomId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "messageType",
+                  "value": "VIDEO",
+                  "type": "text"
+                },
+                {
+                  "key": "textContent",
+                  "value": "Check out this video!",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/messages/send-with-file",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "messages", "send-with-file"]
+            }
+          }
+        },
+        {
+          "name": "Send Message with File",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "chatRoomId",
+                  "value": "{{chatRoomId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "messageType",
+                  "value": "FILE",
+                  "type": "text"
+                },
+                {
+                  "key": "textContent",
+                  "value": "Here's a document",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/messages/send-with-file",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "messages", "send-with-file"]
+            }
+          }
+        },
+        {
+          "name": "Get Messages (Paginated)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/messages/room/:chatRoomId?page=0&size=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "messages", "room", ":chatRoomId"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ],
+              "variable": [
+                {
+                  "key": "chatRoomId",
+                  "value": "{{chatRoomId}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Edit Message",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messageId\": \"{{messageId}}\",\n  \"textContent\": \"This is the edited message content\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/messages/edit",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "messages", "edit"]
+            }
+          }
+        },
+        {
+          "name": "Delete Message",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/messages/:messageId",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "messages", ":messageId"],
+              "variable": [
+                {
+                  "key": "messageId",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Single Message",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/messages/:messageId",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "messages", ":messageId"],
+              "variable": [
+                {
+                  "key": "messageId",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Presence",
+      "item": [
+        {
+          "name": "Set User Online",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/messages/presence/online",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "messages", "presence", "online"]
+            }
+          }
+        },
+        {
+          "name": "Set User Offline",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/messages/presence/offline",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "messages", "presence", "offline"]
+            }
+          }
+        },
+        {
+          "name": "Get User Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/messages/presence/:userId",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "messages", "presence", ":userId"],
+              "variable": [
+                {
+                  "key": "userId",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Participants",
+      "item": [
+        {
+          "name": "Add Participants",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"participants\": [\n    \"userId1\",\n    \"userId2\"\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/chats/:roomId/add",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "chats", ":roomId", "add"],
+              "variable": [
+                {
+                  "key": "roomId",
+                  "value": "{{chatRoomId}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Participants",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/chats/:roomId/participants",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "chats", ":roomId", "participants"],
+              "variable": [
+                {
+                  "key": "roomId",
+                  "value": "{{chatRoomId}}"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "YOUR_JWT_TOKEN_HERE",
+      "type": "string"
+    },
+    {
+      "key": "chatRoomId",
+      "value": "YOUR_CHAT_ROOM_ID",
+      "type": "string"
+    },
+    {
+      "key": "messageId",
+      "value": "YOUR_MESSAGE_ID",
+      "type": "string"
+    }
+  ]
+}

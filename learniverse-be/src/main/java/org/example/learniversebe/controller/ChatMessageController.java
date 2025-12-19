@@ -1,0 +1,226 @@
+package org.example.learniversebe.controller;
+
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.example.learniversebe.dto.request.EditMessageRequest;
+import org.example.learniversebe.dto.request.SendMessageRequest;
+import org.example.learniversebe.dto.response.MessagePageResponse;
+import org.example.learniversebe.dto.response.MessageResponse;
+import org.example.learniversebe.dto.websocket.UserStatusDTO;
+import org.example.learniversebe.enums.MessageType;
+import org.example.learniversebe.model.ApiResponse;
+import org.example.learniversebe.model.User;
+import org.example.learniversebe.service.IChatMessageService;
+import org.example.learniversebe.service.IPresenceService;
+import org.example.learniversebe.util.SecurityUtils;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.UUID;
+
+@RequestMapping("/api/v1/messages")
+@RestController
+@Tag(name = "Chat Message", description = "Endpoints for chat message functionalities")
+public class ChatMessageController {
+
+    private final IChatMessageService chatMessageService;
+    private final IPresenceService presenceService;
+    private final SimpMessagingTemplate messagingTemplate;
+
+    public ChatMessageController(IChatMessageService chatMessageService,
+                                 IPresenceService presenceService,
+                                 SimpMessagingTemplate messagingTemplate) {
+        this.chatMessageService = chatMessageService;
+        this.presenceService = presenceService;
+        this.messagingTemplate = messagingTemplate;
+    }
+
+    @PostMapping("/send")
+    public ResponseEntity<?> sendTextMessage(@Valid @RequestBody SendMessageRequest request) {
+        MessageResponse messageResponse = chatMessageService.sendMessage(request);
+
+        // Broadcast via WebSocket
+        messagingTemplate.convertAndSend(
+                "/topic/chat/" + request.getChatRoomId(),
+                messageResponse
+        );
+
+        ApiResponse<?> apiResponse = new ApiResponse<>(
+                HttpStatus.CREATED,
+                "Message sent successfully",
+                messageResponse,
+                null
+        );
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(apiResponse);
+    }
+
+    @PostMapping(value = "/send-with-file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> sendMessageWithFile(
+            @RequestParam("chatRoomId") UUID chatRoomId,
+            @RequestParam("messageType") MessageType messageType,
+            @RequestParam(value = "textContent", required = false) String textContent,
+            @RequestParam(value = "parentMessageId", required = false) UUID parentMessageId,
+            @RequestParam("file") MultipartFile file) {
+
+        SendMessageRequest request = new SendMessageRequest();
+        request.setChatRoomId(chatRoomId);
+        request.setMessageType(messageType);
+        request.setTextContent(textContent);
+        request.setParentMessageId(parentMessageId);
+
+        MessageResponse messageResponse = chatMessageService.sendMessageWithFile(request, file);
+
+        // Broadcast via WebSocket
+        messagingTemplate.convertAndSend(
+                "/topic/chat/" + chatRoomId,
+                messageResponse
+        );
+
+        ApiResponse<?> apiResponse = new ApiResponse<>(
+                HttpStatus.CREATED,
+                "Message with file sent successfully",
+                messageResponse,
+                null
+        );
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(apiResponse);
+    }
+
+    @PutMapping("/edit")
+    public ResponseEntity<?> editMessage(@Valid @RequestBody EditMessageRequest request) {
+        MessageResponse messageResponse = chatMessageService.editMessage(request);
+
+        // Broadcast update via WebSocket
+        messagingTemplate.convertAndSend(
+                "/topic/chat/" + messageResponse.getChatRoomId() + "/updates",
+                messageResponse
+        );
+
+        ApiResponse<?> apiResponse = new ApiResponse<>(
+                HttpStatus.OK,
+                "Message edited successfully",
+                messageResponse,
+                null
+        );
+
+        return ResponseEntity.ok(apiResponse);
+    }
+
+    @DeleteMapping("/{messageId}")
+    public ResponseEntity<?> deleteMessage(@PathVariable UUID messageId) {
+        MessageResponse message = chatMessageService.getMessageById(messageId);
+        chatMessageService.deleteMessage(messageId);
+
+        // Broadcast delete via WebSocket
+        messagingTemplate.convertAndSend(
+                "/topic/chat/" + message.getChatRoomId() + "/deletes",
+                messageId
+        );
+
+        ApiResponse<?> apiResponse = new ApiResponse<>(
+                HttpStatus.OK,
+                "Message deleted successfully",
+                null,
+                null
+        );
+
+        return ResponseEntity.ok(apiResponse);
+    }
+
+    @GetMapping("/room/{chatRoomId}")
+    public ResponseEntity<?> getMessagesByChatRoom(
+            @PathVariable UUID chatRoomId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+
+        MessagePageResponse messages = chatMessageService.getMessagesByChatRoom(chatRoomId, page, size);
+
+        ApiResponse<?> apiResponse = new ApiResponse<>(
+                HttpStatus.OK,
+                "Messages fetched successfully",
+                messages,
+                null
+        );
+
+        return ResponseEntity.ok(apiResponse);
+    }
+
+    @GetMapping("/{messageId}")
+    public ResponseEntity<?> getMessageById(@PathVariable UUID messageId) {
+        MessageResponse messageResponse = chatMessageService.getMessageById(messageId);
+
+        ApiResponse<?> apiResponse = new ApiResponse<>(
+                HttpStatus.OK,
+                "Message fetched successfully",
+                messageResponse,
+                null
+        );
+
+        return ResponseEntity.ok(apiResponse);
+    }
+
+    @PostMapping("/presence/online")
+    public ResponseEntity<?> setUserOnline() {
+        User currentUser = SecurityUtils.getCurrentUser();
+        presenceService.setUserOnline(currentUser.getId(), currentUser.getUsername());
+
+        // Broadcast online status
+        UserStatusDTO statusDTO = new UserStatusDTO();
+        statusDTO.setUserId(currentUser.getId());
+        statusDTO.setUsername(currentUser.getUsername());
+        statusDTO.setOnline(true);
+
+        messagingTemplate.convertAndSend("/topic/presence", statusDTO);
+
+        ApiResponse<?> apiResponse = new ApiResponse<>(
+                HttpStatus.OK,
+                "User status set to online",
+                statusDTO,
+                null
+        );
+
+        return ResponseEntity.ok(apiResponse);
+    }
+
+    @PostMapping("/presence/offline")
+    public ResponseEntity<?> setUserOffline() {
+        User currentUser = SecurityUtils.getCurrentUser();
+        presenceService.setUserOffline(currentUser.getId());
+
+        // Broadcast offline status
+        UserStatusDTO statusDTO = new UserStatusDTO();
+        statusDTO.setUserId(currentUser.getId());
+        statusDTO.setUsername(currentUser.getUsername());
+        statusDTO.setOnline(false);
+
+        messagingTemplate.convertAndSend("/topic/presence", statusDTO);
+
+        ApiResponse<?> apiResponse = new ApiResponse<>(
+                HttpStatus.OK,
+                "User status set to offline",
+                null,
+                null
+        );
+
+        return ResponseEntity.ok(apiResponse);
+    }
+
+    @GetMapping("/presence/{userId}")
+    public ResponseEntity<?> getUserStatus(@PathVariable UUID userId) {
+        UserStatusDTO statusDTO = presenceService.getUserStatus(userId);
+
+        ApiResponse<?> apiResponse = new ApiResponse<>(
+                HttpStatus.OK,
+                "User status fetched successfully",
+                statusDTO,
+                null
+        );
+
+        return ResponseEntity.ok(apiResponse);
+    }
+}
