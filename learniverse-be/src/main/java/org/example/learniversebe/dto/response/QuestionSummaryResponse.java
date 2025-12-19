@@ -4,6 +4,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Data;
 import org.example.learniversebe.enums.ContentType;
+import org.example.learniversebe.enums.ReactionType;
+import org.example.learniversebe.enums.VoteType;
 
 import java.time.LocalDateTime;
 import java.util.Set;
@@ -26,6 +28,9 @@ public class QuestionSummaryResponse {
 
     @Schema(description = "Tiêu đề câu hỏi")
     private String title;
+
+    @Schema(description = "Đoạn trích nội dung (preview)")
+    private String bodyExcerpt;
 
     @Schema(description = "Slug của câu hỏi")
     private String slug;
@@ -56,4 +61,13 @@ public class QuestionSummaryResponse {
 
     @Schema(description = "Danh sách các tag")
     private Set<TagResponse> tags;
+
+    @Schema(description = "User hiện tại có bookmark bài này không")
+    private Boolean bookmarkedByCurrentUser;
+
+    @Schema(description = "Reaction của user hiện tại")
+    private ReactionType currentUserReaction;
+
+    @Schema(description = "Vote của user hiện tại (UPVOTE/DOWNVOTE)")
+    private VoteType currentUserVote;
 }

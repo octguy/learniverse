@@ -1,6 +1,8 @@
 package org.example.learniversebe.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.example.learniversebe.dto.request.CreateQuestionRequest;
@@ -14,10 +16,13 @@ import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -31,13 +36,31 @@ public class QuestionController {
         this.questionService = questionService;
     }
 
-    @PostMapping
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('USER')")
-    @Operation(summary = "Ask a new question", description = "UC 3.1: Creates a new question. Requires USER role.")
-    public ResponseEntity<ApiResponse<QuestionResponse>> createQuestion(@Valid @RequestBody CreateQuestionRequest request) {
-        QuestionResponse createdQuestion = questionService.createQuestion(request);
-        ApiResponse<QuestionResponse> response = new ApiResponse<>(HttpStatus.CREATED, "Question created successfully", createdQuestion, null);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    @Operation(summary = "Create a new question", description = "UC 2.2: Creates a new question with attachments. Supports Draft status.")
+    public ResponseEntity<ApiResponse<QuestionResponse>> createQuestion(
+            @RequestPart("question")
+            @Parameter(description = "Question data (JSON)", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE))
+            @Valid CreateQuestionRequest request,
+
+            // 2. File Part
+            @RequestPart(value = "files", required = false)
+            @Parameter(description = "Attachments (Image/PDF)", content = @Content(mediaType = MediaType.APPLICATION_OCTET_STREAM_VALUE))
+            List<MultipartFile> files
+    ) {
+        QuestionResponse response = questionService.createQuestion(request, files);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new ApiResponse<>(HttpStatus.CREATED, "Question created successfully", response, null));
+    }
+
+    // Add Publish endpoint for Draft Questions
+    @PutMapping("/{questionId}/publish")
+    @PreAuthorize("hasRole('USER')")
+    @Operation(summary = "Publish a draft question", description = "Changes status from DRAFT to PUBLISHED")
+    public ResponseEntity<ApiResponse<QuestionResponse>> publishQuestion(@PathVariable UUID questionId) {
+        QuestionResponse response = questionService.publishQuestion(questionId);
+        return ResponseEntity.ok(new ApiResponse<>(HttpStatus.OK, "Question published successfully", response, null));
     }
 
     @GetMapping

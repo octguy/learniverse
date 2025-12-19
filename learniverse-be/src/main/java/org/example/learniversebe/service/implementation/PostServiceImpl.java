@@ -5,33 +5,28 @@ import org.example.learniversebe.dto.request.UpdatePostRequest;
 import org.example.learniversebe.dto.response.PageResponse;
 import org.example.learniversebe.dto.response.PostResponse;
 import org.example.learniversebe.dto.response.PostSummaryResponse;
-import org.example.learniversebe.enums.ContentType;
-import org.example.learniversebe.enums.ContentStatus;
-import org.example.learniversebe.enums.ReactableType;
+import org.example.learniversebe.enums.*;
 import org.example.learniversebe.exception.BadRequestException;
 import org.example.learniversebe.exception.ResourceNotFoundException;
 import org.example.learniversebe.exception.UnauthorizedException;
 import org.example.learniversebe.mapper.ContentMapper;
 import org.example.learniversebe.model.*;
-import org.example.learniversebe.model.composite_key.ContentTagId;
 import org.example.learniversebe.repository.*;
 import org.example.learniversebe.service.IInteractionService;
 import org.example.learniversebe.service.IPostService;
+import org.example.learniversebe.service.IStorageService;
 import org.example.learniversebe.util.ServiceHelper;
 import org.example.learniversebe.util.SlugGenerator;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -50,6 +45,8 @@ public class PostServiceImpl implements IPostService {
     private final ReactionRepository reactionRepository;
     private final BookmarkRepository bookmarkRepository;
     private final ShareRepository shareRepository;
+    private final IStorageService storageService;
+    private final AttachmentRepository attachmentRepository;
 
     @Value("${app.content.edit.limit-hours:24}") // Lấy từ application.properties, mặc định 24h
     private long editLimitHours;
@@ -68,7 +65,8 @@ public class PostServiceImpl implements IPostService {
                            CommentRepository commentRepository,
                            ReactionRepository reactionRepository,
                            BookmarkRepository bookmarkRepository,
-                           ShareRepository shareRepository // Inject
+                           ShareRepository shareRepository, IStorageService storageService,
+                           AttachmentRepository attachmentRepository
     ) {
         this.contentRepository = contentRepository;
         this.userRepository = userRepository;
@@ -83,42 +81,119 @@ public class PostServiceImpl implements IPostService {
         this.reactionRepository = reactionRepository;
         this.bookmarkRepository = bookmarkRepository;
         this.shareRepository = shareRepository;
+        this.storageService = storageService;
+        this.attachmentRepository = attachmentRepository;
     }
 
     @Override
-    @Transactional // Đảm bảo tất cả thao tác DB thành công hoặc rollback
-    public PostResponse createPost(CreatePostRequest request) {
-        User author = serviceHelper.getCurrentUser(); // Lấy user đang đăng nhập
+    @Transactional
+    public PostResponse createPost(CreatePostRequest request, List<MultipartFile> files) {
+        User author = serviceHelper.getCurrentUser();
 
         // Map DTO sang Entity
         Content content = contentMapper.createPostRequestToContent(request);
         content.setAuthor(author);
-        content.setContentType(ContentType.POST); // Đảm bảo đúng type
-        content.setStatus(ContentStatus.PUBLISHED); // Giả sử đăng ngay
-        content.setPublishedAt(LocalDateTime.now());
+        content.setContentType(ContentType.POST);
+        content.setStatus(request.getStatus() != null ? request.getStatus() : ContentStatus.PUBLISHED);
+        if (content.getStatus() == ContentStatus.PUBLISHED) {
+            content.setPublishedAt(LocalDateTime.now());
+        }
         content.setSlug(slugGenerator.generateSlug(request.getTitle() != null ? request.getTitle() : request.getBody().substring(0, Math.min(request.getBody().length(), 50)))); // Tạo slug
 
-        // Xử lý Tags
         associateTags(content, request.getTagIds());
 
-        // Lưu Content trước để có ID
         Content savedContent = contentRepository.save(content);
 
-        // Map lại sang Response DTO (đã bao gồm author và tags)
-        PostResponse response = contentMapper.contentToPostResponse(savedContent);
-        // Set trạng thái tương tác ban đầu (mới tạo thì chưa bookmark/react)
-        response.setBookmarkedByCurrentUser(false);
-        response.setCurrentUserReaction(null);
+        if (files != null && !files.isEmpty()) {
+            List<Attachment> attachments = new ArrayList<>();
+            for (MultipartFile file : files) {
+                try {
+                    Map<String, String> uploadResult = storageService.uploadFile(file);
+
+                    Attachment attachment = new Attachment();
+                    attachment.setContent(savedContent);
+                    attachment.setUploadedBy(author);
+                    attachment.setFileName(file.getOriginalFilename());
+                    attachment.setMimeType(file.getContentType());
+                    attachment.setFileSize(file.getSize());
+                    attachment.setStorageUrl(uploadResult.get("url"));
+                    attachment.setStorageKey(uploadResult.get("key"));
+
+                    attachment.setFileType(determineAttachmentType(Objects.requireNonNull(file.getContentType())));
+                    attachment.setIsVerified(true);
+
+                    attachments.add(attachment);
+                } catch (IOException e) {
+                    throw new BadRequestException("Failed to upload file: " + file.getOriginalFilename());
+                }
+            }
+            attachmentRepository.saveAll(attachments);
+            savedContent.setAttachments(new HashSet<>(attachments));
+        }
+
+        return getPostResponseWithInteraction(savedContent);
+    }
+
+    private PostResponse getPostResponseWithInteraction(Content content) {
+        PostResponse response = contentMapper.contentToPostResponse(content);
+        UUID currentUserId = serviceHelper.getCurrentUserId();
+        if (currentUserId != null) {
+            response.setBookmarkedByCurrentUser(interactionService.isContentBookmarkedByUser(content.getId()));
+            ReactionType reactionType = interactionService.getCurrentUserReaction(ReactableType.CONTENT, content.getId());
+            response.setCurrentUserReaction(reactionType);
+        } else {
+            response.setBookmarkedByCurrentUser(false);
+            response.setCurrentUserReaction(null);
+        }
         return response;
     }
 
+    private AttachmentType determineAttachmentType(String mimeType) {
+        if (mimeType.startsWith("image/")) return AttachmentType.IMAGE;
+        if (mimeType.equals("application/pdf")) return AttachmentType.PDF;
+        return AttachmentType.OTHER;
+    }
+
     @Override
-    @Transactional(readOnly = true) // Chỉ đọc dữ liệu
+    @Transactional
+    public PostResponse publishPost(UUID postId) {
+        User currentUser = serviceHelper.getCurrentUser();
+
+        Content content = contentRepository.findByIdAndContentType(postId, ContentType.POST)
+                .orElseThrow(() -> new ResourceNotFoundException("Post not found"));
+
+        if (!content.getAuthor().getId().equals(currentUser.getId())) {
+            throw new UnauthorizedException("Not authorized to publish this post");
+        }
+
+        if (content.getStatus() == ContentStatus.PUBLISHED) {
+            throw new BadRequestException("Post is already published");
+        }
+
+        content.setStatus(ContentStatus.PUBLISHED);
+        content.setPublishedAt(LocalDateTime.now());
+        Content saved = contentRepository.save(content);
+        return getPostResponseWithInteraction(saved);
+    }
+
+    @Override
     public PageResponse<PostSummaryResponse> getNewsfeedPosts(Pageable pageable) {
-        Page<Content> postPage = contentRepository.findByContentTypeAndStatusOrderByPublishedAtDesc(ContentType.POST, ContentStatus.PUBLISHED, pageable);
-        // Mapper sẽ tự chuyển Page<Content> sang PageResponse<PostSummaryResponse>
-        PageResponse<PostSummaryResponse> response = contentMapper.contentPageToPostSummaryPage(postPage);
-        // Có thể thêm logic lấy trạng thái tương tác cho từng post ở đây nếu cần (hơi tốn kém)
+        Page<Content> page = contentRepository.findByContentTypeAndStatus(
+                ContentType.POST, ContentStatus.PUBLISHED, pageable);
+
+        PageResponse<PostSummaryResponse> response = contentMapper.contentPageToPostSummaryPage(page);
+
+        UUID currentUserId = serviceHelper.getCurrentUserId();
+        if (currentUserId != null && response.getContent() != null) {
+            List<UUID> postIds = response.getContent().stream()
+                    .map(PostSummaryResponse::getId).toList();
+
+            for (PostSummaryResponse post : response.getContent()) {
+                post.setBookmarkedByCurrentUser(interactionService.isContentBookmarkedByUser(post.getId()));
+                post.setCurrentUserReaction(interactionService.getCurrentUserReaction(ReactableType.CONTENT, post.getId()));
+            }
+        }
+
         return response;
     }
 
@@ -126,7 +201,6 @@ public class PostServiceImpl implements IPostService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<PostSummaryResponse> getPostsByAuthor(UUID authorId, Pageable pageable) {
-        // Kiểm tra author tồn tại (không bắt buộc nhưng nên có)
         if (!userRepository.existsById(authorId)) {
             throw new ResourceNotFoundException("Author not found with id: " + authorId);
         }
@@ -137,41 +211,24 @@ public class PostServiceImpl implements IPostService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<PostSummaryResponse> getPostsByTag(UUID tagId, Pageable pageable) {
-        // Kiểm tra tag tồn tại
         if (!tagRepository.existsById(tagId)) {
             throw new ResourceNotFoundException("Tag not found with id: " + tagId);
         }
-        // Cần phương thức trong ContentRepository để tìm theo tagId (JOIN với content_tag)
         Page<Content> postPage = contentRepository.findPublishedPostsByTagId(tagId, pageable);
         return contentMapper.contentPageToPostSummaryPage(postPage);
     }
 
 
     @Override
-    @Transactional // Cần Transactional vì có thể update view count
+    @Transactional
     public PostResponse getPostById(UUID postId) {
         Content content = contentRepository.findByIdAndContentTypeAndStatus(postId, ContentType.POST, ContentStatus.PUBLISHED)
                 .orElseThrow(() -> new ResourceNotFoundException("Post not found with id: " + postId));
 
-        // Tăng view count (logic đơn giản, có thể cần cơ chế chống spam view)
         content.setViewCount(content.getViewCount() + 1);
-        contentRepository.save(content); // Lưu lại view count
+        contentRepository.save(content);
 
-        // Map sang DTO chi tiết
-        PostResponse response = contentMapper.contentToPostResponse(content);
-
-        // Lấy trạng thái tương tác của user hiện tại
-        UUID currentUserId = serviceHelper.getCurrentUserId();
-        if (currentUserId != null) {
-            response.setBookmarkedByCurrentUser(interactionService.isContentBookmarkedByUser(postId));
-            // TODO: Lấy reaction hiện tại của user cho post này (cần hàm trong IInteractionService)
-            // response.setCurrentUserReaction(interactionService.getCurrentUserReactionFor(ReactableType.CONTENT, postId));
-        } else {
-            response.setBookmarkedByCurrentUser(false);
-            response.setCurrentUserReaction(null);
-        }
-
-        return response;
+        return getPostResponseWithInteraction(content);
     }
 
     @Override
@@ -180,23 +237,10 @@ public class PostServiceImpl implements IPostService {
         Content content = contentRepository.findBySlugAndContentTypeAndStatus(slug, ContentType.POST, ContentStatus.PUBLISHED)
                 .orElseThrow(() -> new ResourceNotFoundException("Post not found with slug: " + slug));
 
-        // Tăng view count
         content.setViewCount(content.getViewCount() + 1);
         contentRepository.save(content);
 
-        PostResponse response = contentMapper.contentToPostResponse(content);
-
-        // Lấy trạng thái tương tác
-        UUID currentUserId = serviceHelper.getCurrentUserId();
-        if (currentUserId != null) {
-            response.setBookmarkedByCurrentUser(interactionService.isContentBookmarkedByUser(content.getId()));
-            // TODO: Lấy reaction hiện tại
-        } else {
-            response.setBookmarkedByCurrentUser(false);
-            response.setCurrentUserReaction(null);
-        }
-
-        return response;
+        return getPostResponseWithInteraction(content);
     }
 
     @Override
@@ -206,18 +250,15 @@ public class PostServiceImpl implements IPostService {
         Content content = contentRepository.findByIdAndContentType(postId, ContentType.POST)
                 .orElseThrow(() -> new ResourceNotFoundException("Post not found with id: " + postId));
 
-        // Kiểm tra quyền sở hữu
         if (!content.getAuthor().getId().equals(currentUser.getId())) {
             throw new UnauthorizedException("User is not authorized to update this post");
         }
 
-        // Kiểm tra thời gian chỉnh sửa (ví dụ: 24 giờ)
         if (content.getPublishedAt() != null &&
                 LocalDateTime.now().isAfter(content.getPublishedAt().plusHours(editLimitHours))) {
             throw new BadRequestException("Edit time limit exceeded (" + editLimitHours + " hours)");
         }
 
-        // Lưu lịch sử chỉnh sửa trước khi cập nhật
         ContentEditHistory history = new ContentEditHistory();
         history.setContent(content);
         history.setEditedBy(currentUser);
@@ -227,23 +268,18 @@ public class PostServiceImpl implements IPostService {
         // history.setEditedAt() sẽ được set bởi @PrePersist
         editHistoryRepository.save(history);
 
-        // Cập nhật thông tin
         boolean titleChanged = request.getTitle() != null && !request.getTitle().equals(content.getTitle());
         content.setTitle(request.getTitle());
         content.setBody(request.getBody());
-        // Cập nhật slug nếu tiêu đề thay đổi đáng kể (tùy chọn)
         if (titleChanged) {
             content.setSlug(slugGenerator.generateSlug(request.getTitle()));
         }
 
-        // Cập nhật Tags (Xóa cũ, thêm mới)
-        contentTagRepository.deleteAll(content.getContentTags()); // Xóa liên kết cũ
-        content.getContentTags().clear(); // Xóa khỏi collection trong entity
-        associateTags(content, request.getTagIds()); // Thêm liên kết mới
+        contentTagRepository.deleteAll(content.getContentTags());
+        content.getContentTags().clear();
+        associateTags(content, request.getTagIds());
 
-        Content updatedContent = contentRepository.save(content); // Lưu thay đổi
-
-        // Map và trả về, lấy lại trạng thái tương tác
+        Content updatedContent = contentRepository.save(content);
         return getPostById(updatedContent.getId());
     }
 
@@ -254,34 +290,19 @@ public class PostServiceImpl implements IPostService {
         Content content = contentRepository.findByIdAndContentType(postId, ContentType.POST)
                 .orElseThrow(() -> new ResourceNotFoundException("Post not found with id: " + postId));
 
-        // Kiểm tra quyền (tác giả hoặc admin/mod)
         if (!serviceHelper.isCurrentUserAuthor(content.getAuthor().getId()) /* && !serviceHelper.isCurrentUserAdminOrModerator() */ ) {
             throw new UnauthorizedException("User is not authorized to delete this post");
         }
 
-        // 1. Soft delete Content (đã cấu hình bằng @SQLDelete)
         contentRepository.delete(content);
-
-        // 2. BỔ SUNG: Xóa mềm các thành phần liên quan
-        // (Giả sử các Repository đã có các phương thức softDelete... hoặc delete... phù hợp)
-
-        // Xóa mềm ContentTags (quan hệ join table)
-        contentTagRepository.deleteByContentId(postId); // Xóa vật lý hoặc thêm soft delete nếu C-T là entity
-
-        // Xóa mềm Comments
+        contentTagRepository.deleteByContentId(postId);
         commentRepository.softDeleteByCommentable(ReactableType.CONTENT, postId);
-
-        // Xóa mềm Reactions
         reactionRepository.softDeleteByReactable(ReactableType.CONTENT, postId);
-
-        // Xóa mềm Bookmarks
         bookmarkRepository.softDeleteByContentId(postId);
-
-        // Xóa mềm Shares
         shareRepository.softDeleteByContentId(postId);
 
         // Xóa mềm Attachments (nếu @OneToMany không có cascade soft delete)
-        // attachmentRepository.softDeleteByContentId(postId); // Cần method này
+        // attachmentRepository.softDeleteByContentId(postId);
 
         // Lịch sử chỉnh sửa có thể giữ lại
         // editHistoryRepository.softDeleteByContentId(postId);
