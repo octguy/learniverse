@@ -1,16 +1,13 @@
 package org.example.learniversebe.dto.response;
 
-import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
-import org.example.learniversebe.enums.MessageType;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
+@Builder
 public class MessageResponse {
     
     private UUID id;
@@ -19,7 +16,7 @@ public class MessageResponse {
 
     private SenderResponse sender;
 
-    private MessageType messageType;
+    private String messageType;
 
     private String textContent;
 
@@ -27,11 +24,5 @@ public class MessageResponse {
 
     private UUID parentMessageId;
 
-    private LocalDateTime sendAt;
-
     private LocalDateTime createdAt;
-
-    private LocalDateTime updatedAt;
-
-    private boolean isEdited;
 }

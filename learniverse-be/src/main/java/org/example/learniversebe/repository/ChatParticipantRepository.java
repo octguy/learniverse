@@ -4,6 +4,7 @@ import org.example.learniversebe.model.ChatParticipant;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -122,4 +123,15 @@ public interface ChatParticipantRepository extends JpaRepository<ChatParticipant
             and cp.deleted_at is null
     """, nativeQuery = true)
     List<Object[]> getUsersInChatRoom(UUID chatRoomId);
+
+    @Query(value = """
+        select count(cm.id)
+        from chat_message cm
+        join chat_participant cp on cm.chat_room_id = cp.chat_room_id
+        where cm.chat_room_id = :roomId
+            and cp.participant_id = :userId
+            and cm.created_at > cp.last_read_at
+    """, nativeQuery = true)
+    Integer getUnreadCount(@Param("roomId") UUID chatRoomId,
+                           @Param("userId") UUID participantId);
 }

@@ -215,7 +215,7 @@ public class ChatMessageServiceImpl implements IChatMessageService {
         // Validate user is participant
         validateParticipant(chatRoomId, currentUser.getId());
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "sendAt"));
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<ChatMessage> messagePage = chatMessageRepository.findByChatRoomId(chatRoomId, pageable);
 
         List<MessageResponse> messages = messagePage.getContent().stream()
@@ -254,21 +254,21 @@ public class ChatMessageServiceImpl implements IChatMessageService {
     }
 
     private MessageResponse mapToMessageResponse(ChatMessage message) {
-        MessageResponse response = new MessageResponse();
-        response.setId(message.getId());
-        response.setChatRoomId(message.getChatRoom().getId());
-//        response.setSenderId(message.getSender().getId());
-//        response.setSenderName(message.getSender().getUsername());
-//        response.setSenderAvatar(null); // Avatar field not yet implemented in User model
-        response.setMessageType(message.getMessageType());
-        response.setTextContent(message.getTextContent());
-        response.setMetadata(message.getMetadata());
-        response.setParentMessageId(message.getParentMessage() != null ? message.getParentMessage().getId() : null);
-//        response.setSendAt(message.getSendAt());
-        response.setCreatedAt(message.getCreatedAt());
-        response.setUpdatedAt(message.getUpdatedAt());
-        response.setEdited(!message.getCreatedAt().equals(message.getUpdatedAt()));
+//        MessageResponse response = new MessageResponse();
+//        response.setId(message.getId());
+//        response.setChatRoomId(message.getChatRoom().getId());
+////        response.setSenderId(message.getSender().getId());
+////        response.setSenderName(message.getSender().getUsername());
+////        response.setSenderAvatar(null); // Avatar field not yet implemented in User model
+//        response.setMessageType(message.getMessageType());
+//        response.setTextContent(message.getTextContent());
+//        response.setMetadata(message.getMetadata());
+//        response.setParentMessageId(message.getParentMessage() != null ? message.getParentMessage().getId() : null);
+////        response.setSendAt(message.getSendAt());
+//        response.setCreatedAt(message.getCreatedAt());
+//        response.setUpdatedAt(message.getUpdatedAt());
+//        response.setEdited(!message.getCreatedAt().equals(message.getUpdatedAt()));
 
-        return response;
+        return null;
     }
 }

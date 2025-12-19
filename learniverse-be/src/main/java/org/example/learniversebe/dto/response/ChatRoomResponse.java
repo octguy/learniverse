@@ -22,7 +22,7 @@ public class ChatRoomResponse {
 
     private LocalDateTime createdAt;
     
-    private MessageResponse lastMessage;
+    private LastMessageResponse lastMessage;
     
     private Integer unreadCount;
 }
