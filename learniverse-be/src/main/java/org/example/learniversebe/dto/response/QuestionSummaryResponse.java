@@ -70,4 +70,8 @@ public class QuestionSummaryResponse {
 
     @Schema(description = "Vote của user hiện tại (UPVOTE/DOWNVOTE)")
     private VoteType currentUserVote;
+
+    // Tạm tránh conflict, trường này dư, hãy sử dụng bodyExcerpt
+    @Schema(description = "Nội dung tóm tắt/đầy đủ của câu hỏi")
+    private String body;
 }

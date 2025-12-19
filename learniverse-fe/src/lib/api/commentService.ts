@@ -12,7 +12,18 @@ export const commentService = {
         id,
         page,
         size,
-        sort: "createdAt,desc" 
+        sort: "createdAt,desc"
+      }
+    });
+    return response.data.data;
+  },
+
+  getReplies: async (commentId: string, page = 0, size = 10) => {
+    const response = await apiService.get<ApiResponse<PageResponse<Comment>>>(`${BASE_URL}/${commentId}/replies`, {
+      params: {
+        page,
+        size,
+        sort: "createdAt,asc"
       }
     });
     return response.data.data;
@@ -22,7 +33,7 @@ export const commentService = {
     commentableType: "CONTENT" | "ANSWER";
     commentableId: string;
     body: string;
-    parentId?: string; 
+    parentId?: string;
   }) => {
     const response = await apiService.post<ApiResponse<Comment>>(BASE_URL, payload);
     return response.data.data;
