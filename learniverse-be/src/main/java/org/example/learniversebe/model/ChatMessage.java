@@ -37,9 +37,6 @@ public class ChatMessage extends BaseEntity {
     @Column(name="message_type", nullable = false)
     private MessageType messageType;
 
-    @Column(name="send_at", nullable = false)
-    private LocalDateTime sendAt;
-
     @Column(name="text_content", columnDefinition = "TEXT")
     private String textContent;
 

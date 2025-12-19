@@ -3,10 +3,10 @@ package org.example.learniversebe.controller;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.example.learniversebe.dto.request.SendMessageRequest;
+import org.example.learniversebe.dto.response.MessageReceiptDTO;
 import org.example.learniversebe.dto.response.MessageResponse;
 import org.example.learniversebe.dto.websocket.TypingIndicatorDTO;
 import org.example.learniversebe.service.IChatMessageService;
-import org.example.learniversebe.service.IMessageReceiptService;
 import org.example.learniversebe.service.IPresenceService;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -25,16 +25,13 @@ public class WebSocketChatController {
     private final SimpMessagingTemplate messagingTemplate;
     private final IChatMessageService chatMessageService;
     private final IPresenceService presenceService;
-    private final IMessageReceiptService messageReceiptService;
 
     public WebSocketChatController(SimpMessagingTemplate messagingTemplate,
                                    IChatMessageService chatMessageService,
-                                   IPresenceService presenceService,
-                                   IMessageReceiptService messageReceiptService) {
+                                   IPresenceService presenceService) {
         this.messagingTemplate = messagingTemplate;
         this.chatMessageService = chatMessageService;
         this.presenceService = presenceService;
-        this.messageReceiptService = messageReceiptService;
     }
 
     @MessageMapping("/chat.send")
@@ -85,27 +82,27 @@ public class WebSocketChatController {
         }
     }
 
-    @MessageMapping("/chat.receipt")
-    public void handleMessageReceipt(@Payload Map<String, Object> payload, Principal principal) {
-        try {
-            UUID messageId = UUID.fromString(payload.get("messageId").toString());
-            UUID userId = UUID.fromString(payload.get("userId").toString());
-            String action = payload.getOrDefault("action", "read").toString();
-            
-            log.debug("Message receipt from user: {} for message: {} - action: {}", 
-                    principal.getName(), messageId, action);
-            
-            // Mark message as read
-            org.example.learniversebe.dto.response.MessageReceiptDTO receipt = 
-                    messageReceiptService.markAsRead(messageId, userId);
-            
-            // Broadcast receipt to the chat room
-            messagingTemplate.convertAndSend(
-                    "/topic/receipts/" + messageId,
-                    receipt
-            );
-        } catch (Exception e) {
-            log.error("Error handling message receipt", e);
-        }
-    }
+//    @MessageMapping("/chat.receipt")
+//    public void handleMessageReceipt(@Payload Map<String, Object> payload, Principal principal) {
+//        try {
+//            UUID messageId = UUID.fromString(payload.get("messageId").toString());
+//            UUID userId = UUID.fromString(payload.get("userId").toString());
+//            String action = payload.getOrDefault("action", "read").toString();
+//
+//            log.debug("Message receipt from user: {} for message: {} - action: {}",
+//                    principal.getName(), messageId, action);
+//
+//            // Mark message as read
+//            MessageReceiptDTO receipt =
+//                    messageReceiptService.markAsRead(messageId, userId);
+//
+//            // Broadcast receipt to the chat room
+//            messagingTemplate.convertAndSend(
+//                    "/topic/receipts/" + messageId,
+//                    receipt
+//            );
+//        } catch (Exception e) {
+//            log.error("Error handling message receipt", e);
+//        }
+//    }
 }

@@ -44,6 +44,9 @@ public class ChatParticipant extends BaseEntity {
     @Column(name="joined_at")
     private LocalDateTime joinedAt;
 
+    @Column(name="last_read_at")
+    private LocalDateTime lastReadAt;
+
     @Enumerated(EnumType.STRING)
     @Column(name="chat_role", nullable = false, length = 50)
     private GroupChatRole chatRole;

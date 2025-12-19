@@ -2,7 +2,7 @@ package org.example.learniversebe.service;
 
 import org.example.learniversebe.dto.request.CreateGroupChatRequest;
 import org.example.learniversebe.dto.response.ChatRoomResponse;
-import org.example.learniversebe.dto.response.MessagePageResponse;
+import org.example.learniversebe.dto.response.MessageResponse;
 
 import java.util.List;
 import java.util.UUID;
@@ -21,7 +21,7 @@ public interface IChatRoomService {
 
     ChatRoomResponse getChatRoomById(UUID chatRoomId);
 
-    MessagePageResponse getChatHistory(UUID chatRoomId, int page, int size);
+    List<MessageResponse> getMessagesByChatRoom(UUID chatRoomId, int page, int size);
 
     void leaveChatRoom(UUID chatRoomId);
 

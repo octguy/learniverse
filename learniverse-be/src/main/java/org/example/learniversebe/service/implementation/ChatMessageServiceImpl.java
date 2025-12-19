@@ -56,7 +56,7 @@ public class ChatMessageServiceImpl implements IChatMessageService {
     @Transactional
     public MessageResponse sendMessage(SendMessageRequest request) {
         User sender = SecurityUtils.getCurrentUser();
-        
+
         // Validate chat room exists
         ChatRoom chatRoom = chatRoomRepository.findById(request.getChatRoomId())
                 .orElseThrow(() -> new ResourceNotFoundException("Chat room not found"));
@@ -65,7 +65,7 @@ public class ChatMessageServiceImpl implements IChatMessageService {
         validateParticipant(chatRoom.getId(), sender.getId());
 
         // Validate text content for TEXT messages
-        if (request.getMessageType() == MessageType.TEXT && 
+        if (request.getMessageType() == MessageType.TEXT &&
             (request.getTextContent() == null || request.getTextContent().trim().isEmpty())) {
             throw new IllegalArgumentException("Text content is required for text messages");
         }
@@ -75,7 +75,7 @@ public class ChatMessageServiceImpl implements IChatMessageService {
         message.setSender(sender);
         message.setMessageType(request.getMessageType());
         message.setTextContent(request.getTextContent());
-        message.setSendAt(LocalDateTime.now());
+//        message.setSendAt(LocalDateTime.now());
 
         // Handle parent message (reply)
         if (request.getParentMessageId() != null) {
@@ -94,7 +94,7 @@ public class ChatMessageServiceImpl implements IChatMessageService {
     @Transactional
     public MessageResponse sendMessageWithFile(SendMessageRequest request, MultipartFile file) {
         User sender = SecurityUtils.getCurrentUser();
-        
+
         // Validate chat room exists
         ChatRoom chatRoom = chatRoomRepository.findById(request.getChatRoomId())
                 .orElseThrow(() -> new ResourceNotFoundException("Chat room not found"));
@@ -111,7 +111,7 @@ public class ChatMessageServiceImpl implements IChatMessageService {
         String fileUrl;
         try {
             Map uploadResult;
-            
+
             if (request.getMessageType() == MessageType.IMAGE) {
                 uploadResult = cloudinary.uploader().upload(file.getBytes(),
                         ObjectUtils.asMap("folder", "learniverse/chat/images"));
@@ -129,7 +129,7 @@ public class ChatMessageServiceImpl implements IChatMessageService {
                                 "resource_type", "raw"
                         ));
             }
-            
+
             fileUrl = (String) uploadResult.get("secure_url");
             log.info("File uploaded to Cloudinary: {}", fileUrl);
         } catch (Exception e) {
@@ -143,7 +143,7 @@ public class ChatMessageServiceImpl implements IChatMessageService {
         message.setMessageType(request.getMessageType());
         message.setTextContent(request.getTextContent()); // Optional caption
         message.setMetadata(fileUrl);
-        message.setSendAt(LocalDateTime.now());
+//        message.setSendAt(LocalDateTime.now());
 
         // Handle parent message (reply)
         if (request.getParentMessageId() != null) {
@@ -257,18 +257,18 @@ public class ChatMessageServiceImpl implements IChatMessageService {
         MessageResponse response = new MessageResponse();
         response.setId(message.getId());
         response.setChatRoomId(message.getChatRoom().getId());
-        response.setSenderId(message.getSender().getId());
-        response.setSenderName(message.getSender().getUsername());
-        response.setSenderAvatar(null); // Avatar field not yet implemented in User model
+//        response.setSenderId(message.getSender().getId());
+//        response.setSenderName(message.getSender().getUsername());
+//        response.setSenderAvatar(null); // Avatar field not yet implemented in User model
         response.setMessageType(message.getMessageType());
         response.setTextContent(message.getTextContent());
         response.setMetadata(message.getMetadata());
         response.setParentMessageId(message.getParentMessage() != null ? message.getParentMessage().getId() : null);
-        response.setSendAt(message.getSendAt());
+//        response.setSendAt(message.getSendAt());
         response.setCreatedAt(message.getCreatedAt());
         response.setUpdatedAt(message.getUpdatedAt());
         response.setEdited(!message.getCreatedAt().equals(message.getUpdatedAt()));
-        
+
         return response;
     }
 }

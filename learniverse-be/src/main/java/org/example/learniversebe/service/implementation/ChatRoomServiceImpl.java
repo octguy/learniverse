@@ -3,16 +3,12 @@ package org.example.learniversebe.service.implementation;
 import lombok.extern.slf4j.Slf4j;
 import org.example.learniversebe.dto.request.CreateGroupChatRequest;
 import org.example.learniversebe.dto.response.ChatRoomResponse;
-import org.example.learniversebe.dto.response.MessagePageResponse;
 import org.example.learniversebe.dto.response.MessageResponse;
 import org.example.learniversebe.enums.GroupChatRole;
-import org.example.learniversebe.enums.MessageStatus;
-import org.example.learniversebe.model.ChatMessage;
 import org.example.learniversebe.model.ChatParticipant;
 import org.example.learniversebe.model.ChatRoom;
 import org.example.learniversebe.model.User;
 import org.example.learniversebe.repository.*;
-import org.example.learniversebe.service.IChatMessageService;
 import org.example.learniversebe.service.IChatRoomService;
 import org.example.learniversebe.util.SecurityUtils;
 import org.springframework.stereotype.Service;
@@ -34,24 +30,16 @@ public class ChatRoomServiceImpl implements IChatRoomService {
 
     private final ChatParticipantRepository chatParticipantRepository;
 
-    private final IChatMessageService chatMessageService;
-    
     private final ChatMessageRepository chatMessageRepository;
-    
-    private final MessageReceiptRepository messageReceiptRepository;
 
     public ChatRoomServiceImpl(ChatRoomRepository chatRoomRepository,
                                UserRepository userRepository,
                                ChatParticipantRepository chatParticipantRepository,
-                               IChatMessageService chatMessageService,
-                               ChatMessageRepository chatMessageRepository,
-                               MessageReceiptRepository messageReceiptRepository) {
+                               ChatMessageRepository chatMessageRepository) {
+        this.chatMessageRepository = chatMessageRepository;
         this.chatParticipantRepository = chatParticipantRepository;
         this.userRepository = userRepository;
         this.chatRoomRepository = chatRoomRepository;
-        this.chatMessageService = chatMessageService;
-        this.chatMessageRepository = chatMessageRepository;
-        this.messageReceiptRepository = messageReceiptRepository;
     }
 
     @Override
@@ -198,6 +186,11 @@ public class ChatRoomServiceImpl implements IChatRoomService {
     }
 
     @Override
+    public List<MessageResponse> getMessagesByChatRoom(UUID chatRoomId, int page, int size) {
+        return List.of();
+    }
+
+    @Override
     @Transactional
     public void leaveChatRoom(UUID chatRoomId) {
         User currentUser = SecurityUtils.getCurrentUser();
@@ -328,65 +321,13 @@ public class ChatRoomServiceImpl implements IChatRoomService {
         return participant;
     }
 
-    @Override
-    public MessagePageResponse getChatHistory(UUID chatRoomId, int page, int size) {
-        // Verify user is a participant of the chat room
-        User currentUser = SecurityUtils.getCurrentUser();
-        ChatRoom room = chatRoomRepository.findById(chatRoomId)
-                .orElseThrow(() -> new RuntimeException("Chat room not found"));
-
-        ChatParticipant participant = chatParticipantRepository
-                .findByChatRoomIdAndParticipantId(chatRoomId, currentUser.getId())
-                .orElseThrow(() -> new RuntimeException("User is not a participant of this chat room"));
-
-        if (participant.getDeletedAt() != null) {
-            throw new RuntimeException("User is not an active participant of this chat room");
-        }
-
-        return chatMessageService.getMessagesByChatRoom(chatRoomId, page, size);
-    }
-
     private ChatRoomResponse roomResponse(ChatRoom room, Set<UUID> participantIds) {
-        User currentUser = SecurityUtils.getCurrentUser();
-        
-        // Fetch last message
-        MessageResponse lastMessage = chatMessageRepository
-                .findLastMessageByChatRoomId(room.getId())
-                .map(this::mapToMessageResponse)
-                .orElse(null);
-        
-        // Fetch unread count for current user
-        Integer unreadCount = messageReceiptRepository
-                .countUnreadMessages(room.getId(), currentUser.getId(), MessageStatus.READ)
-                .intValue();
-        
         return ChatRoomResponse.builder()
                 .id(room.getId())
                 .name(room.getName())
                 .isGroupChat(room.isGroupChat())
                 .participants(participantIds)
                 .createdAt(room.getCreatedAt())
-                .lastMessage(lastMessage)
-                .unreadCount(unreadCount)
                 .build();
-    }
-    
-    private MessageResponse mapToMessageResponse(ChatMessage message) {
-        MessageResponse response = new MessageResponse();
-        response.setId(message.getId());
-        response.setChatRoomId(message.getChatRoom().getId());
-        response.setSenderId(message.getSender().getId());
-        response.setSenderName(message.getSender().getUsername());
-        response.setSenderAvatar(null); // Avatar field not yet implemented in User model
-        response.setMessageType(message.getMessageType());
-        response.setTextContent(message.getTextContent());
-        response.setMetadata(message.getMetadata());
-        response.setParentMessageId(message.getParentMessage() != null ? message.getParentMessage().getId() : null);
-        response.setSendAt(message.getSendAt());
-        response.setCreatedAt(message.getCreatedAt());
-        response.setUpdatedAt(message.getUpdatedAt());
-        response.setEdited(!message.getCreatedAt().equals(message.getUpdatedAt()));
-        
-        return response;
     }
 }
