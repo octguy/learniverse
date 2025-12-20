@@ -49,21 +49,81 @@ export function chatReducer(state: AppState, action: Action): AppState {
         },
       };
 
+    case "SET_MESSAGES_WITH_CURSOR":
+      return {
+        ...state,
+        messages: {
+          ...state.messages,
+          [action.payload.chatId]: action.payload.messages,
+        },
+        messageCursors: {
+          ...state.messageCursors,
+          [action.payload.chatId]: action.payload.nextCursor,
+        },
+        hasMoreMessages: {
+          ...state.hasMoreMessages,
+          [action.payload.chatId]: action.payload.hasNext,
+        },
+      };
+
+    case "PREPEND_MESSAGES": {
+      const {
+        chatId,
+        messages: newMessages,
+        nextCursor,
+        hasNext,
+      } = action.payload;
+      const currentMessages = state.messages[chatId] || [];
+
+      // Filter out any duplicates
+      const existingIds = new Set(currentMessages.map((m) => m.id));
+      const uniqueNewMessages = newMessages.filter(
+        (m) => !existingIds.has(m.id)
+      );
+
+      console.log("[REDUCER] PREPEND_MESSAGES:", {
+        chatId,
+        newCount: newMessages.length,
+        uniqueCount: uniqueNewMessages.length,
+        existingCount: currentMessages.length,
+      });
+
+      return {
+        ...state,
+        messages: {
+          ...state.messages,
+          [chatId]: [...uniqueNewMessages, ...currentMessages],
+        },
+        messageCursors: {
+          ...state.messageCursors,
+          [chatId]: nextCursor,
+        },
+        hasMoreMessages: {
+          ...state.hasMoreMessages,
+          [chatId]: hasNext,
+        },
+        loadingMore: {
+          ...state.loadingMore,
+          [chatId]: false,
+        },
+      };
+    }
+
     case "ADD_MESSAGE": {
       const message = action.payload;
       const chatId = message.chatRoomId;
 
       // Update messages
       const currentMessages = state.messages[chatId] || [];
-      
+
       // Check if this exact message already exists (by ID)
       const messageExists = currentMessages.some((m) => m.id === message.id);
-      
+
       if (messageExists) {
         console.log("ADD_MESSAGE - Duplicate message, skipping:", message.id);
         return state; // Already have this message, skip
       }
-      
+
       const updatedMessages = [...currentMessages, message];
 
       // Update chat list
@@ -101,6 +161,15 @@ export function chatReducer(state: AppState, action: Action): AppState {
 
     case "SET_LOADING":
       return { ...state, loading: action.payload };
+
+    case "SET_LOADING_MORE":
+      return {
+        ...state,
+        loadingMore: {
+          ...state.loadingMore,
+          [action.payload.chatId]: action.payload.loading,
+        },
+      };
 
     default:
       return state;

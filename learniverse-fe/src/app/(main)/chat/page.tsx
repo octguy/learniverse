@@ -25,17 +25,30 @@ const initialState = {
   currentChatId: null,
   searchQuery: "",
   loading: true,
+  messageCursors: {},
+  hasMoreMessages: {},
+  loadingMore: {},
 };
 
 export default function ChatPage() {
   const [state, dispatch] = useReducer(chatReducer, initialState);
-  const { chats, messages, currentChatId, searchQuery, loading } = state;
+  const {
+    chats,
+    messages,
+    currentChatId,
+    searchQuery,
+    loading,
+    messageCursors,
+    hasMoreMessages,
+    loadingMore,
+  } = state;
   const [currentUserId, setCurrentUserId] = useState<string>("");
 
   // Load initial data
   useEffect(() => {
     const loadChats = async () => {
       try {
+        console.log("[CHAT] 🔄 Loading chats...");
         dispatch({ type: "SET_LOADING", payload: true });
         // Get current user ID from session storage
         const userStr = sessionStorage.getItem("user");
@@ -44,26 +57,43 @@ export default function ChatPage() {
           try {
             const userObj = JSON.parse(userStr);
             userId = userObj.id || "";
+            console.log("[CHAT] 👤 Current user ID:", userId);
           } catch (e) {
-            console.error("Error parsing user from sessionStorage:", e);
+            console.error(
+              "[CHAT] ❌ Error parsing user from sessionStorage:",
+              e
+            );
           }
         }
         setCurrentUserId(userId);
 
         // Fetch all chats
+        console.log("[CHAT] 📡 Fetching all chats from API...");
         const response = await chatService.getAllChats();
+        console.log(
+          "[CHAT] 📥 getAllChats response:",
+          JSON.stringify(response.data, null, 2)
+        );
         if (response.data.status === "success") {
           const chatRooms = response.data.data;
+          console.log("[CHAT] 💬 Number of chat rooms:", chatRooms.length);
 
           // Convert to Chat format
           const chatsWithData = chatRooms.map((room: ChatRoomDTO) => {
+            console.log(
+              "[CHAT] 🔄 Mapping room:",
+              room.id,
+              "Last message:",
+              room.lastMessage
+            );
             // Convert last message if it exists
             let lastMessage = null;
             if (room.lastMessage) {
               // Show "You:" if the message is from the current user
-              const senderPrefix = room.lastMessage.senderId === userId 
-                ? "You" 
-                : room.lastMessage.senderName;
+              const senderPrefix =
+                room.lastMessage.sender.senderId === userId
+                  ? "You"
+                  : room.lastMessage.sender.senderName;
               lastMessage = `${senderPrefix}: ${room.lastMessage.textContent}`;
             }
 
@@ -78,13 +108,23 @@ export default function ChatPage() {
             } as Chat;
           });
 
+          console.log(
+            "[CHAT] ✅ Chats loaded successfully:",
+            chatsWithData.length
+          );
           dispatch({ type: "SET_CHATS", payload: chatsWithData });
         }
       } catch (error: any) {
-        console.error("Error loading chats:", error);
+        console.error("[CHAT] ❌ Error loading chats:", error);
+        console.error("[CHAT] ❌ Error details:", {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status,
+        });
         toast.error("Không thể tải danh sách chat");
       } finally {
         dispatch({ type: "SET_LOADING", payload: false });
+        console.log("[CHAT] 🏁 Load chats finished");
       }
     };
 
@@ -96,9 +136,10 @@ export default function ChatPage() {
     let isSubscribed = true;
 
     const connectWS = async () => {
+      console.log("[WEBSOCKET] 🔌 Attempting to connect...");
       const token = sessionStorage.getItem("accessToken");
       if (!token) {
-        console.error("No access token found");
+        console.error("[WEBSOCKET] ❌ No access token found");
         return;
       }
 
@@ -107,11 +148,15 @@ export default function ChatPage() {
       try {
         await websocketService.connect(token);
         if (isSubscribed) {
-          console.log("WebSocket connected successfully");
+          console.log("[WEBSOCKET] ✅ Connected successfully");
         }
       } catch (error: any) {
         if (isSubscribed) {
-          console.error("WebSocket connection failed:", error);
+          console.error("[WEBSOCKET] ❌ Connection failed:", error);
+          console.error("[WEBSOCKET] ❌ Error details:", {
+            message: error.message,
+            stack: error.stack,
+          });
           // Check if it's a 401 error
           const is401 =
             error?.message?.includes("401") ||
@@ -138,32 +183,42 @@ export default function ChatPage() {
 
   // Subscribe to current chat messages
   useEffect(() => {
-    if (!currentChatId || !websocketService.isConnected()) return;
+    if (!currentChatId || !websocketService.isConnected()) {
+      console.log(
+        "[WEBSOCKET] ⏸️ Not subscribing - chatId:",
+        currentChatId,
+        "connected:",
+        websocketService.isConnected()
+      );
+      return;
+    }
 
+    console.log("[WEBSOCKET] 📡 Subscribing to chat:", currentChatId);
     const unsubscribe = websocketService.subscribeToChat(
       currentChatId,
       (message: MessageDTO) => {
+        console.log(
+          "[WEBSOCKET] 📨 Received message:",
+          JSON.stringify(message, null, 2)
+        );
         const msg: Message = {
           id: message.id,
           chatRoomId: message.chatRoomId,
-          senderId: message.senderId,
-          senderUsername: message.senderName || message.senderUsername || "",
+          senderId: message.sender.senderId,
+          senderUsername: message.sender.senderName,
+          senderAvatar: message.sender.senderAvatar,
           messageType: message.messageType,
           textContent: message.textContent,
-          createdAt: message.sendAt || message.createdAt || new Date().toISOString(),
-          updatedAt: message.updatedAt,
+          createdAt: message.createdAt,
         };
 
+        console.log("[WEBSOCKET] ✅ Message transformed:", msg);
         dispatch({ type: "ADD_MESSAGE", payload: msg });
-
-        // Mark as read if not sent by current user
-        if (message.senderId !== currentUserId) {
-          chatService.markMessageAsRead(message.id).catch(console.error);
-        }
       }
     );
 
     return () => {
+      console.log("[WEBSOCKET] 🔌 Unsubscribing from chat:", currentChatId);
       if (unsubscribe) unsubscribe();
     };
   }, [currentChatId, currentUserId]);
@@ -171,42 +226,64 @@ export default function ChatPage() {
   // Load messages when chat is selected
   const loadMessages = useCallback(async (chatId: string) => {
     try {
-      const response = await chatService.getChatHistory(chatId, 0, 100);
-      
-      if (response.data.status === "success" && response.data.data?.messages) {
-        const msgs = response.data.data.messages.map(
-          (m: any) =>
-            ({
+      console.log("[MESSAGES] 📡 Loading initial messages for chat:", chatId);
+      const response = await chatService.getChatHistory(chatId, undefined, 20);
+      console.log(
+        "[MESSAGES] 📥 getChatHistory response:",
+        JSON.stringify(response.data, null, 2)
+      );
+
+      if (response.data.status === "success" && response.data.data?.data) {
+        console.log(
+          "[MESSAGES] 💬 Number of messages:",
+          response.data.data.data.length
+        );
+        const msgs = response.data.data.data
+          .map((m: MessageDTO) => {
+            return {
               id: m.id,
               chatRoomId: m.chatRoomId,
-              senderId: m.senderId,
-              senderUsername: m.senderName, // API returns senderName, map to senderUsername
+              senderId: m.sender.senderId,
+              senderUsername: m.sender.senderName,
+              senderAvatar: m.sender.senderAvatar,
               messageType: m.messageType,
               textContent: m.textContent,
-              createdAt: m.sendAt || m.createdAt, // API uses sendAt
-              updatedAt: m.updatedAt,
-            } as Message)
-        ).reverse(); // Reverse to show oldest first (top) to newest (bottom)
+              createdAt: m.createdAt,
+            } as Message;
+          })
+          .reverse(); // Reverse to show oldest first (top) to newest (bottom)
 
-        dispatch({ type: "SET_MESSAGES", payload: { chatId, messages: msgs } });
+        const pagination = response.data.data.pagination;
+        console.log(
+          "[MESSAGES] ✅ Messages loaded and transformed:",
+          msgs.length
+        );
+        console.log("[MESSAGES] 📄 Pagination:", pagination);
 
-        // Mark all as read
-        try {
-          await chatService.markAllAsRead(chatId);
-          dispatch({
-            type: "UPDATE_CHAT_UNREAD",
-            payload: { chatId, count: 0 },
-          });
-        } catch (markReadError) {
-          console.warn("Could not mark messages as read:", markReadError);
-        }
+        dispatch({
+          type: "SET_MESSAGES_WITH_CURSOR",
+          payload: {
+            chatId,
+            messages: msgs,
+            nextCursor: pagination.nextCursor,
+            hasNext: pagination.hasNext,
+          },
+        });
       } else {
         // Handle case where response structure is unexpected
-        console.warn("Unexpected response structure:", response.data);
+        console.warn(
+          "[MESSAGES] ⚠️ Unexpected response structure:",
+          response.data
+        );
         dispatch({ type: "SET_MESSAGES", payload: { chatId, messages: [] } });
       }
     } catch (error: any) {
-      console.error("Error loading messages:", error);
+      console.error("[MESSAGES] ❌ Error loading messages:", error);
+      console.error("[MESSAGES] ❌ Error details:", {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
       const errorMessage =
         error.response?.data?.message ||
         "Không thể tải tin nhắn. Vui lòng thử lại.";
@@ -215,6 +292,89 @@ export default function ChatPage() {
       dispatch({ type: "SET_MESSAGES", payload: { chatId, messages: [] } });
     }
   }, []);
+
+  // Load more messages when scrolling up
+  const loadMoreMessages = useCallback(
+    async (chatId: string) => {
+      // Check if already loading or no more messages
+      if (loadingMore[chatId] || !hasMoreMessages[chatId]) {
+        console.log("[MESSAGES] ⏸️ Skip loading more:", {
+          loading: loadingMore[chatId],
+          hasMore: hasMoreMessages[chatId],
+        });
+        return;
+      }
+
+      const cursor = messageCursors[chatId];
+      if (!cursor) {
+        console.log("[MESSAGES] ⚠️ No cursor available for chat:", chatId);
+        return;
+      }
+
+      try {
+        console.log("[MESSAGES] ⬆️ Loading more messages with cursor:", cursor);
+        dispatch({
+          type: "SET_LOADING_MORE",
+          payload: { chatId, loading: true },
+        });
+
+        const response = await chatService.getChatHistory(chatId, cursor, 20);
+        console.log(
+          "[MESSAGES] 📥 Load more response:",
+          JSON.stringify(response.data, null, 2)
+        );
+
+        if (response.data.status === "success" && response.data.data?.data) {
+          const msgs = response.data.data.data
+            .map(
+              (m: MessageDTO) =>
+                ({
+                  id: m.id,
+                  chatRoomId: m.chatRoomId,
+                  senderId: m.sender.senderId,
+                  senderUsername: m.sender.senderName,
+                  senderAvatar: m.sender.senderAvatar,
+                  messageType: m.messageType,
+                  textContent: m.textContent,
+                  createdAt: m.createdAt,
+                } as Message)
+            )
+            .reverse();
+
+          const pagination = response.data.data.pagination;
+          console.log(
+            "[MESSAGES] ✅ Loaded",
+            msgs.length,
+            "more messages. HasNext:",
+            pagination.hasNext
+          );
+
+          dispatch({
+            type: "PREPEND_MESSAGES",
+            payload: {
+              chatId,
+              messages: msgs,
+              nextCursor: pagination.nextCursor,
+              hasNext: pagination.hasNext,
+            },
+          });
+        } else {
+          console.warn("[MESSAGES] ⚠️ Unexpected response:", response.data);
+          dispatch({
+            type: "SET_LOADING_MORE",
+            payload: { chatId, loading: false },
+          });
+        }
+      } catch (error: any) {
+        console.error("[MESSAGES] ❌ Error loading more messages:", error);
+        dispatch({
+          type: "SET_LOADING_MORE",
+          payload: { chatId, loading: false },
+        });
+      }
+    },
+    [loadingMore, hasMoreMessages, messageCursors]
+  );
 
   const filteredChats = useMemo(
     () =>
@@ -230,6 +390,7 @@ export default function ChatPage() {
   );
 
   const handleSelect = (id: string) => {
+    console.log("[CHAT] 🎯 Selecting chat:", id);
     dispatch({ type: "SELECT_CHAT", payload: id });
     loadMessages(id);
   };
@@ -239,29 +400,39 @@ export default function ChatPage() {
 
   const handleSend = async (chatId: string, textContent: string) => {
     try {
-      const response = await chatService.sendMessage({
-        chatRoomId: chatId,
-        messageType: "TEXT",
+      console.log("[SEND] 📤 Sending message to chat:", chatId);
+      console.log("[SEND] 📝 Message content:", textContent);
+      const response = await chatService.sendMessage(chatId, {
         textContent,
       });
+      console.log(
+        "[SEND] 📥 Send response:",
+        JSON.stringify(response.data, null, 2)
+      );
 
       if (response.data.status === "success") {
         const message = response.data.data;
         const msg: Message = {
           id: message.id,
           chatRoomId: message.chatRoomId,
-          senderId: message.senderId,
-          senderUsername: message.senderName || message.senderUsername || "",
+          senderId: message.sender.senderId,
+          senderUsername: message.sender.senderName,
+          senderAvatar: message.sender.senderAvatar,
           messageType: message.messageType,
           textContent: message.textContent,
-          createdAt: message.sendAt || message.createdAt || new Date().toISOString(),
-          updatedAt: message.updatedAt,
+          createdAt: message.createdAt,
         };
 
+        console.log("[SEND] ✅ Message sent successfully:", msg.id);
         dispatch({ type: "SEND_MESSAGE", payload: { chatId, message: msg } });
       }
     } catch (error: any) {
-      console.error("Error sending message:", error);
+      console.error("[SEND] ❌ Error sending message:", error);
+      console.error("[SEND] ❌ Error details:", {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
       toast.error("Không thể gửi tin nhắn");
     }
   };
@@ -275,7 +446,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex flex-1 rounded-lg shadow-sm overflow-hidden">
+    <div className="flex rounded-lg shadow-sm overflow-hidden bg-white h-full">
       {/* Left panel */}
       <div className="w-80 border-r bg-white flex flex-col">
         <div className="p-4 border-b">
@@ -310,6 +481,9 @@ export default function ChatPage() {
           messages={messages[currentChat.id] || []}
           userId={currentUserId}
           onSend={handleSend}
+          onLoadMore={() => loadMoreMessages(currentChat.id)}
+          hasMore={hasMoreMessages[currentChat.id] ?? true}
+          loadingMore={loadingMore[currentChat.id] ?? false}
         />
       ) : (
         <WelcomeScreen />

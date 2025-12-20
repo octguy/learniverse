@@ -41,11 +41,13 @@ class WebSocketService {
   connect(token: string): Promise<void> {
     // If already connected, return immediately
     if (this.client?.connected) {
+      console.log("[WS] ✅ Already connected");
       return Promise.resolve();
     }
 
     // If connection is in progress, return the existing promise
     if (this.isConnecting && this.connectionPromise) {
+      console.log("[WS] ⏳ Connection already in progress");
       return this.connectionPromise;
     }
 
@@ -54,6 +56,8 @@ class WebSocketService {
       this.isConnecting = true;
       const wsUrl =
         process.env.NEXT_PUBLIC_WS_URL || "http://localhost:8080/ws";
+      console.log("[WS] 🔌 Connecting to:", wsUrl);
+      console.log("[WS] 🔑 Using token:", token.substring(0, 20) + "...");
 
       this.client = new Client({
         webSocketFactory: () => new SockJS(wsUrl) as WebSocket,
@@ -69,14 +73,16 @@ class WebSocketService {
         heartbeatIncoming: 4000,
         heartbeatOutgoing: 4000,
         onConnect: () => {
-          console.log("[WebSocket] Connected");
+          console.log("[WS] ✅ Connected successfully");
           this.isConnecting = false;
           this.reconnectAttempts = 0;
           this.connectionPromise = null;
           resolve();
         },
         onStompError: (frame) => {
-          console.error("[WebSocket] STOMP Error:", frame);
+          console.error("[WS] ❌ STOMP Error:", frame);
+          console.error("[WS] ❌ Frame headers:", frame.headers);
+          console.error("[WS] ❌ Frame body:", frame.body);
           this.isConnecting = false;
           this.connectionPromise = null;
           reject(
@@ -84,7 +90,7 @@ class WebSocketService {
           );
         },
         onWebSocketError: (error) => {
-          console.error("[WebSocket] Error:", error);
+          console.error("[WS] ❌ WebSocket Error:", error);
 
           // Check if it's a 401 error - stop reconnecting
           const errorString = String(error);
@@ -95,23 +101,24 @@ class WebSocketService {
             this.shouldReconnect = false;
             this.lastError = "401_UNAUTHORIZED";
             console.error(
-              "[WebSocket] Authentication failed (401). Backend security configuration needed. See WEBSOCKET_401_FIX.md"
+              "[WS] 🚫 Authentication failed (401). Backend security configuration needed. See WEBSOCKET_401_FIX.md"
             );
           }
 
           reject(error);
         },
         onDisconnect: () => {
-          console.log("[WebSocket] Disconnected");
+          console.log("[WS] 🔌 Disconnected");
           this.isConnecting = false;
           this.connectionPromise = null;
 
           // Only reconnect if we should (not a 401 error)
           if (this.shouldReconnect) {
+            console.log("[WS] 🔄 Will attempt to reconnect...");
             this.handleReconnect(token);
           } else {
             console.warn(
-              "[WebSocket] Not reconnecting due to authentication error"
+              "[WS] ⏸️ Not reconnecting due to authentication error"
             );
           }
         },
@@ -127,7 +134,7 @@ class WebSocketService {
     // Don't reconnect if we have a permanent error (like 401)
     if (!this.shouldReconnect) {
       console.warn(
-        "[WebSocket] Reconnection disabled due to permanent error:",
+        "[WS] 🚫 Reconnection disabled due to permanent error:",
         this.lastError
       );
       return;
@@ -136,13 +143,15 @@ class WebSocketService {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
       console.log(
-        `[WebSocket] Reconnecting... Attempt ${this.reconnectAttempts}`
+        `[WS] 🔄 Reconnecting... Attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts}`
       );
       setTimeout(() => {
-        this.connect(token).catch(console.error);
+        this.connect(token).catch((err) => {
+          console.error("[WS] ❌ Reconnection failed:", err);
+        });
       }, this.reconnectDelay);
     } else {
-      console.error("[WebSocket] Max reconnection attempts reached");
+      console.error("[WS] 🚫 Max reconnection attempts reached");
       this.shouldReconnect = false;
     }
   }
@@ -170,23 +179,34 @@ class WebSocketService {
   // Subscribe to chat messages
   subscribeToChat(chatRoomId: string, callback: (message: MessageDTO) => void) {
     if (!this.client?.connected) {
-      console.error("[WebSocket] Not connected");
+      console.error("[WS] ❌ Cannot subscribe - not connected");
       return null;
     }
 
+    console.log(
+      "[WS] 📡 Subscribing to chat topic:",
+      `/topic/chat/${chatRoomId}`
+    );
     const subscription = this.client.subscribe(
       `/topic/chat/${chatRoomId}`,
       (message) => {
         try {
+          console.log("[WS] 📨 Raw message received:", message.body);
           const msg: MessageDTO = JSON.parse(message.body);
+          console.log("[WS] ✅ Parsed message:", msg);
           callback(msg);
         } catch (error) {
-          console.error("[WebSocket] Error parsing message:", error);
+          console.error("[WS] ❌ Error parsing message:", error);
+          console.error("[WS] ❌ Raw message body:", message.body);
         }
       }
     );
 
-    return () => subscription.unsubscribe();
+    console.log("[WS] ✅ Subscribed to chat:", chatRoomId);
+    return () => {
+      console.log("[WS] 🔌 Unsubscribing from chat:", chatRoomId);
+      subscription.unsubscribe();
+    };
   }
 
   // Subscribe to typing indicators

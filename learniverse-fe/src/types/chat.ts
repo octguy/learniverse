@@ -9,10 +9,10 @@ export type Message = {
   chatRoomId: string;
   senderId: string;
   senderUsername: string;
+  senderAvatar: string | null;
   messageType: "TEXT" | "IMAGE" | "FILE";
   textContent: string;
   createdAt: string;
-  updatedAt?: string;
 };
 
 export type Chat = {
@@ -31,6 +31,9 @@ export type AppState = {
   currentChatId: string | null;
   searchQuery: string;
   loading: boolean;
+  messageCursors: Record<string, string | null>; // Track next cursor for each chat
+  hasMoreMessages: Record<string, boolean>; // Track if more messages available
+  loadingMore: Record<string, boolean>; // Track loading state for infinite scroll
 };
 
 export type Action =
@@ -39,6 +42,28 @@ export type Action =
   | { type: "SEND_MESSAGE"; payload: { chatId: string; message: Message } }
   | { type: "SET_CHATS"; payload: Chat[] }
   | { type: "SET_MESSAGES"; payload: { chatId: string; messages: Message[] } }
+  | {
+      type: "SET_MESSAGES_WITH_CURSOR";
+      payload: {
+        chatId: string;
+        messages: Message[];
+        nextCursor: string | null;
+        hasNext: boolean;
+      };
+    }
+  | {
+      type: "PREPEND_MESSAGES";
+      payload: {
+        chatId: string;
+        messages: Message[];
+        nextCursor: string | null;
+        hasNext: boolean;
+      };
+    }
   | { type: "ADD_MESSAGE"; payload: Message }
   | { type: "UPDATE_CHAT_UNREAD"; payload: { chatId: string; count: number } }
-  | { type: "SET_LOADING"; payload: boolean };
+  | { type: "SET_LOADING"; payload: boolean }
+  | {
+      type: "SET_LOADING_MORE";
+      payload: { chatId: string; loading: boolean };
+    };
