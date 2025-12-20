@@ -17,7 +17,5 @@ public class SendMessageRequest {
 
     private String textContent;
 
-    private UUID parentMessageId; // For reply functionality
-
-    // For file/image/video - will be uploaded separately and URL stored in metadata
+    private UUID parentMessageId;
 }

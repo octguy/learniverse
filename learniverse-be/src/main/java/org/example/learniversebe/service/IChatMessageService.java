@@ -2,7 +2,6 @@ package org.example.learniversebe.service;
 
 import org.example.learniversebe.dto.request.EditMessageRequest;
 import org.example.learniversebe.dto.request.SendMessageRequest;
-import org.example.learniversebe.dto.response.MessagePageResponse;
 import org.example.learniversebe.dto.response.MessageResponse;
 import org.example.learniversebe.dto.response.pagination.PageResponse;
 import org.springframework.web.multipart.MultipartFile;
@@ -17,12 +16,8 @@ public interface IChatMessageService {
     MessageResponse sendMessageWithFile(SendMessageRequest request, MultipartFile file);
     
     MessageResponse editMessage(EditMessageRequest request);
-    
-    void deleteMessage(UUID messageId);
-    
-    PageResponse<MessageResponse> getAllMessagesInChatRoom(UUID chatRoomId, LocalDateTime cursor, int limit);
 
-    MessagePageResponse getMessagesBefore(UUID messageId);
+    PageResponse<MessageResponse> getAllMessagesInChatRoom(UUID chatRoomId, LocalDateTime cursor, int limit);
 
     MessageResponse getMessageById(UUID messageId);
 }

@@ -3,7 +3,6 @@ package org.example.learniversebe.controller;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.example.learniversebe.dto.request.SendMessageRequest;
-import org.example.learniversebe.dto.response.MessageReceiptDTO;
 import org.example.learniversebe.dto.response.MessageResponse;
 import org.example.learniversebe.dto.websocket.TypingIndicatorDTO;
 import org.example.learniversebe.service.IChatMessageService;
@@ -14,8 +13,6 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
-import java.util.Map;
-import java.util.UUID;
 
 @Controller
 @Slf4j

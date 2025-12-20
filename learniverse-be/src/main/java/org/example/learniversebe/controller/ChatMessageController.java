@@ -112,27 +112,6 @@ public class ChatMessageController {
         return ResponseEntity.ok(apiResponse);
     }
 
-    @DeleteMapping("/{messageId}")
-    public ResponseEntity<?> deleteMessage(@PathVariable UUID messageId) {
-        MessageResponse message = chatMessageService.getMessageById(messageId);
-        chatMessageService.deleteMessage(messageId);
-
-        // Broadcast delete via WebSocket
-        messagingTemplate.convertAndSend(
-                "/topic/chat/" + message.getChatRoomId() + "/deletes",
-                messageId
-        );
-
-        ApiResponse<?> apiResponse = new ApiResponse<>(
-                HttpStatus.OK,
-                "Message deleted successfully",
-                null,
-                null
-        );
-
-        return ResponseEntity.ok(apiResponse);
-    }
-
     @GetMapping("/room/{chatRoomId}")
     public ResponseEntity<?> getMessagesByChatRoom(
             @PathVariable UUID chatRoomId,

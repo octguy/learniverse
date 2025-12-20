@@ -5,7 +5,6 @@ import com.cloudinary.utils.ObjectUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.example.learniversebe.dto.request.EditMessageRequest;
 import org.example.learniversebe.dto.request.SendMessageRequest;
-import org.example.learniversebe.dto.response.MessagePageResponse;
 import org.example.learniversebe.dto.response.MessageResponse;
 import org.example.learniversebe.dto.response.pagination.PageResponse;
 import org.example.learniversebe.dto.response.SenderResponse;
@@ -86,7 +85,7 @@ public class ChatMessageServiceImpl implements IChatMessageService {
         chatMessageRepository.save(message);
         log.info("Message sent by user {} in chat room {}", sender.getUsername(), chatRoom.getId());
 
-        return mapToMessageResponse(message);
+        return null;
     }
 
     @Override
@@ -154,7 +153,7 @@ public class ChatMessageServiceImpl implements IChatMessageService {
         chatMessageRepository.save(message);
         log.info("Message with file sent by user {} in chat room {}", sender.getUsername(), chatRoom.getId());
 
-        return mapToMessageResponse(message);
+        return null;
     }
 
     @Override
@@ -180,26 +179,7 @@ public class ChatMessageServiceImpl implements IChatMessageService {
 
         log.info("Message {} edited by user {}", message.getId(), currentUser.getUsername());
 
-        return mapToMessageResponse(message);
-    }
-
-    @Override
-    @Transactional
-    public void deleteMessage(UUID messageId) {
-        User currentUser = SecurityUtils.getCurrentUser();
-
-        ChatMessage message = chatMessageRepository.findById(messageId)
-                .orElseThrow(() -> new ResourceNotFoundException("Message not found"));
-
-        // Only sender can delete their message
-        if (!message.getSender().getId().equals(currentUser.getId())) {
-            throw new UnauthorizedException("You can only delete your own messages");
-        }
-
-        message.setDeletedAt(LocalDateTime.now());
-        chatMessageRepository.save(message);
-
-        log.info("Message {} deleted by user {}", messageId, currentUser.getUsername());
+        return null;
     }
 
     @Override
@@ -257,76 +237,23 @@ public class ChatMessageServiceImpl implements IChatMessageService {
     }
 
     @Override
-    public MessagePageResponse getMessagesBefore(UUID messageId) {
-        return null;
-    }
-
-//    @Override
-//    @Transactional(readOnly = true)
-//    public MessagePageResponse getMessagesByChatRoom(UUID chatRoomId, int page, int size) {
-//        User currentUser = SecurityUtils.getCurrentUser();
-//
-//        // Validate chat room exists
-//        ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
-//                .orElseThrow(() -> new ResourceNotFoundException("Chat room not found"));
-//
-//        // Validate user is participant
-//        validateParticipant(chatRoomId, currentUser.getId());
-//
-//        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-//        Page<ChatMessage> messagePage = chatMessageRepository.findByChatRoomId(chatRoomId, pageable);
-//
-//        List<MessageResponse> messages = messagePage.getContent().stream()
-//                .map(this::mapToMessageResponse)
-//                .collect(Collectors.toList());
-//
-//        MessagePageResponse response = new MessagePageResponse();
-//        response.setMessages(messages);
-//        response.setCurrentPage(messagePage.getNumber());
-//        response.setTotalPages(messagePage.getTotalPages());
-//        response.setTotalElements(messagePage.getTotalElements());
-//        response.setHasNext(messagePage.hasNext());
-//        response.setHasPrevious(messagePage.hasPrevious());
-//
-//        return response;
-//    }
-
-    @Override
     @Transactional(readOnly = true)
     public MessageResponse getMessageById(UUID messageId) {
-        User currentUser = SecurityUtils.getCurrentUser();
-
-        ChatMessage message = chatMessageRepository.findById(messageId)
-                .orElseThrow(() -> new ResourceNotFoundException("Message not found"));
-
-        // Validate user is participant in the chat room
-        validateParticipant(message.getChatRoom().getId(), currentUser.getId());
-
-        return mapToMessageResponse(message);
+//        User currentUser = SecurityUtils.getCurrentUser();
+//
+//        ChatMessage message = chatMessageRepository.findById(messageId)
+//                .orElseThrow(() -> new ResourceNotFoundException("Message not found"));
+//
+//        // Validate user is participant in the chat room
+//        validateParticipant(message.getChatRoom().getId(), currentUser.getId());
+//
+//        return mapToMessageResponse(message);
+        return null;
     }
 
     private void validateParticipant(UUID chatRoomId, UUID userId) {
         ChatParticipant participant = chatParticipantRepository
                 .findByChatRoomIdAndParticipantId(chatRoomId, userId)
                 .orElseThrow(() -> new UnauthorizedException("You are not a participant of this chat room"));
-    }
-
-    private MessageResponse mapToMessageResponse(ChatMessage message) {
-//        MessageResponse response = new MessageResponse();
-//        response.setId(message.getId());
-//        response.setChatRoomId(message.getChatRoom().getId());
-////        response.setSenderId(message.getSender().getId());
-////        response.setSenderName(message.getSender().getUsername());
-////        response.setSenderAvatar(null); // Avatar field not yet implemented in User model
-//        response.setMessageType(message.getMessageType());
-//        response.setTextContent(message.getTextContent());
-//        response.setMetadata(message.getMetadata());
-//        response.setParentMessageId(message.getParentMessage() != null ? message.getParentMessage().getId() : null);
-////        response.setSendAt(message.getSendAt());
-//        response.setCreatedAt(message.getCreatedAt());
-//        response.setUpdatedAt(message.getUpdatedAt());
-//        response.setEdited(!message.getCreatedAt().equals(message.getUpdatedAt()));
-
-        return null;
     }
 }
