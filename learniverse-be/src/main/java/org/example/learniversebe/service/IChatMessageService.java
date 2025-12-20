@@ -11,9 +11,9 @@ import java.util.UUID;
 
 public interface IChatMessageService {
     
-    MessageResponse sendMessage(SendMessageRequest request);
+    MessageResponse sendMessage(UUID roomId, SendMessageRequest request);
     
-    MessageResponse sendMessageWithFile(SendMessageRequest request, MultipartFile file);
+    MessageResponse sendMessageWithFile(UUID roomId, SendMessageRequest request, MultipartFile file);
     
     MessageResponse editMessage(EditMessageRequest request);
 

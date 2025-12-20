@@ -5,6 +5,7 @@ import jakarta.validation.Valid;
 import org.example.learniversebe.dto.request.EditMessageRequest;
 import org.example.learniversebe.dto.request.SendMessageRequest;
 import org.example.learniversebe.dto.response.MessageResponse;
+import org.example.learniversebe.dto.response.pagination.PageResponse;
 import org.example.learniversebe.dto.websocket.UserStatusDTO;
 import org.example.learniversebe.enums.MessageType;
 import org.example.learniversebe.model.ApiResponse;
@@ -40,15 +41,10 @@ public class ChatMessageController {
         this.messagingTemplate = messagingTemplate;
     }
 
-    @PostMapping("/send")
-    public ResponseEntity<?> sendTextMessage(@Valid @RequestBody SendMessageRequest request) {
-        MessageResponse messageResponse = chatMessageService.sendMessage(request);
-
-        // Broadcast via WebSocket
-        messagingTemplate.convertAndSend(
-                "/topic/chat/" + request.getChatRoomId(),
-                messageResponse
-        );
+    @PostMapping("/send/{roomId}")
+    public ResponseEntity<?> sendTextMessage(@PathVariable UUID roomId,
+                                             @Valid @RequestBody SendMessageRequest request) {
+        MessageResponse messageResponse = chatMessageService.sendMessage(roomId, request);
 
         ApiResponse<?> apiResponse = new ApiResponse<>(
                 HttpStatus.CREATED,
@@ -68,28 +64,29 @@ public class ChatMessageController {
             @RequestParam(value = "parentMessageId", required = false) UUID parentMessageId,
             @RequestParam("file") MultipartFile file) {
 
-        SendMessageRequest request = new SendMessageRequest();
-        request.setChatRoomId(chatRoomId);
-        request.setMessageType(messageType);
-        request.setTextContent(textContent);
-        request.setParentMessageId(parentMessageId);
+//        SendMessageRequest request = new SendMessageRequest();
+//        request.setChatRoomId(chatRoomId);
+//        request.setMessageType(messageType);
+//        request.setTextContent(textContent);
+//        request.setParentMessageId(parentMessageId);
+//
+//        MessageResponse messageResponse = chatMessageService.sendMessageWithFile(request, file);
+//
+//        // Broadcast via WebSocket
+//        messagingTemplate.convertAndSend(
+//                "/topic/chat/" + chatRoomId,
+//                messageResponse
+//        );
+//
+//        ApiResponse<?> apiResponse = new ApiResponse<>(
+//                HttpStatus.CREATED,
+//                "Message with file sent successfully",
+//                messageResponse,
+//                null
+//        );
 
-        MessageResponse messageResponse = chatMessageService.sendMessageWithFile(request, file);
-
-        // Broadcast via WebSocket
-        messagingTemplate.convertAndSend(
-                "/topic/chat/" + chatRoomId,
-                messageResponse
-        );
-
-        ApiResponse<?> apiResponse = new ApiResponse<>(
-                HttpStatus.CREATED,
-                "Message with file sent successfully",
-                messageResponse,
-                null
-        );
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(apiResponse);
+//        return ResponseEntity.status(HttpStatus.CREATED).body(apiResponse);
+        return null;
     }
 
     @PutMapping("/edit")
@@ -118,7 +115,18 @@ public class ChatMessageController {
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime cursor,
             @RequestParam(defaultValue = "20") int limit) {
-        return ResponseEntity.ok(chatMessageService.getAllMessagesInChatRoom(chatRoomId, cursor, limit));
+
+        PageResponse<MessageResponse> pageResponse =
+                chatMessageService.getAllMessagesInChatRoom(chatRoomId, cursor, limit);
+
+        ApiResponse<?> apiResponse = new ApiResponse<>(
+                HttpStatus.OK,
+                "Messages fetched successfully",
+                pageResponse,
+                null
+        );
+
+        return ResponseEntity.ok(apiResponse);
     }
 
     @GetMapping("/{messageId}")

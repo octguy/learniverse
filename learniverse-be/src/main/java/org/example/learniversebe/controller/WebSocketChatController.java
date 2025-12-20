@@ -31,53 +31,53 @@ public class WebSocketChatController {
         this.presenceService = presenceService;
     }
 
-    @MessageMapping("/chat.send")
-    public void sendMessage(@Payload SendMessageRequest request, Principal principal) {
-        try {
-            log.info("Received message from user: {}", principal.getName());
-            
-            MessageResponse messageResponse = chatMessageService.sendMessage(request);
-            
-            // Broadcast message to all participants in the chat room
-            messagingTemplate.convertAndSend(
-                    "/topic/chat/" + request.getChatRoomId(),
-                    messageResponse
-            );
-            
-            log.info("Message sent to chat room: {}", request.getChatRoomId());
-        } catch (Exception e) {
-            log.error("Error sending message", e);
-            // Send error back to sender
-            messagingTemplate.convertAndSendToUser(
-                    principal.getName(),
-                    "/queue/errors",
-                    "Failed to send message: " + e.getMessage()
-            );
-        }
-    }
+//    @MessageMapping("/chat.send")
+//    public void sendMessage(@Payload SendMessageRequest request, Principal principal) {
+//        try {
+//            log.info("Received message from user: {}", principal.getName());
+//
+//            MessageResponse messageResponse = chatMessageService.sendMessage(request);
+//
+//            // Broadcast message to all participants in the chat room
+//            messagingTemplate.convertAndSend(
+//                    "/topic/chat/" + request.getChatRoomId(),
+//                    messageResponse
+//            );
+//
+//            log.info("Message sent to chat room: {}", request.getChatRoomId());
+//        } catch (Exception e) {
+//            log.error("Error sending message", e);
+//            // Send error back to sender
+//            messagingTemplate.convertAndSendToUser(
+//                    principal.getName(),
+//                    "/queue/errors",
+//                    "Failed to send message: " + e.getMessage()
+//            );
+//        }
+//    }
 
-    @MessageMapping("/chat.typing")
-    public void handleTypingIndicator(@Payload TypingIndicatorDTO typingIndicator, Principal principal) {
-        try {
-            log.debug("Typing indicator from user: {} in room: {}", 
-                    principal.getName(), typingIndicator.getChatRoomId());
-            
-            presenceService.setUserTyping(
-                    typingIndicator.getChatRoomId(),
-                    typingIndicator.getUserId(),
-                    typingIndicator.getUsername(),
-                    typingIndicator.isTyping()
-            );
-            
-            // Broadcast typing indicator to other participants
-            messagingTemplate.convertAndSend(
-                    "/topic/chat/" + typingIndicator.getChatRoomId() + "/typing",
-                    typingIndicator
-            );
-        } catch (Exception e) {
-            log.error("Error handling typing indicator", e);
-        }
-    }
+//    @MessageMapping("/chat.typing")
+//    public void handleTypingIndicator(@Payload TypingIndicatorDTO typingIndicator, Principal principal) {
+//        try {
+//            log.debug("Typing indicator from user: {} in room: {}",
+//                    principal.getName(), typingIndicator.getChatRoomId());
+//
+//            presenceService.setUserTyping(
+//                    typingIndicator.getChatRoomId(),
+//                    typingIndicator.getUserId(),
+//                    typingIndicator.getUsername(),
+//                    typingIndicator.isTyping()
+//            );
+//
+//            // Broadcast typing indicator to other participants
+//            messagingTemplate.convertAndSend(
+//                    "/topic/chat/" + typingIndicator.getChatRoomId() + "/typing",
+//                    typingIndicator
+//            );
+//        } catch (Exception e) {
+//            log.error("Error handling typing indicator", e);
+//        }
+//    }
 
 //    @MessageMapping("/chat.receipt")
 //    public void handleMessageReceipt(@Payload Map<String, Object> payload, Principal principal) {
