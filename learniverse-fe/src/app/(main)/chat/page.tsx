@@ -82,17 +82,21 @@ export default function ChatPage() {
           const chatsWithData = chatRooms.map((room: ChatRoomDTO) => {
             // Convert last message if it exists
             let lastMessage = null;
+            // console.log("Room:", room);
+            // console.log("Last Message Sender:", room.lastMessage.);
             if (room.lastMessage) {
-              // Check if senderId exists (directly on lastMessage)
-              if (room.lastMessage.senderId) {
+              // Check if sender exists (using optional chaining)
+              if (room.lastMessage) {
                 // Show "You:" if the message is from the current user
                 const senderPrefix =
                   room.lastMessage.senderId === userId
                     ? "You"
                     : room.lastMessage.senderName || "Unknown";
-                lastMessage = `${senderPrefix}: ${room.lastMessage.content || room.lastMessage.textContent || ""}`;
+                lastMessage = `${senderPrefix}: ${
+                  room.lastMessage.content || ""
+                }`;
               } else {
-                lastMessage = room.lastMessage.content || room.lastMessage.textContent || "New message";
+                lastMessage = "New message";
               }
             }
 

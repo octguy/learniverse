@@ -1,6 +1,11 @@
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 import { MessageDTO } from "./api/chatService";
+import {
+  ChatSocketEvent,
+  SocketEventType,
+  MessageEventData,
+} from "@/types/ChatSocketEvent";
 
 export interface TypingEvent {
   userId: string;
@@ -192,8 +197,39 @@ class WebSocketService {
       (message) => {
         try {
           console.log("[WS] 📨 Raw message received:", message.body);
-          const msg: MessageDTO = JSON.parse(message.body);
-          console.log("[WS] ✅ Parsed message:", msg);
+          const event: ChatSocketEvent<MessageEventData> = JSON.parse(
+            message.body
+          );
+          console.log("[WS] 📦 Parsed event:", event);
+
+          // Check event type
+          if (event.eventType !== SocketEventType.NEW_MESSAGE) {
+            console.warn(
+              "[WS] ⚠️ Unexpected event type:",
+              event.eventType,
+              "- ignoring"
+            );
+            return;
+          }
+
+          // Extract and transform the message data
+          const messageData = event.data;
+          const msg: MessageDTO = {
+            id: messageData.id,
+            chatRoomId: messageData.chatRoomId,
+            sender: {
+              senderId: messageData.sender.senderId,
+              senderName: messageData.sender.senderName,
+              senderAvatar: messageData.sender.senderAvatar ?? null,
+            },
+            messageType: messageData.messageType as "TEXT" | "IMAGE" | "FILE",
+            textContent: messageData.textContent,
+            metadata: messageData.metadata ?? null,
+            parentMessageId: messageData.parentMessageId ?? null,
+            createdAt: messageData.createdAt,
+          };
+
+          console.log("[WS] ✅ Transformed message:", msg);
           callback(msg);
         } catch (error) {
           console.error("[WS] ❌ Error parsing message:", error);

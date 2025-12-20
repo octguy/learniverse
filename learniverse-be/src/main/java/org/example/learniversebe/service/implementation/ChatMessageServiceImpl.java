@@ -8,7 +8,9 @@ import org.example.learniversebe.dto.response.MessageResponse;
 import org.example.learniversebe.dto.response.pagination.PageResponse;
 import org.example.learniversebe.dto.response.SenderResponse;
 import org.example.learniversebe.dto.response.pagination.PaginationMeta;
+import org.example.learniversebe.dto.websocket.ChatSocketEvent;
 import org.example.learniversebe.enums.MessageType;
+import org.example.learniversebe.enums.SocketEventType;
 import org.example.learniversebe.exception.ResourceNotFoundException;
 import org.example.learniversebe.exception.UnauthorizedException;
 import org.example.learniversebe.model.*;
@@ -110,7 +112,12 @@ public class ChatMessageServiceImpl implements IChatMessageService {
                                         .createdAt(message.getCreatedAt())
                                         .build();
 
-        messagingTemplate.convertAndSend("/topic/chat/" + roomId, response);
+        ChatSocketEvent event = ChatSocketEvent.builder()
+                .eventType(SocketEventType.NEW_MESSAGE)
+                .data(response)
+                .build();
+
+        messagingTemplate.convertAndSend("/topic/chat/" + roomId, event);
         log.debug("Message broadcasted to chat room {}", roomId);
 
         participant.setLastReadAt(LocalDateTime.now());
@@ -276,6 +283,18 @@ public class ChatMessageServiceImpl implements IChatMessageService {
 //
 //        return mapToMessageResponse(message);
         return null;
+    }
+
+    @Override
+    @Transactional
+    public void markAsRead(UUID roomId) {
+        UUID userId = SecurityUtils.getCurrentUser().getId();
+        ChatParticipant participant = getParticipant(roomId, userId);
+
+        participant.setLastReadAt(LocalDateTime.now());
+        chatParticipantRepository.save(participant);
+
+        log.info("User {} marked messages as read in chat room {}", userId, roomId);
     }
 
     private ChatRoom getChatRoom(UUID chatRoomId) {

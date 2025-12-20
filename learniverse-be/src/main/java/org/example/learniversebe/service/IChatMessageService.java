@@ -20,4 +20,6 @@ public interface IChatMessageService {
     PageResponse<MessageResponse> getAllMessagesInChatRoom(UUID chatRoomId, LocalDateTime cursor, int limit);
 
     MessageResponse getMessageById(UUID messageId);
+
+    void markAsRead(UUID roomId);
 }

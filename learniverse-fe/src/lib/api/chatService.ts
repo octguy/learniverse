@@ -24,8 +24,16 @@ export interface ChatRoomDTO {
   groupChat: boolean;
   createdAt: string;
   updatedAt: string;
-  lastMessage: MessageDTO | null;
+  lastMessage: LastMessageDTO | null;
   unreadCount: number;
+}
+
+export interface LastMessageDTO {
+  senderId: string;
+  senderName: string;
+  content: string;
+  messageType: "TEXT" | "IMAGE" | "FILE";
+  sendAt: string;
 }
 
 export interface ParticipantDTO {

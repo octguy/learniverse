@@ -89,6 +89,20 @@ public class ChatMessageController {
         return null;
     }
 
+    @PostMapping("/mark-as-read/{roomId}")
+    public ResponseEntity<?> markMessagesAsRead(@PathVariable UUID roomId) {
+        chatMessageService.markAsRead(roomId);
+
+        ApiResponse<?> apiResponse = new ApiResponse<>(
+                HttpStatus.OK,
+                "Messages marked as read successfully",
+                null,
+                null
+        );
+
+        return ResponseEntity.ok(apiResponse);
+    }
+
     @PutMapping("/edit")
     public ResponseEntity<?> editMessage(@Valid @RequestBody EditMessageRequest request) {
         MessageResponse messageResponse = chatMessageService.editMessage(request);
