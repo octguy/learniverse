@@ -1,7 +1,9 @@
 package org.example.learniversebe.mapper;
 
+import org.example.learniversebe.dto.response.UserProfileResponse;
 import org.example.learniversebe.dto.response.UserResponse;
 import org.example.learniversebe.model.User;
+import org.example.learniversebe.model.UserProfile;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.factory.Mappers;
@@ -40,4 +42,7 @@ public interface UserMapper {
      * @return The set of UserResponse DTOs.
      */
     Set<UserResponse> toUserResponseSet(Set<User> users);
+    @Mapping(source = "user.id", target = "userId")
+    @Mapping(source = "user.username", target = "username")
+    UserProfileResponse toProfileResponse(UserProfile userProfile);
 }
