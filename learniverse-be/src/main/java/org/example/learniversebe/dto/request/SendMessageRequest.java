@@ -8,7 +8,7 @@ import java.util.UUID;
 
 @Data
 public class SendMessageRequest {
-    
+
     @NotNull(message = "Chat room ID is required")
     private UUID chatRoomId;
 
