@@ -42,6 +42,9 @@ public class User extends BaseEntity {
     @OneToOne(mappedBy = "user", fetch = FetchType.LAZY)
     private UserProfile userProfile;
 
+    @Column(name = "is_onboarded", nullable = false)
+    private boolean isOnboarded = false;
+
     public void addRole(Role role) {
         // System.out.println("User ID = " + this.getId());
         // System.out.println("Role ID = " + role.getId());

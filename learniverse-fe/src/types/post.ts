@@ -1,3 +1,15 @@
+export type PostResponse = Post;
+
+export interface BookmarkResponse {
+  id: string;
+  userId: string;
+  postSummary?: Post;
+  questionSummary?: any;
+  collectionName?: string;
+  notes?: string;
+  createdAt: string;
+}
+
 export interface Tag {
   id: string;
   name: string;

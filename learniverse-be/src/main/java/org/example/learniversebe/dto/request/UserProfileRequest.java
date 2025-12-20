@@ -2,6 +2,7 @@ package org.example.learniversebe.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
 import org.example.learniversebe.model.User;
@@ -15,12 +16,14 @@ import java.util.UUID;
 @Getter
 @Setter
 public class UserProfileRequest {
-    @JsonProperty("display_name")
+
+    @NotBlank(message = "Display name is required")
     private String displayName;
 
+    @NotBlank(message = "Bio is required")
     private String bio;
 
-    private MultipartFile avatar;
+    private Set<UUID> interestTagIds = new HashSet<>();
 
-    private Set<UUID> userTags = new HashSet<>();
+    private Set<UUID> skillTagIds = new HashSet<>();
 }

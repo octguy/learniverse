@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+import org.example.learniversebe.enums.ContentStatus;
 
 import java.util.Set;
 import java.util.UUID;
@@ -26,4 +27,7 @@ public class CreateQuestionRequest {
     @Schema(description = "Danh sách ID các tag liên quan", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotEmpty(message = "At least one tag is required")
     private Set<UUID> tagIds;
+
+    @Schema(description = "Status of the question (DRAFT or PUBLISHED). Default is PUBLISHED if null")
+    private ContentStatus status;
 }

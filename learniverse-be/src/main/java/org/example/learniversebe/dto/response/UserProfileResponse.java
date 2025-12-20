@@ -19,7 +19,9 @@ public class UserProfileResponse {
     private String displayName;
     private String bio;
     private String avatarUrl;
+    private String coverUrl;
     private int postCount;
     private int answeredQuestionCount;
-    private List<UserTagResponse> tags;
+    private List<TagResponse> interestTags;
+    private List<TagResponse> skillTags;
 }

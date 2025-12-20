@@ -1,6 +1,9 @@
 package org.example.learniversebe.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.example.learniversebe.dto.request.CreatePostRequest;
@@ -14,10 +17,13 @@ import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -31,13 +37,37 @@ public class PostController {
         this.postService = postService;
     }
 
-    @PostMapping
-    @PreAuthorize("hasRole('USER')") // Yêu cầu đăng nhập
-    @Operation(summary = "Create a new post", description = "UC 2.2: Creates a new academic post. Requires USER role.")
-    public ResponseEntity<ApiResponse<PostResponse>> createPost(@Valid @RequestBody CreatePostRequest request) {
-        PostResponse createdPost = postService.createPost(request);
-        ApiResponse<PostResponse> response = new ApiResponse<>(HttpStatus.CREATED, "Post created successfully", createdPost, null);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Create a new post with attachments", description = "Tạo bài viết kèm hình ảnh/PDF (Multipart Form)")
+    public ResponseEntity<ApiResponse<PostResponse>> createPost(
+            @RequestPart("post")
+            @Parameter(
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE
+                    )
+            )
+            @Valid CreatePostRequest request,
+
+            @RequestPart(value = "files", required = false)
+            @Parameter(
+                    description = "File đính kèm (Image/PDF)",
+                    content = @Content(mediaType = MediaType.APPLICATION_OCTET_STREAM_VALUE)
+            )
+            List<MultipartFile> files
+    ) {
+        PostResponse response = postService.createPost(request, files);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new ApiResponse<>(HttpStatus.CREATED, "Post created successfully", response, null));
+    }
+
+    @PutMapping("/{postId}/publish")
+    @PreAuthorize("hasRole('USER')")
+    @Operation(summary = "Publish a draft post", description = "Chuyển trạng thái bài viết từ DRAFT sang PUBLISHED")
+    public ResponseEntity<ApiResponse<PostResponse>> publishPost(@PathVariable UUID postId) {
+        PostResponse response = postService.publishPost(postId);
+        return ResponseEntity.ok(
+                new ApiResponse<>(HttpStatus.OK, "Post published successfully", response, null)
+        );
     }
 
     @GetMapping("/feed")

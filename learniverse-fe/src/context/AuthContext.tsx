@@ -7,6 +7,8 @@ export interface UserProfile {
     id: string;
     username: string;
     email: string;
+    isOnboarded: boolean;
+    avatarUrl?: string;
 }
 
 export interface AuthContextType {
@@ -16,6 +18,7 @@ export interface AuthContextType {
     login: (data: AuthResponse) => Promise<void>;
     logout: () => void;
     register: (data: RegisterRequest) => Promise<AuthResponse>;
+    completeOnboarding: () => void;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);

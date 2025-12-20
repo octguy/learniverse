@@ -24,6 +24,7 @@ export interface AuthResponse {
     email: string;
     accessToken: string;
     refreshToken: string;
+    isOnboarded: boolean;
 }
 
 export interface RegisterRequest {

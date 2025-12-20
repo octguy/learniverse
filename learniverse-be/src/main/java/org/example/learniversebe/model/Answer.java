@@ -51,7 +51,7 @@ public class Answer extends BaseEntity {
     @Column(nullable = false)
     private Boolean isAccepted = false;
 
-    @OneToOne(mappedBy = "acceptedAnswer", fetch = FetchType.LAZY)
+    @OneToOne(mappedBy = "acceptedAnswer")
     private Content acceptedInQuestion;
 
     @PrePersist

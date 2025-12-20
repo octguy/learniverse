@@ -9,7 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 
 
-const unreadCount = 5; 
+const unreadCount = 5;
 
 export function Header() {
   const { user, loading } = useAuth();
@@ -60,7 +60,7 @@ export function Header() {
 
         {/* Navigation Icons */}
         <div className="flex items-center justify-end space-x-7">
-          <Link href="/" className="flex flex-col items-center text-gray-600 hover:text-primary">
+          <Link href="/home" className="flex flex-col items-center text-gray-600 hover:text-primary">
             <Home className="w-5 h-5" />
             <span className="text-xs">Home</span>
           </Link>
@@ -94,8 +94,7 @@ export function Header() {
           ) : user ? (
             <Link href="/profile" className="flex flex-col items-center text-gray-600 hover:text-primary">
               <Avatar className="w-6 h-6">
-                <AvatarImage src={undefined} alt={user.username} />
-                {/* thêm user avt sau*/}
+                <AvatarImage src={user.avatarUrl} alt={user.username} />
                 <AvatarFallback>{user.username?.charAt(0).toUpperCase()}</AvatarFallback>
               </Avatar>
               <span className="text-xs">Me</span>

@@ -1,6 +1,10 @@
 import apiService from "@/lib/apiService"
 import type { ApiResponse, PageResponse } from "@/types/api"
-import type { QuestionDetail, QuestionSummary } from "@/types/question"
+import type {
+    QuestionDetail,
+    QuestionResponse,
+    QuestionSummary,
+} from "@/types/question"
 
 export interface QuestionQuery {
     page?: number
@@ -45,5 +49,38 @@ export const questionService = {
             payload
         )
         return unwrap(response.data)
+    },
+    async update(
+        id: string,
+        payload: { title: string; body: string; tagIds: string[] }
+    ) {
+        const response = await apiService.put<ApiResponse<QuestionDetail>>(
+            `${BASE_PATH}/${id}`,
+            payload
+        )
+        return unwrap(response.data)
+    },
+    async remove(id: string) {
+        const response = await apiService.delete<ApiResponse<void>>(
+            `${BASE_PATH}/${id}`
+        )
+        return unwrap(response.data)
+    },
+    async acceptAnswer(questionId: string, answerId: string) {
+        const response = await apiService.put<ApiResponse<void>>(
+            `${BASE_PATH}/${questionId}/answers/${answerId}/accept`
+        )
+        return unwrap(response.data)
+    },
+    async unacceptAnswer(questionId: string, answerId: string) {
+        const response = await apiService.delete<ApiResponse<void>>(
+            `${BASE_PATH}/${questionId}/answers/${answerId}/accept`
+        )
+        return unwrap(response.data)
+    },
+    getQuestionsByUserId: async (userId: string, page = 0, size = 10) => {
+        return apiService.get<PageResponse<QuestionResponse>>(
+            `/questions/user/${userId}?page=${page}&size=${size}`
+        )
     },
 }

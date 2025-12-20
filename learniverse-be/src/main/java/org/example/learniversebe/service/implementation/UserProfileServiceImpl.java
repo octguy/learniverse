@@ -2,132 +2,141 @@ package org.example.learniversebe.service.implementation;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
-import java.io.IOException;
-
 import jakarta.transaction.Transactional;
 import org.example.learniversebe.dto.request.UserProfileRequest;
+import org.example.learniversebe.dto.response.TagResponse;
 import org.example.learniversebe.dto.response.UserProfileResponse;
-import org.example.learniversebe.dto.response.UserTagResponse;
 import org.example.learniversebe.model.User;
 import org.example.learniversebe.model.UserProfile;
 import org.example.learniversebe.model.UserProfileTag;
-import org.example.learniversebe.model.UserTag;
+import org.example.learniversebe.model.Tag;
+import org.example.learniversebe.model.composite_key.UserProfileTagId;
 import org.example.learniversebe.repository.UserProfileRepository;
 import org.example.learniversebe.repository.UserProfileTagRepository;
 import org.example.learniversebe.repository.UserRepository;
-import org.example.learniversebe.repository.UserTagRepository;
+import org.example.learniversebe.repository.TagRepository;
 import org.example.learniversebe.service.IUserProfileService;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.example.learniversebe.enums.UserTagType;
 
+import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
 public class UserProfileServiceImpl implements IUserProfileService {
     private final UserProfileRepository userProfileRepository;
-    private final UserTagRepository userTagRepository;
-    private final UserProfileTagRepository userProfileTagRepository;
+    private final TagRepository userTagRepository;
     private final UserRepository userRepository;
-
     private final Cloudinary cloudinary;
     private final String cloudinaryFolder;
 
     public UserProfileServiceImpl(UserProfileRepository userProfileRepository,
-                                  UserTagRepository userTagRepository,
+                                  TagRepository userTagRepository,
                                   UserProfileTagRepository userProfileTagRepository,
                                   UserRepository userRepository,
                                   Cloudinary cloudinary,
                                   String cloudinaryFolder) {
         this.userProfileRepository = userProfileRepository;
         this.userTagRepository = userTagRepository;
-        this.userProfileTagRepository = userProfileTagRepository;
         this.userRepository = userRepository;
         this.cloudinary = cloudinary;
         this.cloudinaryFolder = cloudinaryFolder;
     }
 
     @Override
-    public UserProfileResponse onboardProfile(UUID userId, UserProfileRequest request) {
-        UserProfile profile = new UserProfile();
+    @Transactional
+    public UserProfileResponse onboardProfile(UUID userId, UserProfileRequest request, MultipartFile avatar, MultipartFile cover) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        profile.setUser(user);
-        profile.setId(UUID.randomUUID());
+
+        UserProfile profile = userProfileRepository.findByUserId(userId);
+        if (profile == null) {
+            profile = new UserProfile();
+            profile.setId(UUID.randomUUID());
+            profile.setUser(user);
+        }
+
         profile.setDisplayName(request.getDisplayName());
         profile.setBio(request.getBio());
 
-        // Upload avatar nếu có
-        String avatarUrl = uploadAvatar(request.getAvatar());
+        String avatarUrl = uploadImage(avatar);
         if (avatarUrl != null) profile.setAvatarUrl(avatarUrl);
 
-        // Gắn tags
-        if (request.getUserTags() != null && !request.getUserTags().isEmpty()) {
-            for (UUID tagId : request.getUserTags()) {
-                UserTag tag = userTagRepository.findById(tagId)
-                        .orElseThrow(() -> new RuntimeException("Tag not found: " + tagId));
+        String coverUrl = uploadImage(cover);
+        if (coverUrl != null) profile.setCoverUrl(coverUrl);
 
-                UserProfileTag relation = new UserProfileTag();
-                relation.setUserProfile(profile);
-                relation.setUserTag(tag);
-                userProfileTagRepository.save(relation);
-            }
+        synchronizeUserTags(profile, request.getInterestTagIds(), request.getSkillTagIds());
+
+        if (!user.isOnboarded()) {
+            user.setOnboarded(true);
+            userRepository.save(user);
         }
 
-        userProfileRepository.save(profile);
-
-        return toResponse(profile);
+        UserProfile savedProfile = userProfileRepository.save(profile);
+        return toResponse(savedProfile);
     }
 
     @Override
     public UserProfileResponse viewProfile(UUID userId) {
         UserProfile profile = userProfileRepository.findByUserId(userId);
-        if (profile == null){
-            throw new RuntimeException("User profile not found with user ID: " + userId);
+
+        if (profile == null) {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            profile = new UserProfile();
+            profile.setId(UUID.randomUUID());
+            profile.setUser(user);
+            profile.setDisplayName(user.getUsername());
+            profile.setBio("Thành viên mới của Learniverse");
+            profile.setPostCount(0);
+            profile.setAnsweredQuestionCount(0);
+            profile.setCreatedAt(LocalDateTime.now());
+            profile.setUpdatedAt(LocalDateTime.now());
+            profile = userProfileRepository.save(profile);
         }
+
         return toResponse(profile);
     }
 
     @Override
     @Transactional
-    public UserProfileResponse updateProfile(UUID userId, UserProfileRequest request) {
+    public UserProfileResponse updateProfile(UUID userId, UserProfileRequest request, MultipartFile avatar, MultipartFile cover) {
         UserProfile profile = userProfileRepository.findByUserId(userId);
-        if (profile == null){
-            throw new RuntimeException("User profile not found with user ID: " + userId);
-        }
-        if (request.getDisplayName() != null)
-            profile.setDisplayName(request.getDisplayName());
-        if (request.getBio() != null)
-            profile.setBio(request.getBio());
+        if (profile == null) throw new RuntimeException("Profile not found");
 
-        // Nếu có avatar mới thì upload và cập nhật
-        String avatarUrl = uploadAvatar(request.getAvatar());
-        if (avatarUrl != null)
-            profile.setAvatarUrl(avatarUrl);
+        if (request.getDisplayName() != null) profile.setDisplayName(request.getDisplayName());
+        if (request.getBio() != null) profile.setBio(request.getBio());
 
-        userProfileRepository.save(profile);
+        String avatarUrl = uploadImage(avatar);
+        if (avatarUrl != null) profile.setAvatarUrl(avatarUrl);
 
-        // Cập nhật tags
-        if (request.getUserTags() != null) {
-            userProfileTagRepository.deleteAllByUserProfile(profile);
+        String coverUrl = uploadImage(cover);
+        if (coverUrl != null) profile.setCoverUrl(coverUrl);
 
-            for (UUID tagId : request.getUserTags()) {
-                UserTag tag = userTagRepository.findById(tagId)
-                        .orElseThrow(() -> new RuntimeException("Tag not found: " + tagId));
+        synchronizeUserTags(profile, request.getInterestTagIds(), request.getSkillTagIds());
 
-                UserProfileTag relation = new UserProfileTag();
-                relation.setUserProfile(profile);
-                relation.setUserTag(tag);
-                userProfileTagRepository.save(relation);
-            }
-        }
-
-        return toResponse(profile);
+        return toResponse(userProfileRepository.save(profile));
     }
 
-    // Help function
+    private void synchronizeUserTags(UserProfile userProfile,
+                                     Set<UUID> interestIds,
+                                     Set<UUID> skillIds) {
+        if (userProfile.getUserProfileTags() == null)
+            userProfile.setUserProfileTags(new HashSet<>());
+
+        Set<UserProfileTag> currentTags = userProfile.getUserProfileTags();
+        currentTags.clear();
+
+        addTagsByType(userProfile, currentTags, interestIds, UserTagType.INTEREST);
+
+        addTagsByType(userProfile, currentTags, skillIds, UserTagType.SKILL_IMPROVE);
+    }
+
     private String uploadAvatar(MultipartFile avatar) {
         if (avatar == null || avatar.isEmpty()) return null;
-
         try {
             @SuppressWarnings("unchecked")
             Map<String, Object> uploadResult = (Map<String, Object>) cloudinary.uploader()
@@ -139,37 +148,88 @@ public class UserProfileServiceImpl implements IUserProfileService {
                                     "unique_filename", true
                             )
                     );
-
             Object secureUrl = uploadResult.get("secure_url");
             return secureUrl != null ? secureUrl.toString() : null;
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to upload avatar to Cloudinary", e);
+        }
+    }
 
+    private void addTagsByType(UserProfile profile, Set<UserProfileTag> currentTags, Set<UUID> tagIds, UserTagType type) {
+        if (tagIds == null) return;
+        for (UUID tagId : tagIds) {
+            Tag tag = userTagRepository.findById(tagId)
+                    .orElseThrow(() -> new RuntimeException("Tag not found: " + tagId));
+
+            UserProfileTag relation = new UserProfileTag();
+
+            UserProfileTagId id = new UserProfileTagId(profile.getId(), tag.getId());
+            relation.setUserProfileTagId(id);
+
+            relation.setUserProfile(profile);
+            relation.setTag(tag);
+            relation.setType(type);
+
+            currentTags.add(relation);
+        }
+    }
+
+    private String uploadImage(MultipartFile file) {
+        if (file == null || file.isEmpty()) return null;
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> uploadResult = (Map<String, Object>) cloudinary.uploader()
+                    .upload(file.getBytes(),
+                            ObjectUtils.asMap(
+                                    "folder", cloudinaryFolder,
+                                    "resource_type", "image",
+                                    "use_filename", true,
+                                    "unique_filename", true
+                            )
+                    );
+            Object secureUrl = uploadResult.get("secure_url");
+            return secureUrl != null ? secureUrl.toString() : null;
         } catch (IOException e) {
             throw new RuntimeException("Failed to upload avatar to Cloudinary", e);
         }
     }
 
     private UserProfileResponse toResponse(UserProfile profile) {
+        List<TagResponse> interestTags = new ArrayList<>();
+        List<TagResponse> skillTags = new ArrayList<>();
 
-        List<UserTagResponse> tagResponses = profile.getUserTags().stream()
-                .map(UserProfileTag::getUserTag)
-                .map(userTag -> UserTagResponse.builder()
-                        .id(userTag.getId())
-                        .name(userTag.getName())
-                        .build())
-                .toList();
+        for (UserProfileTag relation : profile.getUserProfileTags()) {
+            if (relation.getType() == UserTagType.INTEREST) {
+                TagResponse response = TagResponse.builder()
+                                .id(relation.getTag().getId())
+                                .name(relation.getTag().getName())
+                                .slug(relation.getTag().getSlug())
+                                .description(relation.getTag().getSlug())
+                                .build();
 
-//        List<String> tagNames = profile.getUserTags().stream()
-//                .map(rel -> rel.getUserTag().getName())
-//                .toList();
+                interestTags.add(response);
+            } else if (relation.getType() == UserTagType.SKILL_IMPROVE) {
+                TagResponse response = TagResponse.builder()
+                        .id(relation.getTag().getId())
+                        .name(relation.getTag().getName())
+                        .slug(relation.getTag().getSlug())
+                        .description(relation.getTag().getSlug())
+                        .build();
+
+                skillTags.add(response);
+            }
+        }
 
         return UserProfileResponse.builder()
                 .id(profile.getId())
                 .displayName(profile.getDisplayName())
                 .bio(profile.getBio())
                 .avatarUrl(profile.getAvatarUrl())
+                .coverUrl(profile.getCoverUrl())
                 .postCount(profile.getPostCount())
                 .answeredQuestionCount(profile.getAnsweredQuestionCount())
-                .tags(tagResponses)
+                .interestTags(interestTags)
+                .skillTags(skillTags)
                 .build();
     }
 }

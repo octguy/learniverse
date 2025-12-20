@@ -20,7 +20,6 @@ public class UserProfile extends BaseEntity {
     @Column(name = "id", columnDefinition = "uuid", updatable = false, nullable = false)
     private UUID id;
 
-
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", referencedColumnName = "id", nullable = false, unique = true)
     private User user;
@@ -34,6 +33,9 @@ public class UserProfile extends BaseEntity {
     @Column(name="avatar_url")
     private String avatarUrl;
 
+    @Column(name="cover_url")
+    private String coverUrl;
+
     @Column(name="post_count")
     private int postCount = 0;
 
@@ -41,7 +43,7 @@ public class UserProfile extends BaseEntity {
     private int answeredQuestionCount = 0;
 
     @OneToMany(mappedBy = "userProfile", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<UserProfileTag> userTags = new HashSet<>();
+    private Set<UserProfileTag> userProfileTags = new HashSet<>();
 
     @PrePersist
     protected void onCreate() {
