@@ -34,6 +34,7 @@ export type AppState = {
   messageCursors: Record<string, string | null>; // Track next cursor for each chat
   hasMoreMessages: Record<string, boolean>; // Track if more messages available
   loadingMore: Record<string, boolean>; // Track loading state for infinite scroll
+  currentUserId: string | null; // Track current user ID for "You:" prefix
 };
 
 export type Action =
@@ -41,6 +42,7 @@ export type Action =
   | { type: "SET_SEARCH_QUERY"; payload: string }
   | { type: "SEND_MESSAGE"; payload: { chatId: string; message: Message } }
   | { type: "SET_CHATS"; payload: Chat[] }
+  | { type: "SET_USER_ID"; payload: string }
   | { type: "SET_MESSAGES"; payload: { chatId: string; messages: Message[] } }
   | {
       type: "SET_MESSAGES_WITH_CURSOR";

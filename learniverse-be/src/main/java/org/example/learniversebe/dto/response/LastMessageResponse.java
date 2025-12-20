@@ -5,9 +5,13 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
+import java.util.UUID;
+
 @Data
 @Builder
 public class LastMessageResponse {
+
+    private UUID senderId;
 
     private String senderName;
 

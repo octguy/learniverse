@@ -3,16 +3,16 @@ package org.example.learniversebe.service.implementation;
 import lombok.extern.slf4j.Slf4j;
 import org.example.learniversebe.dto.request.CreateGroupChatRequest;
 import org.example.learniversebe.dto.response.ChatRoomResponse;
+import org.example.learniversebe.dto.response.LastMessageResponse;
 import org.example.learniversebe.enums.GroupChatRole;
-import org.example.learniversebe.model.ChatParticipant;
-import org.example.learniversebe.model.ChatRoom;
-import org.example.learniversebe.model.User;
+import org.example.learniversebe.model.*;
 import org.example.learniversebe.repository.*;
 import org.example.learniversebe.service.IChatRoomService;
 import org.example.learniversebe.util.SecurityUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.Timestamp;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -29,9 +29,13 @@ public class ChatRoomServiceImpl implements IChatRoomService {
 
     private final ChatParticipantRepository chatParticipantRepository;
 
+    private final ChatMessageRepository chatMessageRepository;
+
     public ChatRoomServiceImpl(ChatRoomRepository chatRoomRepository,
                                UserRepository userRepository,
-                               ChatParticipantRepository chatParticipantRepository) {
+                               ChatParticipantRepository chatParticipantRepository,
+                               ChatMessageRepository chatMessageRepository) {
+        this.chatMessageRepository = chatMessageRepository;
         this.chatParticipantRepository = chatParticipantRepository;
         this.userRepository = userRepository;
         this.chatRoomRepository = chatRoomRepository;
@@ -77,13 +81,13 @@ public class ChatRoomServiceImpl implements IChatRoomService {
         chatParticipantRepository.saveAll(participants);
 
         Set<UUID> participantIds = participants.stream()
-                        .map(participant -> participant.getParticipant().getId())
-                        .collect(Collectors.toSet());
+                .map(participant -> participant.getParticipant().getId())
+                .collect(Collectors.toSet());
 
 
         log.info("Created direct chat room between {} and {}", currentUser.getUsername(), recipientUser.getUsername());
 
-        return roomResponse(room, participantIds);
+        return buildRoomResponse(room, currentUser.getId(), participantIds);
     }
 
     @Override
@@ -138,7 +142,7 @@ public class ChatRoomServiceImpl implements IChatRoomService {
         Set<UUID> allParticipantIds = new HashSet<>(participantIds);
         allParticipantIds.add(host.getId());
 
-        return roomResponse(room, allParticipantIds);
+        return buildRoomResponse(room, host.getId(), allParticipantIds);
     }
 
     @Override
@@ -148,7 +152,7 @@ public class ChatRoomServiceImpl implements IChatRoomService {
 
         List<ChatRoom> rooms = chatRoomRepository.findChatRoomsByUserId(currentUser.getId());
 
-        return buildRoomResponses(rooms);
+        return buildRoomResponses(rooms, currentUser.getId());
     }
 
     @Override
@@ -158,7 +162,7 @@ public class ChatRoomServiceImpl implements IChatRoomService {
 
         List<ChatRoom> rooms = chatRoomRepository.findAllDirectChatRoomsByUserId(currentUser.getId());
 
-        return buildRoomResponses(rooms);
+        return buildRoomResponses(rooms, currentUser.getId());
     }
 
     @Override
@@ -168,16 +172,21 @@ public class ChatRoomServiceImpl implements IChatRoomService {
 
         List<ChatRoom> rooms = chatRoomRepository.findAllGroupChatRoomsByUserId(currentUser.getId());
 
-        return buildRoomResponses(rooms);
+        return buildRoomResponses(rooms, currentUser.getId());
     }
 
     @Override
     @Transactional(readOnly = true)
     public ChatRoomResponse getChatRoomById(UUID chatRoomId) {
+        User currentUser = SecurityUtils.getCurrentUser();
+
         ChatRoom room = chatRoomRepository.findById(chatRoomId)
                 .orElseThrow(() -> new RuntimeException("Chat room not found: " + chatRoomId));
 
-        return buildRoomResponse(room);
+        Map<UUID, Set<UUID>> participantMap = loadParticipantMap(List.of(room.getId()));
+        Set<UUID> participantIds = participantMap.getOrDefault(room.getId(), emptySet());
+
+        return buildRoomResponse(room, currentUser.getId(), participantIds);
     }
 
     @Override
@@ -210,10 +219,6 @@ public class ChatRoomServiceImpl implements IChatRoomService {
     public void deleteChatRoom(UUID chatRoomId) {
         ChatRoom room = chatRoomRepository.findById(chatRoomId)
                 .orElseThrow(() -> new RuntimeException("Chat room not found"));
-
-//        messageReceiptRepository.softDeleteMessageReceiptsByRoom(chatRoomId);
-//        chatMessageRepository.softDeleteChatMessagesByRoom(chatRoomId);
-//        chatParticipantRepository.softDeleteChatParticipantsByRoom(chatRoomId);
 
         chatRoomRepository.softDeleteChatRoom(chatRoomId);
 
@@ -271,7 +276,7 @@ public class ChatRoomServiceImpl implements IChatRoomService {
                 ));
     }
 
-    private List<ChatRoomResponse> buildRoomResponses(List<ChatRoom> rooms) {
+    private List<ChatRoomResponse> buildRoomResponses(List<ChatRoom> rooms, UUID currentUserId) {
         if (rooms.isEmpty()) {
             return emptyList();
         }
@@ -283,21 +288,26 @@ public class ChatRoomServiceImpl implements IChatRoomService {
         Map<UUID, Set<UUID>> participantMap = loadParticipantMap(roomIds);
 
         return rooms.stream()
-                .map(room ->
-                        roomResponse(
-                                room,
-                                participantMap.getOrDefault(room.getId(), emptySet())
-                        )
-                )
+                .map(room -> {
+                    Set<UUID> participantIds = participantMap.getOrDefault(room.getId(), emptySet());
+                    return buildRoomResponse(room, currentUserId, participantIds);
+                })
                 .toList();
     }
 
-    private ChatRoomResponse buildRoomResponse(ChatRoom room) {
-        Map<UUID, Set<UUID>> participantMap = loadParticipantMap(List.of(room.getId()));
+    private ChatRoomResponse buildRoomResponse(ChatRoom room, UUID currentUserId, Set<UUID> participantIds) {
+        LastMessageResponse lastMessage = getLastMessageByRoom(room);
+        Integer unreadCount = getUnreadCount(room.getId(), currentUserId);
 
-        Set<UUID> participantIds = participantMap.getOrDefault(room.getId(), emptySet());
-
-        return roomResponse(room, participantIds);
+        return ChatRoomResponse.builder()
+                .id(room.getId())
+                .name(room.getName())
+                .isGroupChat(room.isGroupChat())
+                .participants(participantIds)
+                .lastMessage(lastMessage)
+                .unreadCount(unreadCount != null ? unreadCount : 0)
+                .createdAt(room.getCreatedAt())
+                .build();
     }
 
     private ChatParticipant createParticipant(ChatRoom room, User user, User invitedBy, GroupChatRole role) {
@@ -311,13 +321,42 @@ public class ChatRoomServiceImpl implements IChatRoomService {
         return participant;
     }
 
-    private ChatRoomResponse roomResponse(ChatRoom room, Set<UUID> participantIds) {
-        return ChatRoomResponse.builder()
-                .id(room.getId())
-                .name(room.getName())
-                .isGroupChat(room.isGroupChat())
-                .participants(participantIds)
-                .createdAt(room.getCreatedAt())
-                .build();
+    private LastMessageResponse getLastMessageByRoom(ChatRoom room) {
+        List<Object[]> results = chatMessageRepository.findLastMessageByChatRoomId(room.getId());
+
+        if (results == null || results.isEmpty()) {
+            return null;
+        }
+
+        try {
+            Object[] msg = results.get(0);
+
+            // Validate array has expected length
+            if (msg.length < 4) {
+                log.warn("Expected 4 columns but got {} for room {}", msg.length, room.getId());
+                return null;
+            }
+
+            UUID senderId = msg[0] != null ? (UUID) msg[0] : null;
+            String senderDisplayName = msg[1] != null ? msg[1].toString() : null;
+            String messageType = msg[2] != null ? msg[2].toString() : null;
+            String content = msg[3] != null ? msg[3].toString() : null;
+            Timestamp createdAt = msg[4] != null ? (Timestamp) msg[4] : null;
+
+            return LastMessageResponse.builder()
+                    .senderId(senderId)
+                    .senderName(senderDisplayName)
+                    .messageType(messageType)
+                    .content(content)
+                    .sendAt(createdAt != null ? createdAt.toLocalDateTime() : null)
+                    .build();
+        } catch (Exception e) {
+            log.error("Error processing last message data for room {}: {}", room.getId(), e.getMessage(), e);
+            return null;
+        }
+    }
+
+    private Integer getUnreadCount(UUID chatRoomId, UUID participantId) {
+        return chatParticipantRepository.getUnreadCount(chatRoomId, participantId);
     }
 }

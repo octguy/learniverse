@@ -26,7 +26,7 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, UUID> 
     Page<ChatMessage> findByChatRoomId(UUID chatRoomId, Pageable pageable);
 
     @Query(value= """
-        select up.display_name, cm.message_type, cm.text_content, cm.created_at
+        select up.user_id, up.display_name, cm.message_type, cm.text_content, cm.created_at
         from chat_message cm
         join user_profile up on cm.sender_id = up.user_id
         where cm.chat_room_id = :chatRoomId

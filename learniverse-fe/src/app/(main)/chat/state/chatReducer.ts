@@ -20,22 +20,13 @@ export function chatReducer(state: AppState, action: Action): AppState {
       return { ...state, searchQuery: action.payload };
 
     case "SEND_MESSAGE": {
-      const { chatId, message } = action.payload;
-      const chatToUpdate = state.chats.find((c) => c.id === chatId);
-      if (!chatToUpdate) return state;
-
-      const otherChats = state.chats.filter((c) => c.id !== chatId);
-      const updatedChat = {
-        ...chatToUpdate,
-        lastMessage: `${message.senderUsername}: ${message.textContent}`,
-      };
-
-      // Don't add message - WebSocket will handle it for both sender and receiver
-      return {
-        ...state,
-        chats: [updatedChat, ...otherChats],
-      };
+      // WebSocket will handle updating the message list and last message
+      // Just return state as-is
+      return state;
     }
+
+    case "SET_USER_ID":
+      return { ...state, currentUserId: action.payload };
 
     case "SET_CHATS":
       return { ...state, chats: action.payload };
@@ -133,9 +124,15 @@ export function chatReducer(state: AppState, action: Action): AppState {
       const otherChats = state.chats.filter((c) => c.id !== chatId);
       const isCurrentChat = state.currentChatId === chatId;
 
+      // Use "You:" if message is from current user
+      const senderPrefix =
+        message.senderId === state.currentUserId
+          ? "You"
+          : message.senderUsername;
+
       const updatedChat = {
         ...chatToUpdate,
-        lastMessage: `${message.senderUsername}: ${message.textContent}`,
+        lastMessage: `${senderPrefix}: ${message.textContent}`,
         unreadCount: isCurrentChat ? 0 : chatToUpdate.unreadCount + 1,
       };
 

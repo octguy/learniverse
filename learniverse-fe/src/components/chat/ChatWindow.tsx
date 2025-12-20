@@ -165,7 +165,7 @@ const ChatWindow = ({
   };
 
   const fmtTime = (iso: string) => format(new Date(iso), "HH:mm");
-  const fmtDate = (d: Date) => format(d, "MMM d").toUpperCase(); // OCT 4
+  const fmtDate = (d: Date) => format(d, "MMM d, yyyy").toUpperCase(); // OCT 4, 2025
   const full = (iso: string) => format(new Date(iso), "HH:mm • dd/MM/yyyy");
 
   return (
@@ -209,6 +209,9 @@ const ChatWindow = ({
               !prev ||
               !isSameDay(new Date(prev.createdAt), new Date(m.createdAt));
             const isOwn = m.senderId === userId;
+            // Show avatar if it's not own message and either first message or different sender from previous
+            const showAvatar =
+              !isOwn && (!prev || prev.senderId !== m.senderId);
 
             return (
               <React.Fragment key={m.id}>
@@ -222,14 +225,30 @@ const ChatWindow = ({
 
                 <div
                   id={`msg-${m.id}`}
-                  className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
+                  className={`flex gap-2 ${
+                    isOwn ? "justify-end" : "justify-start"
+                  }`}
                 >
+                  {!isOwn && (
+                    <div className="flex-shrink-0">
+                      {showAvatar ? (
+                        <Avatar className="w-8 h-8">
+                          <AvatarImage src={m.senderAvatar || undefined} />
+                          <AvatarFallback className="text-xs bg-gray-200">
+                            {m.senderUsername.charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                      ) : (
+                        <div className="w-8" />
+                      )}
+                    </div>
+                  )}
                   <div
                     className={`flex flex-col ${
                       isOwn ? "items-end" : "items-start"
                     }`}
                   >
-                    {!isOwn && (
+                    {!isOwn && showAvatar && (
                       <span className="text-xs text-gray-600 mb-1 ml-2">
                         {m.senderUsername}
                       </span>
