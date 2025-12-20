@@ -1,6 +1,6 @@
 import apiService from "@/lib/apiService";
 import { ApiResponse } from "@/types/api";
-import { CreatePostRequest, Tag, Post } from "@/types/post";
+import { CreatePostRequest, Tag, Post, UpdatePostRequest } from "@/types/post";
 
 export interface PostResponse {
     id: string;
@@ -29,6 +29,23 @@ export const postService = {
             });
         }
         const response = await apiService.post<ApiResponse<PostResponse>>("/posts", formData, {
+            headers: {
+                "Content-Type": "multipart/form-data",
+            },
+        });
+        return response.data;
+    },
+
+    updatePost: async (id: string, data: UpdatePostRequest, files: File[]) => {
+        const formData = new FormData();
+        const jsonBlob = new Blob([JSON.stringify(data)], { type: "application/json" });
+        formData.append("post", jsonBlob);
+        if (files && files.length > 0) {
+            files.forEach((file) => {
+                formData.append("files", file);
+            });
+        }
+        const response = await apiService.put<ApiResponse<PostResponse>>(`/posts/${id}`, formData, {
             headers: {
                 "Content-Type": "multipart/form-data",
             },

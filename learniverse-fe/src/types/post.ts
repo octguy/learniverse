@@ -21,6 +21,10 @@ export interface CreatePostRequest {
   body: string;
   tagIds: string[];
 }
+
+export interface UpdatePostRequest extends CreatePostRequest {
+  deletedAttachmentIds?: string[];
+}
 export type PostAuthor = {
   id: string; 
   username: string;

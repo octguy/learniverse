@@ -35,6 +35,10 @@ import { interactionService, ReactionType } from "@/lib/api/interactionService"
 import { cn } from "@/lib/utils"
 import { CommentSection } from "./CommentSection"
 import { toast } from "sonner"
+import { useAuth } from "@/context/AuthContext"
+import { Dialog } from "@/components/ui/dialog"
+import CreatePostModal from "./CreatePostModal"
+import { Edit, Trash2, Flag } from "lucide-react"
 const REACTIONS_CONFIG = [
   {
     type: "LIKE" as ReactionType,
@@ -73,6 +77,7 @@ interface PostCardProps {
 }
 
 export function PostCard({ post }: PostCardProps) {
+  const { user } = useAuth()
   const { author, title, body, tags = [], attachments = [], createdAt, lastEditedAt } = post
 
   const [currentReaction, setCurrentReaction] = useState<ReactionType | null>(
@@ -82,8 +87,11 @@ export function PostCard({ post }: PostCardProps) {
   const [isApiLoading, setIsApiLoading] = useState(false)
   const [isBookmarked, setIsBookmarked] = useState(post.bookmarkedByCurrentUser);
   const [isBookmarkLoading, setIsBookmarkLoading] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
 
   const [commentCount, setCommentCount] = useState(post.commentCount)
+
+  const isAuthor = user?.id === author.id
 
   const handleReact = async (type: ReactionType) => {
     if (isApiLoading) return
@@ -142,10 +150,6 @@ export function PostCard({ post }: PostCardProps) {
 
   const activeReactionConfig = REACTIONS_CONFIG.find(r => r.type === currentReaction)
   const postDate = new Date(createdAt)
-  const isOwnPost = author.id === "user_123"
-  const hoursSinceCreation =
-    (new Date().getTime() - postDate.getTime()) / (1000 * 60 * 60)
-  const canEdit = isOwnPost && hoursSinceCreation < 24
 
   const images = attachments.filter((att) => att.fileType === "IMAGE")
   const pdfs = attachments.filter((att) => att.fileType === "PDF")
@@ -163,7 +167,7 @@ export function PostCard({ post }: PostCardProps) {
             <p className="font-semibold text-sm leading-none truncate">
               {author.username}
             </p>
-            <div className="mt-1 text-xs text-muted-foreground">
+            <div className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
               <span>
                 {!isNaN(postDate.getTime()) ? (
                   formatDistanceToNow(postDate, { addSuffix: true, locale: vi })
@@ -171,10 +175,15 @@ export function PostCard({ post }: PostCardProps) {
                   "Vừa xong"
                 )}
               </span>
-              {lastEditedAt && <span> • (Đã chỉnh sửa)</span>}
+              {lastEditedAt && (
+                <>
+                  <span>•</span>
+                  <span className="italic">Đã chỉnh sửa</span>
+                </>
+              )}
             </div>
           </div>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -182,18 +191,22 @@ export function PostCard({ post }: PostCardProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {canEdit && (
-                  <DropdownMenuItem onClick={() => alert("Mở modal chỉnh sửa")}>
-                    Chỉnh sửa bài viết
-                  </DropdownMenuItem>
+                {isAuthor && (
+                  <>
+                    <DropdownMenuItem onClick={() => setIsEditModalOpen(true)}>
+                      <Edit className="mr-2 h-4 w-4" />
+                      Chỉnh sửa bài viết
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="text-red-600">
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Xóa bài viết
+                    </DropdownMenuItem>
+                  </>
                 )}
-                {isOwnPost ? (
-                  <DropdownMenuItem className="text-red-500">
-                    Xóa bài viết
-                  </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem>Báo cáo bài viết</DropdownMenuItem>
-                )}
+                <DropdownMenuItem>
+                  <Flag className="mr-2 h-4 w-4" />
+                  Báo cáo
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             <Button
@@ -333,6 +346,17 @@ export function PostCard({ post }: PostCardProps) {
           </div>
         )}
       </CardFooter>
+
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <CreatePostModal 
+          setOpen={setIsEditModalOpen} 
+          onSuccess={() => {
+            // Có thể thêm logic reload post hoặc update UI ở đây
+            window.location.reload(); // Tạm thời reload để thấy thay đổi
+          }}
+          initialData={post}
+        />
+      </Dialog>
     </Card>
   )
 }
