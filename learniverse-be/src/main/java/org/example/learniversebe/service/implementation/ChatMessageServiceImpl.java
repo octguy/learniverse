@@ -73,7 +73,7 @@ public class ChatMessageServiceImpl implements IChatMessageService {
         ChatRoom chatRoom = getChatRoom(roomId);
 
         // Validate sender is participant
-        validateParticipant(chatRoom.getId(), sender.getId());
+        ChatParticipant participant = getParticipant(chatRoom.getId(), sender.getId());
 
         ChatMessage message = new ChatMessage();
 
@@ -112,6 +112,9 @@ public class ChatMessageServiceImpl implements IChatMessageService {
 
         messagingTemplate.convertAndSend("/topic/chat/" + roomId, response);
         log.debug("Message broadcasted to chat room {}", roomId);
+
+        participant.setLastReadAt(LocalDateTime.now());
+        chatParticipantRepository.save(participant);
 
         return response;
     }
@@ -215,12 +218,8 @@ public class ChatMessageServiceImpl implements IChatMessageService {
                                                                   LocalDateTime cursor,
                                                                   int limit) {
         User currentUser = SecurityUtils.getCurrentUser();
-        boolean isParticipant = chatParticipantRepository.existsByChatRoomIdAndParticipantId(chatRoomId, currentUser.getId());
 
-        if (!isParticipant) {
-            log.error("User {} is not authorized to view messages in chat room {}", currentUser.getId(), chatRoomId);
-            throw new UnauthorizedException("You must be a participant to view chat room messages");
-        }
+        ChatParticipant participant = getParticipant(chatRoomId, currentUser.getId());
 
         List<ChatMessageProjection> projections = chatMessageRepository.findMessagesByChatRoomId(chatRoomId, cursor, limit);
 
@@ -287,10 +286,12 @@ public class ChatMessageServiceImpl implements IChatMessageService {
                 });
     }
 
-    private void validateParticipant(UUID chatRoomId, UUID userId) {
-        if (!chatParticipantRepository.existsByChatRoomIdAndParticipantId(chatRoomId, userId)) {
-            log.error("User {} is not a participant of chat room {}", userId, chatRoomId);
-            throw new UnauthorizedException("You are not a participant of this chat room");
-        }
+    private ChatParticipant getParticipant(UUID chatRoomId, UUID userId) {
+        return chatParticipantRepository
+                .findByChatRoomIdAndParticipantId(chatRoomId, userId)
+                .orElseThrow(() -> {
+                    log.error("User {} is not a participant in chat room {}", userId, chatRoomId);
+                    return new UnauthorizedException("You must be a participant to perform this action");
+                });
     }
 }
