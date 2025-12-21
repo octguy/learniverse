@@ -44,7 +44,9 @@ const ChatWindow = ({
   const [initialLoading, setInitialLoading] = useState(true);
   const [showLoadingSpinner, setShowLoadingSpinner] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [fileType, setFileType] = useState<"IMAGE" | "VIDEO" | "FILE" | null>(null);
+  const [fileType, setFileType] = useState<"IMAGE" | "VIDEO" | "FILE" | null>(
+    null
+  );
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -85,14 +87,20 @@ const ChatWindow = ({
         isInitialLoadRef.current = false;
         setInitialLoading(false);
       });
+    } else if (isInitialLoadRef.current && messages.length === 0) {
+      // If there are no messages, still show the chat window
+      setInitialLoading(false);
+      isInitialLoadRef.current = false;
     }
-  }, [messages.length]);
+  }, [messages.length, messages]);
 
   // Reset initial load flag when chat changes
   useEffect(() => {
     isInitialLoadRef.current = true;
     setInitialLoading(true);
     previousMessageCountRef.current = 0;
+    oldestMessageIdRef.current = null;
+    setAutoScroll(true);
   }, [chat.id]);
 
   // Auto-scroll to bottom only for NEW messages (not when loading old messages)
@@ -180,7 +188,7 @@ const ChatWindow = ({
     e.preventDefault();
     const content = messageInput.trim();
     if (!content) return;
-    
+
     // Send with parentMessageId if replying
     if (replyingTo) {
       onSend(chat.id, content, replyingTo.id);
@@ -188,7 +196,7 @@ const ChatWindow = ({
     } else {
       onSend(chat.id, content);
     }
-    
+
     setMessageInput("");
     // Force scroll to bottom when sending a message
     setAutoScroll(true);
@@ -214,10 +222,10 @@ const ChatWindow = ({
         type: file.type,
         size: file.size,
       });
-      
+
       const detectedType = detectFileType(file);
       console.log("[FILE] Detected type:", detectedType);
-      
+
       setSelectedFile(file);
       setFileType(detectedType);
     }
@@ -227,11 +235,11 @@ const ChatWindow = ({
   const scrollToMessage = (messageId: number | string) => {
     const element = document.getElementById(`message-${messageId}`);
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
       // Add a highlight effect
-      element.classList.add('bg-yellow-100');
+      element.classList.add("bg-yellow-100");
       setTimeout(() => {
-        element.classList.remove('bg-yellow-100');
+        element.classList.remove("bg-yellow-100");
       }, 2000);
     }
   };
@@ -262,9 +270,9 @@ const ChatWindow = ({
           setUploadProgress(progress);
         }
       );
-      
+
       console.log("[FILE] ✅ Upload successful:", result);
-      
+
       // Close preview
       setSelectedFile(null);
       setFileType(null);
@@ -276,7 +284,11 @@ const ChatWindow = ({
         response: error.response?.data,
         status: error.response?.status,
       });
-      alert(`Failed to upload file: ${error.response?.data?.message || error.message}`);
+      alert(
+        `Failed to upload file: ${
+          error.response?.data?.message || error.message
+        }`
+      );
     } finally {
       setUploading(false);
     }
@@ -370,140 +382,186 @@ const ChatWindow = ({
                       )}
                     </div>
                   )}
-                    <div
-                      className={`flex flex-col ${
-                        isOwn ? "items-end" : "items-start"
-                      }`}
-                    >
-                      {!isOwn && showAvatar && (
-                        <span className="text-xs text-gray-600 mb-1 ml-2">
-                          {m.senderUsername}
-                        </span>
-                      )}
-                      <div className="group relative">
-                        {/* Different styling for media vs text messages */}
-                        {m.messageType === "TEXT" ? (
-                          <div className={`flex items-end gap-1 ${isOwn ? "justify-end" : "justify-start"}`}>
-                            {/* Reply button on LEFT for own text messages */}
-                            {isOwn && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 flex-shrink-0 mb-1"
-                                onClick={() => setReplyingTo(m)}
-                              >
-                                <Reply className="w-3 h-3" />
-                              </Button>
-                            )}
-                            
-                            <div
-                              className={`max-w-[70%] min-w-[100px] rounded-lg px-3 py-2 ${
-                                isOwn ? "bg-blue-500 text-white" : "bg-white border"
-                              }`}
-                              title={full(m.createdAt)}
+                  <div
+                    className={`flex flex-col ${
+                      isOwn ? "items-end" : "items-start"
+                    }`}
+                  >
+                    {!isOwn && showAvatar && (
+                      <span className="text-xs text-gray-600 mb-1 ml-2">
+                        {m.senderUsername}
+                      </span>
+                    )}
+                    <div className="group relative">
+                      {/* Different styling for media vs text messages */}
+                      {m.messageType === "TEXT" ? (
+                        <div
+                          className={`flex items-end gap-1 ${
+                            isOwn ? "justify-end" : "justify-start"
+                          }`}
+                        >
+                          {/* Reply button on LEFT for own text messages */}
+                          {isOwn && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 flex-shrink-0 mb-1"
+                              onClick={() => setReplyingTo(m)}
                             >
-                              {/* Parent Message Reference */}
-                              {m.parentMessageId && (
+                              <Reply className="w-3 h-3" />
+                            </Button>
+                          )}
+
+                          <div
+                            className={`max-w-[70%] min-w-[100px] rounded-lg px-3 py-2 ${
+                              isOwn
+                                ? "bg-blue-500 text-white"
+                                : "bg-white border"
+                            }`}
+                            title={full(m.createdAt)}
+                          >
+                            {/* Parent Message Reference */}
+                            {m.parentMessageId && (
+                              <ParentMessage
+                                senderUsername={
+                                  messages.find(
+                                    (msg) => msg.id === m.parentMessageId
+                                  )?.senderUsername || "Unknown"
+                                }
+                                textContent={
+                                  messages.find(
+                                    (msg) => msg.id === m.parentMessageId
+                                  )?.textContent || ""
+                                }
+                                messageType={
+                                  (messages.find(
+                                    (msg) => msg.id === m.parentMessageId
+                                  )?.messageType as
+                                    | "TEXT"
+                                    | "IMAGE"
+                                    | "VIDEO"
+                                    | "FILE") || "TEXT"
+                                }
+                                onClick={() =>
+                                  scrollToMessage(m.parentMessageId!)
+                                }
+                              />
+                            )}
+
+                            <MessageAttachment
+                              messageType={
+                                m.messageType as
+                                  | "TEXT"
+                                  | "IMAGE"
+                                  | "VIDEO"
+                                  | "FILE"
+                              }
+                              metadata={m.metadata}
+                              textContent={m.textContent}
+                            />
+                            <div
+                              className={`mt-1 text-[10px] leading-none text-right ${
+                                isOwn ? "opacity-80" : "text-muted-foreground"
+                              }`}
+                            >
+                              {fmtTime(m.createdAt)}
+                            </div>
+                          </div>
+
+                          {/* Reply button on RIGHT for others' text messages */}
+                          {!isOwn && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 flex-shrink-0 mb-1"
+                              onClick={() => setReplyingTo(m)}
+                            >
+                              <Reply className="w-3 h-3" />
+                            </Button>
+                          )}
+                        </div>
+                      ) : (
+                        <div
+                          className={`flex ${
+                            isOwn ? "justify-end" : "justify-start"
+                          }`}
+                        >
+                          <div className="relative inline-block max-w-[70%]">
+                            {/* Parent Message Reference for media */}
+                            {m.parentMessageId && (
+                              <div
+                                className={`mb-2 px-3 py-2 rounded-lg ${
+                                  isOwn
+                                    ? "bg-blue-500 text-white"
+                                    : "bg-white border"
+                                }`}
+                              >
                                 <ParentMessage
                                   senderUsername={
-                                    messages.find((msg) => msg.id === m.parentMessageId)
-                                      ?.senderUsername || "Unknown"
+                                    messages.find(
+                                      (msg) => msg.id === m.parentMessageId
+                                    )?.senderUsername || "Unknown"
                                   }
                                   textContent={
-                                    messages.find((msg) => msg.id === m.parentMessageId)
-                                      ?.textContent || ""
+                                    messages.find(
+                                      (msg) => msg.id === m.parentMessageId
+                                    )?.textContent || ""
                                   }
                                   messageType={
-                                    (messages.find((msg) => msg.id === m.parentMessageId)
-                                      ?.messageType as "TEXT" | "IMAGE" | "VIDEO" | "FILE") || "TEXT"
+                                    (messages.find(
+                                      (msg) => msg.id === m.parentMessageId
+                                    )?.messageType as
+                                      | "TEXT"
+                                      | "IMAGE"
+                                      | "VIDEO"
+                                      | "FILE") || "TEXT"
                                   }
-                                  onClick={() => scrollToMessage(m.parentMessageId!)}
+                                  onClick={() =>
+                                    scrollToMessage(m.parentMessageId!)
+                                  }
                                 />
-                              )}
-                              
-                              <MessageAttachment
-                                messageType={m.messageType as "TEXT" | "IMAGE" | "VIDEO" | "FILE"}
-                                metadata={m.metadata}
-                                textContent={m.textContent}
-                              />
+                              </div>
+                            )}
+
+                            <MessageAttachment
+                              messageType={
+                                m.messageType as
+                                  | "TEXT"
+                                  | "IMAGE"
+                                  | "VIDEO"
+                                  | "FILE"
+                              }
+                              metadata={m.metadata}
+                              textContent={m.textContent}
+                            />
+
+                            {/* Timestamp and Reply button in same row */}
+                            <div className="flex items-center justify-end gap-2 mt-1">
                               <div
-                                className={`mt-1 text-[10px] leading-none text-right ${
-                                  isOwn ? "opacity-80" : "text-muted-foreground"
+                                className={`text-[10px] leading-none ${
+                                  isOwn
+                                    ? "text-blue-600"
+                                    : "text-muted-foreground"
                                 }`}
                               >
                                 {fmtTime(m.createdAt)}
                               </div>
-                            </div>
-                            
-                            {/* Reply button on RIGHT for others' text messages */}
-                            {!isOwn && (
+
+                              {/* Reply button aligned with timestamp */}
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 flex-shrink-0 mb-1"
+                                className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 flex-shrink-0"
                                 onClick={() => setReplyingTo(m)}
                               >
                                 <Reply className="w-3 h-3" />
                               </Button>
-                            )}
-                          </div>
-                        ) : (
-                          <div className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
-                            <div className="relative inline-block max-w-[70%]">
-                              {/* Parent Message Reference for media */}
-                              {m.parentMessageId && (
-                                <div className={`mb-2 px-3 py-2 rounded-lg ${
-                                  isOwn ? "bg-blue-500 text-white" : "bg-white border"
-                                }`}>
-                                  <ParentMessage
-                                    senderUsername={
-                                      messages.find((msg) => msg.id === m.parentMessageId)
-                                        ?.senderUsername || "Unknown"
-                                    }
-                                    textContent={
-                                      messages.find((msg) => msg.id === m.parentMessageId)
-                                        ?.textContent || ""
-                                    }
-                                    messageType={
-                                      (messages.find((msg) => msg.id === m.parentMessageId)
-                                        ?.messageType as "TEXT" | "IMAGE" | "VIDEO" | "FILE") || "TEXT"
-                                    }
-                                    onClick={() => scrollToMessage(m.parentMessageId!)}
-                                  />
-                                </div>
-                              )}
-                              
-                              <MessageAttachment
-                                messageType={m.messageType as "TEXT" | "IMAGE" | "VIDEO" | "FILE"}
-                                metadata={m.metadata}
-                                textContent={m.textContent}
-                              />
-                              
-                              {/* Timestamp and Reply button in same row */}
-                              <div className="flex items-center justify-end gap-2 mt-1">
-                                <div
-                                  className={`text-[10px] leading-none ${
-                                    isOwn ? "text-blue-600" : "text-muted-foreground"
-                                  }`}
-                                >
-                                  {fmtTime(m.createdAt)}
-                                </div>
-                                
-                                {/* Reply button aligned with timestamp */}
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 flex-shrink-0"
-                                  onClick={() => setReplyingTo(m)}
-                                >
-                                  <Reply className="w-3 h-3" />
-                                </Button>
-                              </div>
                             </div>
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
+                  </div>
                 </div>
               </React.Fragment>
             );
@@ -563,6 +621,5 @@ const ChatWindow = ({
     </div>
   );
 };
-
 
 export default ChatWindow;

@@ -1,5 +1,6 @@
 package org.example.learniversebe.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.example.learniversebe.dto.request.CreateGroupChatRequest;
@@ -26,6 +27,7 @@ public class ChatRoomController {
     }
 
     @PostMapping("/direct/{recipientId}")
+    @Operation(summary = "Create a direct chat", description = "Creates a direct (1-on-1) chat room with the specified recipient. Returns existing chat if already exists.")
     public ResponseEntity<?> createDirectChatRoom(@PathVariable UUID recipientId) {
         ChatRoomResponse chatRoomResponse = chatRoomService.createDirectChat(recipientId);
 
@@ -40,6 +42,7 @@ public class ChatRoomController {
     }
 
     @PostMapping("/group")
+    @Operation(summary = "Create a group chat", description = "Creates a new group chat with multiple participants. Requires at least 2 participants and a group name.")
     public ResponseEntity<?> createGroupChatRoom(@Valid @RequestBody CreateGroupChatRequest request) {
         ChatRoomResponse chatRoomResponse = chatRoomService.createGroupChat(request);
 
@@ -54,6 +57,7 @@ public class ChatRoomController {
     }
 
     @GetMapping
+    @Operation(summary = "Get all chat rooms", description = "Retrieves all chat rooms (both direct and group) for the current user.")
     public ResponseEntity<?> getAllChatRoomsByUser() {
 
         List<ChatRoomResponse> chatRoomResponses = chatRoomService.getAllChatRooms();
@@ -69,6 +73,7 @@ public class ChatRoomController {
     }
 
     @GetMapping("/direct")
+    @Operation(summary = "Get all direct chats", description = "Retrieves all direct (1-on-1) chat rooms for the current user.")
     public ResponseEntity<?> getAllDirectChatRoomsByUser() {
         List<ChatRoomResponse> chatRoomResponses = chatRoomService.getAllDirectChatRooms();
 
@@ -83,6 +88,7 @@ public class ChatRoomController {
     }
 
     @GetMapping("/group")
+    @Operation(summary = "Get all group chats", description = "Retrieves all group chat rooms for the current user.")
     public ResponseEntity<?> getAllGroupChatRoomsByUser() {
         List<ChatRoomResponse> chatRoomResponses = chatRoomService.getAllGroupChatRooms();
 
@@ -98,6 +104,7 @@ public class ChatRoomController {
 
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("{id}")
+    @Operation(summary = "Get chat room by ID (Admin only)", description = "Retrieves detailed information for a specific chat room. Requires ADMIN role.")
     public ResponseEntity<?> getChatRoomById(@PathVariable UUID id) {
         ChatRoomResponse chatRoomResponse = chatRoomService.getChatRoomById(id);
 
@@ -112,6 +119,7 @@ public class ChatRoomController {
     }
 
     @PostMapping("/{id}/leave")
+    @Operation(summary = "Leave a chat room", description = "Allows the current user to leave a chat room. Removes them as a participant.")
     public ResponseEntity<?> leaveChatRoom(@PathVariable UUID id) {
         chatRoomService.leaveChatRoom(id);
 
@@ -127,6 +135,7 @@ public class ChatRoomController {
 
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("{id}")
+    @Operation(summary = "Delete a chat room (Admin only)", description = "Soft-deletes a chat room. Requires ADMIN role.")
     public ResponseEntity<?> deleteChatRoom(@PathVariable UUID id) {
         chatRoomService.deleteChatRoom(id);
 

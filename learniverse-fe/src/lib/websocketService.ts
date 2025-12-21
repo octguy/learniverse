@@ -202,7 +202,17 @@ class WebSocketService {
           );
           console.log("[WS] 📦 Parsed event:", event);
 
-          // Check event type
+          // Check event type - handle NEW_MESSAGE and MESSAGE_RECEIPT
+          if (event.eventType === SocketEventType.MESSAGE_RECEIPT) {
+            console.log(
+              "[WS] 📖 Message receipt event received:",
+              event.data
+            );
+            // MESSAGE_RECEIPT events are informational (read status updates)
+            // We don't need to add them to the message list
+            return;
+          }
+          
           if (event.eventType !== SocketEventType.NEW_MESSAGE) {
             console.warn(
               "[WS] ⚠️ Unexpected event type:",

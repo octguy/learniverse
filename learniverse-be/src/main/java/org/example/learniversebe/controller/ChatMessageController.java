@@ -1,5 +1,6 @@
 package org.example.learniversebe.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.example.learniversebe.dto.request.EditMessageRequest;
@@ -43,6 +44,7 @@ public class ChatMessageController {
     }
 
     @PostMapping("/send/{roomId}")
+    @Operation(summary = "Send a text message", description = "Sends a text message to a chat room. Supports replies via parentMessageId.")
     public ResponseEntity<?> sendTextMessage(@PathVariable UUID roomId,
                                              @Valid @RequestBody SendMessageRequest request) {
         MessageResponse messageResponse = chatMessageService.sendMessage(roomId, request);
@@ -58,6 +60,7 @@ public class ChatMessageController {
     }
 
     @PostMapping(value = "/send-with-file/{roomId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Send a message with file attachment", description = "Sends a message with an attached file (image, video, or document). Supports optional text caption and replies.")
     public ResponseEntity<?> sendMessageWithFile(
             @PathVariable UUID roomId,
             @RequestParam("messageType") MessageType messageType,
@@ -83,6 +86,7 @@ public class ChatMessageController {
     }
 
     @PostMapping("/mark-as-read/{roomId}")
+    @Operation(summary = "Mark messages as read", description = "Marks all messages in a chat room as read by the current user.")
     public ResponseEntity<?> markMessagesAsRead(@PathVariable UUID roomId) {
         chatMessageService.markAsRead(roomId);
 
@@ -97,6 +101,7 @@ public class ChatMessageController {
     }
 
     @PutMapping("/edit")
+    @Operation(summary = "Edit a message", description = "Edits an existing message's text content. Broadcasts update via WebSocket.")
     public ResponseEntity<?> editMessage(@Valid @RequestBody EditMessageRequest request) {
         MessageResponse messageResponse = chatMessageService.editMessage(request);
 
@@ -117,6 +122,7 @@ public class ChatMessageController {
     }
 
     @GetMapping("/room/{chatRoomId}")
+    @Operation(summary = "Get messages in a chat room", description = "Retrieves paginated messages from a chat room using cursor-based pagination.")
     public ResponseEntity<?> getMessagesByChatRoom(
             @PathVariable UUID chatRoomId,
             @RequestParam(required = false)
@@ -137,6 +143,7 @@ public class ChatMessageController {
     }
 
     @GetMapping("/{messageId}")
+    @Operation(summary = "Get a message by ID", description = "Retrieves detailed information for a specific message.")
     public ResponseEntity<?> getMessageById(@PathVariable UUID messageId) {
         MessageResponse messageResponse = chatMessageService.getMessageById(messageId);
 
@@ -151,6 +158,7 @@ public class ChatMessageController {
     }
 
     @PostMapping("/presence/online")
+    @Operation(summary = "Set user status to online", description = "Sets the current user's status to online and broadcasts it via WebSocket.")
     public ResponseEntity<?> setUserOnline() {
         User currentUser = SecurityUtils.getCurrentUser();
         presenceService.setUserOnline(currentUser.getId(), currentUser.getUsername());
@@ -174,6 +182,7 @@ public class ChatMessageController {
     }
 
     @PostMapping("/presence/offline")
+    @Operation(summary = "Set user status to offline", description = "Sets the current user's status to offline and broadcasts it via WebSocket.")
     public ResponseEntity<?> setUserOffline() {
         User currentUser = SecurityUtils.getCurrentUser();
         presenceService.setUserOffline(currentUser.getId());
@@ -197,6 +206,7 @@ public class ChatMessageController {
     }
 
     @GetMapping("/presence/{userId}")
+    @Operation(summary = "Get user online status", description = "Retrieves the online/offline status of a specific user.")
     public ResponseEntity<?> getUserStatus(@PathVariable UUID userId) {
         UserStatusDTO statusDTO = presenceService.getUserStatus(userId);
 

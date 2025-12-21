@@ -1,5 +1,6 @@
 package org.example.learniversebe.model;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -22,6 +23,7 @@ import java.util.UUID;
 @Getter
 @Setter
 @SQLRestriction("deleted_at IS NULL")
+@Schema(description = "Entity representing a participant in a chat room")
 public class ChatParticipant extends BaseEntity {
 
     @Id
