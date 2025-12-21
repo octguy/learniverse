@@ -112,4 +112,7 @@ export const chatService = {
       }>
     >(`/messages/room/${roomId}?${params.toString()}`);
   },
+
+  markAsRead: (roomId: string) =>
+    apiService.post<ApiResponse<void>>(`/messages/mark-as-read/${roomId}`),
 };

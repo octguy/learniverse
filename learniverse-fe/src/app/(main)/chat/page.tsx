@@ -168,6 +168,45 @@ export default function ChatPage() {
     };
   }, []);
 
+  // Subscribe to ALL user's chats to update chat list when new messages arrive
+  useEffect(() => {
+    if (!websocketService.isConnected() || chats.length === 0) {
+      return;
+    }
+
+    const unsubscribers: (() => void)[] = [];
+
+    // Subscribe to each chat room
+    chats.forEach((chat) => {
+      const unsubscribe = websocketService.subscribeToChat(
+        chat.id,
+        (message: MessageDTO) => {
+          const msg: Message = {
+            id: message.id,
+            chatRoomId: message.chatRoomId,
+            senderId: message.sender.senderId,
+            senderUsername: message.sender.senderName,
+            senderAvatar: message.sender.senderAvatar,
+            messageType: message.messageType,
+            textContent: message.textContent,
+            createdAt: message.createdAt,
+          };
+
+          console.log("[CHAT] 📨 Received message for chat:", chat.id, msg);
+          dispatch({ type: "ADD_MESSAGE", payload: msg });
+        }
+      );
+
+      if (unsubscribe) {
+        unsubscribers.push(unsubscribe);
+      }
+    });
+
+    return () => {
+      unsubscribers.forEach((unsub) => unsub());
+    };
+  }, [chats, currentUserId]);
+
   // Subscribe to current chat messages
   useEffect(() => {
     if (!currentChatId || !websocketService.isConnected()) {

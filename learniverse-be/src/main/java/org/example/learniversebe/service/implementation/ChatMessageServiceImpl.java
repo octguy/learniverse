@@ -9,6 +9,7 @@ import org.example.learniversebe.dto.response.pagination.PageResponse;
 import org.example.learniversebe.dto.response.SenderResponse;
 import org.example.learniversebe.dto.response.pagination.PaginationMeta;
 import org.example.learniversebe.dto.websocket.ChatSocketEvent;
+import org.example.learniversebe.dto.websocket.ReadReceiptDTO;
 import org.example.learniversebe.enums.MessageType;
 import org.example.learniversebe.enums.SocketEventType;
 import org.example.learniversebe.exception.ResourceNotFoundException;
@@ -289,10 +290,26 @@ public class ChatMessageServiceImpl implements IChatMessageService {
     @Transactional
     public void markAsRead(UUID roomId) {
         UUID userId = SecurityUtils.getCurrentUser().getId();
+        UserProfile profile = userProfileRepository.findByUserId(userId);
         ChatParticipant participant = getParticipant(roomId, userId);
 
-        participant.setLastReadAt(LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+
+        participant.setLastReadAt(now);
         chatParticipantRepository.save(participant);
+
+        ReadReceiptDTO receiptDto = ReadReceiptDTO.builder()
+                .userId(userId)
+                .avatarUrl(profile.getAvatarUrl())
+                .readAt(now)
+                .build();
+
+        ChatSocketEvent event = ChatSocketEvent.builder()
+                .eventType(SocketEventType.MESSAGE_RECEIPT)
+                .data(receiptDto)
+                .build();
+
+        messagingTemplate.convertAndSend("/topic/chat/" + roomId, event);
 
         log.info("User {} marked messages as read in chat room {}", userId, roomId);
     }

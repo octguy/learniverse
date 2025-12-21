@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Send, Loader2 } from "lucide-react";
 import { format, isSameDay } from "date-fns";
+import { chatService } from "@/lib/api/chatService";
 
 interface Props {
   chat: Chat;
@@ -37,6 +38,19 @@ const ChatWindow = ({
   const oldestMessageIdRef = useRef<string | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
   const [showLoadingSpinner, setShowLoadingSpinner] = useState(false);
+
+  // Mark messages as read when chat is opened
+  useEffect(() => {
+    const markRead = async () => {
+      try {
+        await chatService.markAsRead(chat.id);
+        console.log("[CHAT] ✅ Marked messages as read for chat:", chat.id);
+      } catch (error) {
+        console.error("[CHAT] ❌ Error marking as read:", error);
+      }
+    };
+    markRead();
+  }, [chat.id]);
 
   // Delay showing spinner to prevent flash
   useEffect(() => {
