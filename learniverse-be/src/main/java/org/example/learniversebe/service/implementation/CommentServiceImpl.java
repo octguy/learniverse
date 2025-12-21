@@ -1,5 +1,6 @@
 package org.example.learniversebe.service.implementation;
 
+import lombok.extern.slf4j.Slf4j;
 import org.example.learniversebe.dto.request.CreateCommentRequest;
 import org.example.learniversebe.dto.request.UpdateCommentRequest;
 import org.example.learniversebe.dto.response.CommentResponse;
@@ -29,6 +30,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class CommentServiceImpl implements ICommentService {
 
@@ -71,6 +73,7 @@ public class CommentServiceImpl implements ICommentService {
     @Override
     @Transactional
     public CommentResponse addComment(CreateCommentRequest request) {
+        log.info("Adding comment to {} with ID: {}", request.getCommentableType(), request.getCommentableId());
         User author = serviceHelper.getCurrentUser();
         Comment parentComment = null;
         int depth = 0;

@@ -1,5 +1,6 @@
 package org.example.learniversebe.service.implementation;
 
+import lombok.extern.slf4j.Slf4j;
 import org.example.learniversebe.dto.request.CreateQuestionRequest;
 import org.example.learniversebe.dto.request.UpdateQuestionRequest;
 import org.example.learniversebe.dto.response.*;
@@ -30,6 +31,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class QuestionServiceImpl implements IQuestionService {
 
@@ -96,7 +98,8 @@ public class QuestionServiceImpl implements IQuestionService {
 
     @Override
     @Transactional
-    public QuestionResponse createQuestion(CreateQuestionRequest request, List<MultipartFile> files) {
+    public QuestionResponse createQuestion(CreateQuestionRequest request) {
+        log.info("Creating question with title: {}", request.getTitle());
         User author = serviceHelper.getCurrentUser();
 
         Content content = contentMapper.createQuestionRequestToContent(request);
@@ -112,6 +115,7 @@ public class QuestionServiceImpl implements IQuestionService {
 
         associateTags(content, request.getTagIds());
         Content savedContent = contentRepository.save(content);
+        log.info("Question created successfully with ID: {} and slug: {} by user: {}", savedContent.getId(), savedContent.getSlug(), author.getUsername());
 
         if (files != null && !files.isEmpty()) {
             List<Attachment> attachments = new ArrayList<>();

@@ -36,6 +36,20 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).body(apiResponse);
     }
 
+    @Operation(summary = "Register an admin", description = "Authenticate a user and send email verification")
+    @PostMapping("/register-admin")
+    public ResponseEntity<ApiResponse<AuthResponse>> registerAdmin(@RequestBody @Valid RegisterRequest registerRequest) {
+        AuthResponse authResponse = authService.createAdmin(registerRequest);
+
+        ApiResponse<AuthResponse> apiResponse = new ApiResponse<>(
+                HttpStatus.CREATED,
+                "Admin registered successfully",
+                authResponse,
+                null
+        );
+        return ResponseEntity.status(HttpStatus.CREATED).body(apiResponse);
+    }
+
     @Operation(summary = "Login a user", description = "Authenticate a user and return auth tokens")
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(@RequestBody @Valid LoginRequest loginRequest) {

@@ -1,5 +1,6 @@
 package org.example.learniversebe.service.implementation;
 
+import lombok.extern.slf4j.Slf4j;
 import org.example.learniversebe.dto.request.CreatePostRequest;
 import org.example.learniversebe.dto.request.UpdatePostRequest;
 import org.example.learniversebe.dto.response.PageResponse;
@@ -29,6 +30,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class PostServiceImpl implements IPostService {
 
@@ -86,9 +88,10 @@ public class PostServiceImpl implements IPostService {
     }
 
     @Override
-    @Transactional
-    public PostResponse createPost(CreatePostRequest request, List<MultipartFile> files) {
-        User author = serviceHelper.getCurrentUser();
+    @Transactional // Đảm bảo tất cả thao tác DB thành công hoặc rollback
+    public PostResponse createPost(CreatePostRequest request) {
+        log.info("Creating new post with title: {}", request.getTitle());
+        User author = serviceHelper.getCurrentUser(); // Lấy user đang đăng nhập
 
         // Map DTO sang Entity
         Content content = contentMapper.createPostRequestToContent(request);

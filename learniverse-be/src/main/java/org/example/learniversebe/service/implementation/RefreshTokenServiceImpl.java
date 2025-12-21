@@ -1,5 +1,6 @@
 package org.example.learniversebe.service.implementation;
 
+import lombok.extern.slf4j.Slf4j;
 import org.example.learniversebe.exception.UnauthorizedException;
 import org.example.learniversebe.model.RefreshToken;
 import org.example.learniversebe.model.User;
@@ -12,6 +13,7 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
+@Slf4j
 @Service
 public class RefreshTokenServiceImpl implements IRefreshTokenService {
 
@@ -32,9 +34,11 @@ public class RefreshTokenServiceImpl implements IRefreshTokenService {
 
     @Override
     public RefreshToken createRefreshToken(User user) {
+        log.info("Creating refresh token for user: {}", user.getUsername());
         Optional<RefreshToken> existingToken = refreshTokenRepository.findByUser(user);
 
         if (existingToken.isPresent()) { // if a token already exists for the user, update it
+            log.debug("Updating existing refresh token for user: {}", user.getUsername());
             RefreshToken refreshToken = existingToken.get();
             refreshToken.setToken(UUID.randomUUID().toString());
             refreshToken.setExpiration(LocalDateTime.now().plusMinutes(expiration)); // Extend expiration to 7 days

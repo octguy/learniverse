@@ -59,4 +59,10 @@ public class UserProfileController {
         UUID userId = ((CustomUserDetails) authentication.getPrincipal()).getId();
         return service.viewProfile(userId);
     }
+
+    @Operation(summary = "Get user profile by user ID")
+    @GetMapping("/{userId}")
+    public UserProfileResponse getUserProfile(@PathVariable UUID userId) {
+        return service.viewProfile(userId);
+    }
 }

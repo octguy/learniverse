@@ -1,6 +1,6 @@
 package org.example.learniversebe.service.implementation;
 
-import lombok.extern.java.Log;
+import lombok.extern.slf4j.Slf4j;
 import org.example.learniversebe.dto.request.BookmarkRequest;
 import org.example.learniversebe.dto.request.ReactionRequest;
 import org.example.learniversebe.dto.request.VoteRequest;
@@ -30,6 +30,7 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
+@Slf4j
 @Service
 public class InteractionServiceImpl implements IInteractionService {
 
@@ -70,6 +71,7 @@ public class InteractionServiceImpl implements IInteractionService {
     @Override
     @Transactional
     public int vote(VoteRequest request) {
+        log.info("Processing vote for {} with ID: {} of type: {}", request.getVotableType(), request.getVotableId(), request.getVoteType());
         User currentUser = serviceHelper.getCurrentUser();
         UUID votableId = request.getVotableId();
         VotableType votableType = request.getVotableType();
@@ -121,6 +123,7 @@ public class InteractionServiceImpl implements IInteractionService {
     @Override
     @Transactional
     public void react(ReactionRequest request) {
+        log.info("Processing reaction for {} with ID: {} of type: {}", request.getReactableType(), request.getReactableId(), request.getReactionType());
         User currentUser = serviceHelper.getCurrentUser();
         UUID reactableId = request.getReactableId();
         ReactableType reactableType = request.getReactableType();
