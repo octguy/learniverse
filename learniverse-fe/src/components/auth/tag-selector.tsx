@@ -1,4 +1,3 @@
-// src/components/auth/tag-selector.tsx
 "use client"
 
 import * as React from "react"

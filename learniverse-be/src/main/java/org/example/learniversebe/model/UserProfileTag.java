@@ -6,7 +6,6 @@ import lombok.Setter;
 import org.example.learniversebe.enums.UserTagType;
 import org.example.learniversebe.model.composite_key.UserProfileTagId;
 import java.time.LocalDateTime;
-import java.util.Objects;
 
 @Entity
 @Table(name="user_profile_tag")
@@ -27,7 +26,17 @@ public class UserProfileTag extends BaseEntity {
     @JoinColumn(name="tag_id", nullable = false)
     private Tag tag;
 
-    private UserTagType type;
+    @Transient
+    public UserTagType getType() {
+        return userProfileTagId != null ? userProfileTagId.getType() : null;
+    }
+
+    public void setType(UserTagType type) {
+        if (userProfileTagId == null) {
+            userProfileTagId = new UserProfileTagId();
+        }
+        userProfileTagId.setType(type);
+    }
 
     @PrePersist
     protected void onCreate() {
