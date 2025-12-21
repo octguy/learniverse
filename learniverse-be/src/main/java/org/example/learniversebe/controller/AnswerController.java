@@ -1,6 +1,8 @@
 package org.example.learniversebe.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.example.learniversebe.dto.request.CreateAnswerRequest;
@@ -13,10 +15,13 @@ import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -30,13 +35,21 @@ public class AnswerController {
         this.answerService = answerService;
     }
 
-    @PostMapping
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('USER')")
-    @Operation(summary = "Post a new answer", description = "UC 3.2: Adds a new answer to a specific question. Requires USER role.")
-    public ResponseEntity<ApiResponse<AnswerResponse>> addAnswer(@Valid @RequestBody CreateAnswerRequest request) {
-        AnswerResponse createdAnswer = answerService.addAnswer(request);
-        ApiResponse<AnswerResponse> response = new ApiResponse<>(HttpStatus.CREATED, "Answer posted successfully", createdAnswer, null);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    @Operation(summary = "Create a new answer", description = "UC 3.1: Creates an answer with optional attachments.")
+    public ResponseEntity<ApiResponse<AnswerResponse>> createAnswer(
+            @RequestPart("answer")
+            @Parameter(description = "Answer data (JSON)", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE))
+            @Valid CreateAnswerRequest request,
+
+            @RequestPart(value = "files", required = false)
+            @Parameter(description = "Attachments (Image/PDF)", content = @Content(mediaType = MediaType.APPLICATION_OCTET_STREAM_VALUE))
+            List<MultipartFile> files
+    ) {
+        AnswerResponse response = answerService.addAnswer(request, files);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new ApiResponse<>(HttpStatus.CREATED, "Answer created successfully", response, null));
     }
 
     @GetMapping("/{answerId}")

@@ -4,10 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.learniversebe.dto.request.CreateQuestionRequest;
 import org.example.learniversebe.dto.request.UpdateQuestionRequest;
 import org.example.learniversebe.dto.response.*;
-import org.example.learniversebe.enums.ContentType;
-import org.example.learniversebe.enums.ContentStatus;
-import org.example.learniversebe.enums.ReactableType;
-import org.example.learniversebe.enums.VotableType;
+import org.example.learniversebe.enums.*;
 import org.example.learniversebe.exception.BadRequestException;
 import org.example.learniversebe.exception.ResourceNotFoundException;
 import org.example.learniversebe.exception.UnauthorizedException;
@@ -18,6 +15,7 @@ import org.example.learniversebe.model.composite_key.ContentTagId;
 import org.example.learniversebe.repository.*;
 import org.example.learniversebe.service.IInteractionService;
 import org.example.learniversebe.service.IQuestionService;
+import org.example.learniversebe.service.IStorageService;
 import org.example.learniversebe.util.ServiceHelper;
 import org.example.learniversebe.util.SlugGenerator;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,8 +23,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -39,18 +39,20 @@ public class QuestionServiceImpl implements IQuestionService {
     private final UserRepository userRepository;
     private final TagRepository tagRepository;
     private final ContentTagRepository contentTagRepository;
-    private final AnswerRepository answerRepository; // Cần để kiểm tra accepted answer
+    private final AnswerRepository answerRepository;
     private final ContentEditHistoryRepository editHistoryRepository;
     private final ContentMapper contentMapper;
-    private final AnswerMapper answerMapper; // Cần để map page answer
+    private final AnswerMapper answerMapper;
     private final ServiceHelper serviceHelper;
     private final SlugGenerator slugGenerator;
-    private final IInteractionService interactionService; // Cần để lấy trạng thái tương tác
+    private final IInteractionService interactionService;
     private final CommentRepository commentRepository;
     private final ReactionRepository reactionRepository;
     private final VoteRepository voteRepository;
     private final BookmarkRepository bookmarkRepository;
     private final ShareRepository shareRepository;
+    private final IStorageService storageService;
+    private final AttachmentRepository attachmentRepository;
 
     @Value("${app.content.edit.limit-hours:24}")
     private long editLimitHours;
@@ -71,7 +73,7 @@ public class QuestionServiceImpl implements IQuestionService {
                                ReactionRepository reactionRepository,
                                VoteRepository voteRepository,
                                BookmarkRepository bookmarkRepository,
-                               ShareRepository shareRepository // Inject
+                               ShareRepository shareRepository, IStorageService storageService, AttachmentRepository attachmentRepository // Inject
     ) {
         this.contentRepository = contentRepository;
         this.userRepository = userRepository;
@@ -89,6 +91,8 @@ public class QuestionServiceImpl implements IQuestionService {
         this.voteRepository = voteRepository;
         this.bookmarkRepository = bookmarkRepository;
         this.shareRepository = shareRepository;
+        this.storageService = storageService;
+        this.attachmentRepository = attachmentRepository;
     }
 
 
@@ -98,37 +102,110 @@ public class QuestionServiceImpl implements IQuestionService {
         log.info("Creating question with title: {}", request.getTitle());
         User author = serviceHelper.getCurrentUser();
 
-        // Map DTO sang Entity (dùng mapper cho Question)
         Content content = contentMapper.createQuestionRequestToContent(request);
         content.setAuthor(author);
-        content.setContentType(ContentType.QUESTION); // Đảm bảo đúng type
-        content.setStatus(ContentStatus.PUBLISHED);
-        content.setPublishedAt(LocalDateTime.now());
-        content.setSlug(slugGenerator.generateSlug(request.getTitle())); // Slug cho question dựa vào title
+        content.setContentType(ContentType.QUESTION);
 
-        // Xử lý Tags (tương tự Post)
+        content.setStatus(request.getStatus() != null ? request.getStatus() : ContentStatus.PUBLISHED);
+        if (content.getStatus() == ContentStatus.PUBLISHED) {
+            content.setPublishedAt(LocalDateTime.now());
+        }
+
+        content.setSlug(slugGenerator.generateSlug(request.getTitle()));
+
         associateTags(content, request.getTagIds());
-
-        // Lưu Content trước
         Content savedContent = contentRepository.save(content);
         log.info("Question created successfully with ID: {} and slug: {} by user: {}", savedContent.getId(), savedContent.getSlug(), author.getUsername());
 
-        // Map lại sang Response DTO
-        QuestionResponse response = contentMapper.contentToQuestionResponse(savedContent);
-        // Set trạng thái tương tác ban đầu
-        response.setBookmarkedByCurrentUser(false);
-        response.setCurrentUserReaction(null);
-        // response.setCurrentUserVote(null); // Vote cần logic riêng
+        if (files != null && !files.isEmpty()) {
+            List<Attachment> attachments = new ArrayList<>();
+            for (MultipartFile file : files) {
+                try {
+                    Map<String, String> uploadResult = storageService.uploadFile(file);
 
+                    Attachment attachment = new Attachment();
+                    attachment.setContent(savedContent); // Link to Question
+                    attachment.setUploadedBy(author);
+                    attachment.setFileName(file.getOriginalFilename());
+                    attachment.setMimeType(file.getContentType());
+                    attachment.setFileSize(file.getSize());
+                    attachment.setStorageUrl(uploadResult.get("url"));
+                    attachment.setStorageKey(uploadResult.get("key"));
+                    attachment.setFileType(determineAttachmentType(Objects.requireNonNull(file.getContentType())));
+                    attachment.setIsVerified(true);
+
+                    attachments.add(attachment);
+                } catch (IOException e) {
+                    throw new BadRequestException("Failed to upload file: " + file.getOriginalFilename());
+                }
+            }
+            attachmentRepository.saveAll(attachments);
+            savedContent.setAttachments(new HashSet<>(attachments));
+        }
+
+        return getQuestionResponseWithInteraction(savedContent);
+    }
+
+    @Override
+    @Transactional
+    public QuestionResponse publishQuestion(UUID questionId) {
+        User currentUser = serviceHelper.getCurrentUser();
+
+        Content content = contentRepository.findByIdAndContentType(questionId, ContentType.POST)
+                .orElseThrow(() -> new ResourceNotFoundException("Question not found"));
+
+        if (!content.getAuthor().getId().equals(currentUser.getId())) {
+            throw new UnauthorizedException("Not authorized to publish this question");
+        }
+
+        if (content.getStatus() == ContentStatus.PUBLISHED) {
+            throw new BadRequestException("Question is already published");
+        }
+
+        content.setStatus(ContentStatus.PUBLISHED);
+        content.setPublishedAt(LocalDateTime.now());
+        Content saved = contentRepository.save(content);
+        return getQuestionResponseWithInteraction(saved);
+    }
+
+    // Add method publishQuestion implementation (Similar to PostServiceImpl)
+    private AttachmentType determineAttachmentType(String mimeType) {
+        if (mimeType.startsWith("image/")) return AttachmentType.IMAGE;
+        if (mimeType.equals("application/pdf")) return AttachmentType.PDF;
+        return AttachmentType.OTHER;
+    }
+
+    private QuestionResponse getQuestionResponseWithInteraction(Content content) {
+        QuestionResponse response = contentMapper.contentToQuestionResponse(content);
+        setInteractionStatusForCurrentUser(response, content.getId()); // Helper method already exists in your file
         return response;
     }
 
     @Override
     @Transactional(readOnly = true)
     public PageResponse<QuestionSummaryResponse> getAllQuestions(Pageable pageable) {
-        // Có thể cần thêm điều kiện status = PUBLISHED
-        Page<Content> questionPage = contentRepository.findByContentType(ContentType.QUESTION, pageable);
-        return contentMapper.contentPageToQuestionSummaryPage(questionPage);
+        Page<Content> page = contentRepository.findByContentTypeAndStatus(
+                ContentType.QUESTION, ContentStatus.PUBLISHED, pageable);
+
+        PageResponse<QuestionSummaryResponse> response = contentMapper.contentPageToQuestionSummaryPage(page);
+
+        UUID currentUserId = serviceHelper.getCurrentUserId();
+        if (currentUserId != null && response.getContent() != null) {
+            for (QuestionSummaryResponse question : response.getContent()) {
+                question.setBookmarkedByCurrentUser(
+                        interactionService.isContentBookmarkedByUser(question.getId())
+                );
+
+                Optional<Vote> voteOpt = voteRepository.findByUserIdAndVotableTypeAndVotableId(
+                        currentUserId, VotableType.CONTENT, question.getId());
+                question.setCurrentUserVote(voteOpt.map(Vote::getVoteType).orElse(null));
+
+                Optional<Reaction> reactionOpt = reactionRepository.findByUserIdAndReactableTypeAndReactableId(
+                        currentUserId, ReactableType.CONTENT, question.getId());
+                question.setCurrentUserReaction(reactionOpt.map(Reaction::getReactionType).orElse(null));
+            }
+        }
+        return response;
     }
 
     @Override
@@ -236,47 +313,25 @@ public class QuestionServiceImpl implements IQuestionService {
     @Override
     @Transactional
     public void deleteQuestion(UUID questionId) {
-        User currentUser = serviceHelper.getCurrentUser();
         Content content = findQuestionByIdOrFail(questionId);
 
-        // Kiểm tra quyền
         if (!serviceHelper.isCurrentUserAuthor(content.getAuthor().getId()) /* && !serviceHelper.isCurrentUserAdminOrModerator() */ ) {
             throw new UnauthorizedException("User is not authorized to delete this question");
         }
 
-        // 1. Soft delete Question (Content)
         contentRepository.delete(content);
-
-        // 2. Xóa mềm các thành phần liên quan
-
-        // Xóa mềm ContentTags
         contentTagRepository.deleteByContentId(questionId);
-
-        // Xóa mềm Answers (và các dữ liệu liên quan của Answer)
-        // Lấy tất cả Answer IDs thuộc Question này
         List<UUID> answerIds = answerRepository.findAllIdsByQuestionId(questionId);
         for (UUID answerId : answerIds) {
-            // Gọi hàm deleteAnswer của AnswerService (nếu có thể) hoặc xóa trực tiếp
-            // Xóa thủ công để tránh vòng lặp service
             answerRepository.softDeleteById(answerId);
             commentRepository.softDeleteByCommentable(ReactableType.ANSWER, answerId);
             reactionRepository.softDeleteByReactable(ReactableType.ANSWER, answerId);
             voteRepository.softDeleteByVotable(VotableType.ANSWER, answerId);
         }
-
-        // Xóa mềm Comments (trực tiếp trên Question)
         commentRepository.softDeleteByCommentable(ReactableType.CONTENT, questionId);
-
-        // Xóa mềm Reactions (trực tiếp trên Question)
         reactionRepository.softDeleteByReactable(ReactableType.CONTENT, questionId);
-
-        // Xóa mềm Votes (trực tiếp trên Question)
         voteRepository.softDeleteByVotable(VotableType.CONTENT, questionId);
-
-        // Xóa mềm Bookmarks
         bookmarkRepository.softDeleteByContentId(questionId);
-
-        // Xóa mềm Shares
         shareRepository.softDeleteByContentId(questionId);
     }
 
@@ -415,18 +470,16 @@ public class QuestionServiceImpl implements IQuestionService {
     /**
      * Helper to set user-specific interaction status on a QuestionResponse DTO.
      */
-    private void setInteractionStatusForCurrentUser(QuestionResponse response, UUID id) {
+    private void setInteractionStatusForCurrentUser(QuestionResponse response, UUID questionId) {
         UUID currentUserId = serviceHelper.getCurrentUserId();
+
         if (currentUserId != null) {
-            UUID questionId = response.getId();
             response.setBookmarkedByCurrentUser(interactionService.isContentBookmarkedByUser(questionId));
 
-            // Lấy vote hiện tại
             Optional<Vote> voteOpt = voteRepository.findByUserIdAndVotableTypeAndVotableId(
                     currentUserId, VotableType.CONTENT, questionId);
-            response.setCurrentUserVote(voteOpt.map(Vote::getVoteType).orElse(null)); // <<< ĐÃ HOÀN THIỆN
+            response.setCurrentUserVote(voteOpt.map(Vote::getVoteType).orElse(null));
 
-            // Lấy reaction hiện tại
             Optional<Reaction> reactionOpt = reactionRepository.findByUserIdAndReactableTypeAndReactableId(
                     currentUserId, ReactableType.CONTENT, questionId);
             response.setCurrentUserReaction(reactionOpt.map(Reaction::getReactionType).orElse(null));

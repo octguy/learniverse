@@ -15,6 +15,9 @@ import java.util.UUID;
 
 @Repository
 public interface ContentRepository extends JpaRepository<Content, UUID> {
+
+    Page<Content> findByContentTypeAndStatus(ContentType contentType, ContentStatus contentStatus, Pageable pageable);
+
     Page<Content> findByContentTypeOrderByCreatedAtDesc(ContentType contentType, Pageable pageable);
 
     Page<Content> findByAuthorIdAndContentTypeOrderByCreatedAtDesc(UUID authorId, ContentType contentType, Pageable pageable);

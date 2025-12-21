@@ -51,7 +51,8 @@ export default function AskQuestionPage() {
                         <CardHeader className="pb-0">
                             <CardTitle>Gợi ý viết câu hỏi</CardTitle>
                             <CardDescription>
-                                Ghi nhớ các lưu ý này để câu hỏi rõ ràng và dễ hiểu.
+                                Ghi nhớ các lưu ý này để câu hỏi rõ ràng và dễ
+                                hiểu.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-2 pt-0">
@@ -78,18 +79,24 @@ export default function AskQuestionPage() {
                         <CardHeader className="pb-0">
                             <CardTitle>Tiêu chuẩn cộng đồng</CardTitle>
                             <CardDescription>
-                                Giữ cho Learniverse thân thiện và an toàn với mọi người.
+                                Giữ cho Learniverse thân thiện và an toàn với
+                                mọi người.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-2 pt-0 text-sm text-muted-foreground">
                             <p>
-                                Hãy giao tiếp tôn trọng, tập trung vào vấn đề và trích nguồn khi sử dụng tài liệu bên ngoài.
+                                Hãy giao tiếp tôn trọng, tập trung vào vấn đề và
+                                trích nguồn khi sử dụng tài liệu bên ngoài.
                             </p>
                             <p>
-                                Câu hỏi yêu cầu dữ liệu cá nhân hoặc vi phạm chính sách sử dụng có thể bị kiểm duyệt.
+                                Câu hỏi yêu cầu dữ liệu cá nhân hoặc vi phạm
+                                chính sách sử dụng có thể bị kiểm duyệt.
                             </p>
                             <Badge variant="secondary" className="font-normal">
-                                Gặp khó khăn? Liên hệ ban quản trị qua trung tâm trợ giúp.
+                                <span className="break-words whitespace-normal">
+                                    Gặp khó khăn? Liên hệ ban quản trị qua trung
+                                    tâm trợ giúp.
+                                </span>
                             </Badge>
                         </CardContent>
                     </Card>

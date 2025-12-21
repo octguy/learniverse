@@ -7,66 +7,68 @@ import type { Post } from "@/types/post"
 import { postService } from "@/lib/api/postService"
 import { Loader2, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useAuth } from "@/context/AuthContext"
 
 export default function MainPage() {
+  const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
-/*
+  /*
+    const fetchPosts = async () => {
+      setLoading(true)
+      setError("")
+      try {
+        const data = await postService.getNewsfeed(0, 20) 
+        const mappedPosts: Post[] = data.data.content.map((item: any) => ({
+          ...item,
+          body: item.bodyExcerpt || item.body || "",
+          attachments: item.attachments || [],
+          viewCount: item.viewCount || 0,
+          shareCount: item.shareCount || 0,
+          createdAt: item.publishedAt || new Date().toISOString(),
+          publishedAt: item.publishedAt || new Date().toISOString(),
+        }))
+        setPosts(mappedPosts)
+      } catch (err) {
+        console.error("Failed to fetch posts:", err)
+        setError("Không thể tải bảng tin. Vui lòng thử lại sau.")
+      } finally {
+        setLoading(false)
+      }
+    } */
+  //hot fix "bodyExcerpt": null from /api/v1/posts/feed
   const fetchPosts = async () => {
     setLoading(true)
     setError("")
     try {
-      const data = await postService.getNewsfeed(0, 20) 
-      const mappedPosts: Post[] = data.data.content.map((item: any) => ({
-        ...item,
-        body: item.bodyExcerpt || item.body || "",
-        attachments: item.attachments || [],
-        viewCount: item.viewCount || 0,
-        shareCount: item.shareCount || 0,
-        createdAt: item.publishedAt || new Date().toISOString(),
-        publishedAt: item.publishedAt || new Date().toISOString(),
-      }))
-      setPosts(mappedPosts)
+      const feedRes = await postService.getNewsfeed(0, 20)
+      if (!feedRes.data || !feedRes.data.content) {
+        setPosts([])
+        return
+      }
+
+      const detailPromises = feedRes.data.content.map((summary: any) =>
+        postService.getPostById(summary.id),
+      )
+
+      const detailResponses = await Promise.all(detailPromises)
+
+      const fullPosts = detailResponses.map((response) => {
+        console.log("getPostById response:", response)
+        return response.data
+      })
+
+      console.log("fullPosts:", fullPosts)
+
+      setPosts(fullPosts)
     } catch (err) {
       console.error("Failed to fetch posts:", err)
       setError("Không thể tải bảng tin. Vui lòng thử lại sau.")
     } finally {
       setLoading(false)
     }
-  } */
- //hot fix "bodyExcerpt": null from /api/v1/posts/feed
- const fetchPosts = async () => {
-  setLoading(true)
-  setError("")
-  try {
-    const feedRes = await postService.getNewsfeed(0, 20)
-    if (!feedRes.data || !feedRes.data.content) {
-      setPosts([])
-      return
-    }
-
-    const detailPromises = feedRes.data.content.map((summary: any) =>
-      postService.getPostById(summary.id),
-    )
-
-    const detailResponses = await Promise.all(detailPromises)
-
-    const fullPosts = detailResponses.map((response) => {
-      console.log("getPostById response:", response) 
-      return response.data 
-    })
-
-    console.log("fullPosts:", fullPosts) 
-
-    setPosts(fullPosts)
-  } catch (err) {
-    console.error("Failed to fetch posts:", err)
-    setError("Không thể tải bảng tin. Vui lòng thử lại sau.")
-  } finally {
-    setLoading(false)
   }
-}
 
 
   useEffect(() => {
