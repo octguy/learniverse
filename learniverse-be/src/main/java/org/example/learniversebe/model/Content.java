@@ -6,7 +6,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.example.learniversebe.enums.ContentStatus;
 import org.example.learniversebe.enums.ContentType;
-import org.example.learniversebe.model.composite_key.ContentTagId;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;

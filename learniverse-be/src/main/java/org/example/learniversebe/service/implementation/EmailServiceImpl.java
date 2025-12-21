@@ -2,11 +2,13 @@ package org.example.learniversebe.service.implementation;
 
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
+import lombok.extern.slf4j.Slf4j;
 import org.example.learniversebe.service.IEmailService;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 public class EmailServiceImpl implements IEmailService {
 
@@ -18,6 +20,7 @@ public class EmailServiceImpl implements IEmailService {
 
     @Override
     public void sendEmail(String to, String subject, String body) throws MessagingException {
+        log.info("Sending email to: {} with subject: {}", to, subject);
         MimeMessage message = emailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true);
 
@@ -26,5 +29,6 @@ public class EmailServiceImpl implements IEmailService {
         helper.setText(body, true); // true indicates HTML
 
         emailSender.send(message);
+        log.info("Email sent successfully to: {}", to);
     }
 }

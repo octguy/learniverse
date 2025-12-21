@@ -1,23 +1,24 @@
 package org.example.learniversebe.service.implementation;
 
+import lombok.extern.slf4j.Slf4j;
 import org.example.learniversebe.dto.request.CreateAnswerRequest;
 import org.example.learniversebe.dto.request.UpdateAnswerRequest;
 import org.example.learniversebe.dto.response.AnswerResponse;
 import org.example.learniversebe.dto.response.PageResponse;
+import org.example.learniversebe.enums.AttachmentType;
 import org.example.learniversebe.enums.ContentType;
+import org.example.learniversebe.enums.ReactableType;
+import org.example.learniversebe.enums.VotableType;
 import org.example.learniversebe.exception.BadRequestException;
 import org.example.learniversebe.exception.ResourceNotFoundException;
 import org.example.learniversebe.exception.UnauthorizedException;
 import org.example.learniversebe.mapper.AnswerMapper;
-import org.example.learniversebe.model.Answer;
-import org.example.learniversebe.model.Content;
-import org.example.learniversebe.model.User;
-import org.example.learniversebe.repository.AnswerRepository;
-import org.example.learniversebe.repository.ContentRepository;
-import org.example.learniversebe.repository.UserRepository;
+import org.example.learniversebe.model.*;
+import org.example.learniversebe.repository.*;
 import org.example.learniversebe.service.IAnswerService;
 import org.example.learniversebe.service.IInteractionService;
 import org.example.learniversebe.service.INotificationService;
+import org.example.learniversebe.service.IStorageService;
 import org.example.learniversebe.util.ServiceHelper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
@@ -25,34 +26,39 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.UUID;
+import java.util.*;
 
+@Slf4j
 @Service
 public class AnswerServiceImpl implements IAnswerService {
 
     private final AnswerRepository answerRepository;
-    private final ContentRepository contentRepository; // Để lấy question và update count
-    private final UserRepository userRepository; // Để lấy author
+    private final ContentRepository contentRepository;
+    private final UserRepository userRepository;
     private final AnswerMapper answerMapper;
     private final ServiceHelper serviceHelper;
-    private final IInteractionService interactionService; // Inject InteractionService
-    // private final INotificationService notificationService; // Inject NotificationService (tạm comment)
+    private final IInteractionService interactionService;
+    // private final INotificationService notificationService;
+    private final IStorageService storageService;
+    private final AttachmentRepository attachmentRepository;
+    private final VoteRepository voteRepository;
+    private final ReactionRepository reactionRepository;
 
-    @Value("${app.answer.edit.limit-minutes:30}") // Giới hạn sửa answer, ví dụ 30 phút
+    @Value("${app.answer.edit.limit-minutes:30}")
     private long answerEditLimitMinutes;
 
-
-    // Sử dụng @Lazy để tránh Circular Dependency nếu QuestionService cũng inject AnswerService
     public AnswerServiceImpl(AnswerRepository answerRepository,
                              ContentRepository contentRepository,
                              UserRepository userRepository,
                              AnswerMapper answerMapper,
                              ServiceHelper serviceHelper,
-                             @Lazy IInteractionService interactionService
+                             @Lazy IInteractionService interactionService, IStorageService storageService, AttachmentRepository attachmentRepository, VoteRepository voteRepository, ReactionRepository reactionRepository
             /*, INotificationService notificationService */) {
         this.answerRepository = answerRepository;
         this.contentRepository = contentRepository;
@@ -61,46 +67,76 @@ public class AnswerServiceImpl implements IAnswerService {
         this.serviceHelper = serviceHelper;
         this.interactionService = interactionService;
         // this.notificationService = notificationService;
+        this.storageService = storageService;
+        this.attachmentRepository = attachmentRepository;
+        this.voteRepository = voteRepository;
+        this.reactionRepository = reactionRepository;
     }
 
 
     @Override
     @Transactional
-    public AnswerResponse addAnswer(CreateAnswerRequest request) {
+    public AnswerResponse addAnswer(CreateAnswerRequest request, List<MultipartFile> files) {
+        log.info("Adding answer to question ID: {}", request.getQuestionId());
         User author = serviceHelper.getCurrentUser();
         Content question = contentRepository.findById(request.getQuestionId())
                 .orElseThrow(() -> new ResourceNotFoundException("Question not found with id: " + request.getQuestionId()));
 
-        // Kiểm tra xem content có phải là question không
         if (question.getContentType() != ContentType.QUESTION) {
+            log.error("Cannot add answer to content type: {}", question.getContentType());
             throw new BadRequestException("Cannot add answer to content type: " + question.getContentType());
         }
 
-        // Map DTO sang Entity
         Answer answer = answerMapper.createAnswerRequestToAnswer(request);
         answer.setAuthor(author);
         answer.setQuestion(question);
-        // @PrePersist sẽ set ID và timestamps
 
         Answer savedAnswer = answerRepository.save(answer);
+        log.info("Answer created with ID: {} for question ID: {} by user: {}", savedAnswer.getId(), question.getId(), author.getUsername());
 
-        // Cập nhật answer count trên Question
+        if (files != null && !files.isEmpty()) {
+            List<Attachment> attachments = new ArrayList<>();
+            for (MultipartFile file : files) {
+                try {
+                    Map<String, String> uploadResult = storageService.uploadFile(file);
+
+                    Attachment attachment = new Attachment();
+                    attachment.setAnswer(savedAnswer);
+                    attachment.setContent(null);
+                    attachment.setUploadedBy(author);
+                    attachment.setFileName(file.getOriginalFilename());
+                    attachment.setMimeType(file.getContentType());
+                    attachment.setFileSize(file.getSize());
+                    attachment.setStorageUrl(uploadResult.get("url"));
+                    attachment.setStorageKey(uploadResult.get("key"));
+                    attachment.setFileType(determineAttachmentType(Objects.requireNonNull(file.getContentType())));
+                    attachment.setIsVerified(true);
+
+                    attachments.add(attachment);
+                } catch (IOException e) {
+                    throw new BadRequestException("Failed to upload file: " + file.getOriginalFilename());
+                }
+            }
+            attachmentRepository.saveAll(attachments);
+            // answer.setAttachments(...) if Answer entity has OneToMany List<Attachment>
+        }
+
         question.setAnswerCount(question.getAnswerCount() + 1);
         contentRepository.save(question);
 
-        // Gửi notification cho tác giả câu hỏi (nếu khác người trả lời)
         if (!question.getAuthor().getId().equals(author.getId())) {
             // notificationService.notifyNewAnswer(question.getAuthor(), author, savedAnswer);
         }
 
-        // Map sang Response DTO
         AnswerResponse response = answerMapper.answerToAnswerResponse(savedAnswer);
-        // Set trạng thái tương tác ban đầu
-        response.setCurrentUserVote(null);
-        response.setCurrentUserReaction(null);
-        // response.setCommentCount(0); // Có thể cần nếu mapper không map
-        // response.setReactionCount(0); // Có thể cần
+        setInteractionStatusForCurrentUser(response, author.getId());
         return response;
+    }
+
+    private AttachmentType determineAttachmentType(String mimeType) {
+        if (mimeType.startsWith("image/")) return AttachmentType.IMAGE;
+        if (mimeType.equals("application/pdf")) return AttachmentType.PDF;
+        return AttachmentType.OTHER;
     }
 
     @Override
@@ -219,15 +255,14 @@ public class AnswerServiceImpl implements IAnswerService {
      * Helper method to set current user's interaction status (vote, reaction) on an AnswerResponse DTO.
      */
     private void setInteractionStatusForCurrentUser(AnswerResponse answerDto, UUID currentUserId) {
-        // TODO: Implement logic to query VoteRepository and ReactionRepository
-        // using currentUserId, ReactableType.ANSWER/VotableType.ANSWER, and answerDto.getId()
-        // Vote vote = voteRepository.findByVotableTypeAndVotableIdAndUserId(VotableType.ANSWER, answerDto.getId(), currentUserId).orElse(null);
-        // Reaction reaction = reactionRepository.findByReactableTypeAndReactableIdAndUserId(ReactableType.ANSWER, answerDto.getId(), currentUserId).orElse(null);
-        // answerDto.setCurrentUserVote(vote != null ? vote.getVoteType() : null);
-        // answerDto.setCurrentUserReaction(reaction != null ? reaction.getReactionType() : null);
+        if (currentUserId == null) return;
 
-        // Placeholder:
-        answerDto.setCurrentUserVote(null);
-        answerDto.setCurrentUserReaction(null);
+        Optional<Vote> voteOpt = voteRepository.findByUserIdAndVotableTypeAndVotableId(
+                currentUserId, VotableType.ANSWER, answerDto.getId());
+        answerDto.setCurrentUserVote(voteOpt.map(Vote::getVoteType).orElse(null));
+
+        Optional<Reaction> reactionOpt = reactionRepository.findByUserIdAndReactableTypeAndReactableId(
+                currentUserId, ReactableType.ANSWER, answerDto.getId());
+        answerDto.setCurrentUserReaction(reactionOpt.map(Reaction::getReactionType).orElse(null));
     }
 }

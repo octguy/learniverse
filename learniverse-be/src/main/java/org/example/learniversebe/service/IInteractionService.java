@@ -95,4 +95,5 @@ public interface IInteractionService {
     // Note: Getting user's current vote/reaction for a specific item is typically handled
     // within the getPostById, getQuestionById, getAnswerById, getCommentById methods
     // by performing an additional check based on the current user's ID.
+    ReactionType getCurrentUserReaction(ReactableType type, UUID reactableId);
 }

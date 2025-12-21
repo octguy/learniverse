@@ -1,7 +1,11 @@
 package org.example.learniversebe.service;
 
+import org.example.learniversebe.dto.response.NotificationResponse;
+import org.example.learniversebe.dto.response.PageResponse;
+import org.example.learniversebe.enums.NotificationType;
 import org.example.learniversebe.model.Answer;
 import org.example.learniversebe.model.Comment;
+import org.example.learniversebe.model.Notification;
 import org.example.learniversebe.model.User;
 
 import java.util.Set;
@@ -49,10 +53,15 @@ public interface INotificationService {
     /**
      * Notifies the answer author when their answer is marked as accepted.
      * @param answerAuthor The author of the accepted answer.
-     * @param questionAuthor The author of the question who accepted the answer.
+     * @param questionAuthor The author of the question of who accepted the answer.
      * @param answer The accepted answer entity.
      */
     void notifyAnswerAccepted(User answerAuthor, User questionAuthor, Answer answer);
 
     // Add other notification methods as needed (e.g., new follower, group invite, etc.)
+    Notification createNotification(UUID recipientId, UUID senderId, NotificationType type, String content, UUID relatedEntityId, String relatedEntityType);
+    PageResponse<NotificationResponse> getNotifications(int page, int size);
+    long getUnreadNotificationCount();
+    void markAllAsRead();
+    NotificationResponse markAsRead(UUID notificationId);
 }

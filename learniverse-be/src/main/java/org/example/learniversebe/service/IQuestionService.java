@@ -6,7 +6,9 @@ import org.example.learniversebe.dto.response.PageResponse;
 import org.example.learniversebe.dto.response.QuestionResponse;
 import org.example.learniversebe.dto.response.QuestionSummaryResponse;
 import org.springframework.data.domain.Pageable;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -19,10 +21,13 @@ public interface IQuestionService {
      * Requires authenticated user context. Generates slug, associates tags.
      *
      * @param request Data transfer object containing question details (title, body, tags).
+     * @param files Attachment
      * @return DTO representing the newly created question.
      * @throws org.example.learniversebe.exception.BadRequestException if tag IDs are invalid.
      */
-    QuestionResponse createQuestion(CreateQuestionRequest request);
+    QuestionResponse createQuestion(CreateQuestionRequest request, List<MultipartFile> files);
+
+    QuestionResponse publishQuestion(UUID questionId);
 
     /**
      * Retrieves a paginated list of all published questions.

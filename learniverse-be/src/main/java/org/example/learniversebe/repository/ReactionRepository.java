@@ -21,6 +21,16 @@ public interface ReactionRepository extends JpaRepository<Reaction, UUID> {
     Optional<Reaction> findByUserIdAndReactableTypeAndReactableId(
             UUID userId, ReactableType reactableType, UUID reactableId);
 
+    @Query(value = "SELECT * FROM reactions r " +
+            "WHERE r.user_id = :userId " +
+            "AND r.reactable_type = :#{#type.name()} " +
+            "AND r.reactable_id = :reactableId " +
+            "LIMIT 1", nativeQuery = true)
+    Optional<Reaction> findExistingReactionRaw(
+            @Param("userId") UUID userId,
+            @Param("type") ReactableType type,
+            @Param("reactableId") UUID reactableId);
+
     // Đếm số lượng reaction theo type cho một item
     long countByReactableTypeAndReactableIdAndReactionType(
             ReactableType reactableType, UUID reactableId, ReactionType reactionType);

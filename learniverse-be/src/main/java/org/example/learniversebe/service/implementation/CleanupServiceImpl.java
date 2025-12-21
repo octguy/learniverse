@@ -1,5 +1,6 @@
 package org.example.learniversebe.service.implementation;
 
+import lombok.extern.slf4j.Slf4j;
 import org.example.learniversebe.model.AuthCredential;
 import org.example.learniversebe.model.PasswordResetToken;
 import org.example.learniversebe.model.RefreshToken;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Slf4j
 @Service
 public class CleanupServiceImpl implements ICleanupService {
 
@@ -45,7 +47,7 @@ public class CleanupServiceImpl implements ICleanupService {
         List<User> users = userRepository.findPendingUserExceedOneDay();
 
         if (users.isEmpty()) {
-            System.out.println("No unverified users to clean up.");
+            log.info("No unverified users to clean up.");
         } else {
             List<AuthCredential> authCredentials = authCredentialRepository.findAllByUserIn(users);
 
@@ -56,7 +58,7 @@ public class CleanupServiceImpl implements ICleanupService {
             userRepository.saveAll(users);
             authCredentialRepository.saveAll(authCredentials);
 
-            System.out.println("Cleaned up " + users.size() + " unverified users and their credentials.");
+            log.info("Cleaned up {} unverified users and their credentials.", users.size());
         }
     }
 
@@ -67,10 +69,10 @@ public class CleanupServiceImpl implements ICleanupService {
         List<RefreshToken> expiredTokens = refreshTokenRepository.findAllTokenExpiredAfter24Hours();
 
         if (expiredTokens.isEmpty()) {
-            System.out.println("No expired refresh tokens to clean up.");
+            log.info("No expired refresh tokens to clean up.");
         } else {
             refreshTokenRepository.deleteAll(expiredTokens);
-            System.out.println("Cleaned up " + expiredTokens.size() + " expired refresh tokens.");
+            log.info("Cleaned up {} expired refresh tokens.", expiredTokens.size());
         }
     }
 
@@ -81,10 +83,10 @@ public class CleanupServiceImpl implements ICleanupService {
         List<PasswordResetToken> expiredTokens = passwordResetTokenRepository.findAllTokenExpiredAfter24Hours();
 
         if (expiredTokens.isEmpty()) {
-            System.out.println("No expired password reset tokens to clean up.");
+            log.info("No expired password reset tokens to clean up.");
         } else {
             passwordResetTokenRepository.deleteAll(expiredTokens);
-            System.out.println("Cleaned up " + expiredTokens.size() + " expired password reset tokens.");
+            log.info("Cleaned up {} expired password reset tokens.", expiredTokens.size());
         }
     }
 }

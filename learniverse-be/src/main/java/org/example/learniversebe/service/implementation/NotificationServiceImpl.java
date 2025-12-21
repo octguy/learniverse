@@ -1,95 +1,191 @@
 package org.example.learniversebe.service.implementation;
 
+import org.example.learniversebe.dto.response.NotificationResponse;
+import org.example.learniversebe.dto.response.PageResponse;
+import org.example.learniversebe.enums.NotificationType;
+import org.example.learniversebe.exception.ResourceNotFoundException;
+import org.example.learniversebe.mapper.NotificationMapper;
 import org.example.learniversebe.model.Answer;
 import org.example.learniversebe.model.Comment;
+import org.example.learniversebe.model.Notification;
 import org.example.learniversebe.model.User;
+import org.example.learniversebe.repository.NotificationRepository;
+import org.example.learniversebe.repository.UserRepository;
 import org.example.learniversebe.service.INotificationService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.example.learniversebe.util.ServiceHelper;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
-/**
- * Basic implementation of INotificationService.
- * Currently logs notifications to the console.
- * TODO: Replace with actual notification sending logic (email, WebSocket, push notifications).
- */
 @Service
+@RequiredArgsConstructor
 public class NotificationServiceImpl implements INotificationService {
 
-    private static final Logger log = LoggerFactory.getLogger(NotificationServiceImpl.class);
+    private final NotificationRepository notificationRepository;
+    private final UserRepository userRepository;
+    private final NotificationMapper notificationMapper;
+    private final ServiceHelper serviceHelper;
 
-    // Inject dependencies like EmailService, SimpMessagingTemplate (for WebSocket) etc. here
-    // private final IEmailService emailService;
-    // private final SimpMessagingTemplate messagingTemplate;
+    @Override
+    @Transactional
+    public Notification createNotification(UUID recipientId, UUID senderId, NotificationType type, String content, UUID relatedEntityId, String relatedEntityType) {
+        User recipient = userRepository.findById(recipientId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", recipientId.toString()));
 
-    // public NotificationServiceImpl(IEmailService emailService, SimpMessagingTemplate messagingTemplate) {
-    //     this.emailService = emailService;
-    //     this.messagingTemplate = messagingTemplate;
-    // }
+        User sender = null;
+        if (senderId != null) {
+            sender = userRepository.findById(senderId)
+                    .orElseThrow(() -> new ResourceNotFoundException("User", "id", senderId.toString()));
+        }
 
+        Notification notification = new Notification();
+        notification.setId(UUID.randomUUID());
+        notification.setRecipient(recipient);
+        notification.setSender(sender);
+        notification.setNotificationType(type);
+
+        notification.setContent(content);
+        notification.setRelatedEntityId(relatedEntityId);
+        notification.setRelatedEntityType(relatedEntityType);
+        notification.setRead(false);
+
+        return notificationRepository.save(notification);
+    }
 
     @Override
     public void notifyNewAnswer(User questionAuthor, User answerAuthor, Answer answer) {
-        // Basic logging implementation
-        log.info("NOTIFICATION: User '{}' answered question '{}' by user '{}'. Answer ID: {}",
-                answerAuthor.getUsername(), answer.getQuestion().getId(), questionAuthor.getUsername(), answer.getId());
+        if (questionAuthor.getId().equals(answerAuthor.getId())) return;
 
-        // TODO: Implement actual notification sending (e.g., in-app notification record, WebSocket push)
-        // String notificationMessage = String.format("%s answered your question.", answerAuthor.getUsername());
-        // createInAppNotification(questionAuthor, notificationMessage, "/questions/" + answer.getQuestion().getId() + "#answer-" + answer.getId());
-        // sendWebSocketNotification(questionAuthor.getId(), notificationMessage);
+        createNotification(
+                questionAuthor.getId(),
+                answerAuthor.getId(),
+                NotificationType.ANSWER,
+                answerAuthor.getUsername() + " đã trả lời câu hỏi của bạn.",
+                answer.getQuestion().getId(),
+                "QUESTION"
+        );
     }
 
     @Override
     public void notifyNewComment(User entityAuthor, User commentAuthor, Comment comment) {
-        log.info("NOTIFICATION: User '{}' commented on {} '{}' by user '{}'. Comment ID: {}",
-                commentAuthor.getUsername(), comment.getCommentableType().toLowerCase(), comment.getCommentableId(),
-                entityAuthor.getUsername(), comment.getId());
+        if (entityAuthor.getId().equals(commentAuthor.getId())) return;
 
-        // TODO: Implement actual notification sending
+        createNotification(
+                entityAuthor.getId(),
+                commentAuthor.getId(),
+                NotificationType.COMMENT,
+                commentAuthor.getUsername() + " đã bình luận về bài viết của bạn.",
+                comment.getId(),
+                "COMMENT"
+        );
     }
 
     @Override
     public void notifyNewReply(User parentCommentAuthor, User replyAuthor, Comment reply) {
-        log.info("NOTIFICATION: User '{}' replied to comment '{}' by user '{}'. Reply ID: {}",
-                replyAuthor.getUsername(), reply.getParent().getId(), parentCommentAuthor.getUsername(), reply.getId());
+        if (parentCommentAuthor.getId().equals(replyAuthor.getId())) return;
 
-        // TODO: Implement actual notification sending
+        // FIX: Đổi reply.getParentComment() thành reply.getParent()
+        UUID relatedId = (reply.getParent() != null) ? reply.getParent().getId() : reply.getId();
+
+        createNotification(
+                parentCommentAuthor.getId(),
+                replyAuthor.getId(),
+                NotificationType.COMMENT,
+                replyAuthor.getUsername() + " đã trả lời bình luận của bạn.",
+                relatedId,
+                "COMMENT"
+        );
     }
 
     @Override
     public void notifyMentionedUsers(Set<User> mentionedUsers, User mentioner, Comment comment) {
-        for (User mentioned : mentionedUsers) {
-            log.info("NOTIFICATION: User '{}' mentioned user '{}' in comment '{}'.",
-                    mentioner.getUsername(), mentioned.getUsername(), comment.getId());
-            // TODO: Implement actual notification sending for each mentioned user
+        for (User mentionedUser : mentionedUsers) {
+            if (mentionedUser.getId().equals(mentioner.getId())) continue;
+
+            createNotification(
+                    mentionedUser.getId(),
+                    mentioner.getId(),
+                    NotificationType.MENTION,
+                    mentioner.getUsername() + " đã nhắc đến bạn trong một bình luận.",
+                    comment.getId(),
+                    "COMMENT"
+            );
         }
     }
 
     @Override
     public void notifyAnswerAccepted(User answerAuthor, User questionAuthor, Answer answer) {
-        log.info("NOTIFICATION: User '{}' accepted answer '{}' by user '{}' for question '{}'.",
-                questionAuthor.getUsername(), answer.getId(), answerAuthor.getUsername(), answer.getQuestion().getId());
+        if (answerAuthor.getId().equals(questionAuthor.getId())) return;
 
-        // TODO: Implement actual notification sending to answerAuthor
+        createNotification(
+                answerAuthor.getId(),
+                questionAuthor.getId(),
+                NotificationType.ANSWER_ACCEPTED,
+                questionAuthor.getUsername() + " đã chấp nhận câu trả lời của bạn.",
+                answer.getQuestion().getId(),
+                "QUESTION"
+        );
     }
 
-    // --- Helper methods for actual notification sending (examples) ---
-    /*
-    private void createInAppNotification(User recipient, String message, String link) {
-        // Logic to save notification to a Notification entity in the database
+    @Override
+    public PageResponse<NotificationResponse> getNotifications(int page, int size) {
+        UUID currentUserId = serviceHelper.getCurrentUserId();
+        Pageable pageable = PageRequest.of(page, size);
+
+        // Lưu ý: Sửa lại query trong Repository thành findByRecipient_IdOrderByCreatedAtDesc nếu chưa sửa
+        Page<Notification> pageData = notificationRepository.findAllByRecipient_IdOrderByCreatedAtDesc(currentUserId, pageable);
+
+        List<NotificationResponse> content = pageData.getContent().stream()
+                .map(notificationMapper::toResponse)
+                .collect(Collectors.toList());
+
+        return PageResponse.<NotificationResponse>builder()
+                .content(content)
+                .currentPage(pageData.getNumber())
+                .pageSize(pageData.getSize())
+                .totalElements(pageData.getTotalElements())
+                .totalPages(pageData.getTotalPages())
+                .last(pageData.isLast())
+                .first(pageData.isFirst())
+                .numberOfElements(pageData.getNumberOfElements())
+                .build();
     }
 
-    private void sendWebSocketNotification(UUID userId, String message) {
-        // Logic to send message via SimpMessagingTemplate to a user-specific topic
-        // messagingTemplate.convertAndSendToUser(userId.toString(), "/queue/notifications", message);
+    @Override
+    public long getUnreadNotificationCount() {
+        UUID currentUserId = serviceHelper.getCurrentUserId();
+        return notificationRepository.countByRecipient_IdAndIsReadFalse(currentUserId);
     }
 
-    private void sendEmailNotification(User recipient, String subject, String body) {
-        // Logic using IEmailService
-        // try { emailService.sendEmail(...); } catch (MessagingException e) { log.error(...) }
+    @Override
+    @Transactional
+    public void markAllAsRead() {
+        UUID currentUserId = serviceHelper.getCurrentUserId();
+        notificationRepository.markAllAsReadByRecipientId(currentUserId);
     }
-    */
+
+    @Override
+    @Transactional
+    public NotificationResponse markAsRead(UUID notificationId) {
+        UUID currentUserId = serviceHelper.getCurrentUserId();
+
+        Notification notification = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Notification", "id", notificationId.toString()));
+
+        if (!notification.getRecipient().getId().equals(currentUserId)) {
+            throw new ResourceNotFoundException("Notification", "id", notificationId.toString());
+        }
+
+        notification.setRead(true);
+        Notification saved = notificationRepository.save(notification);
+        return notificationMapper.toResponse(saved);
+    }
 }

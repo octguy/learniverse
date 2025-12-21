@@ -24,7 +24,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/interactions")
 @Tag(name = "User Interactions", description = "APIs for user interactions (Vote, Reaction, Bookmark, Report - UC 2.3, 3.3, 7.3)")
-@PreAuthorize("hasRole('USER')") // Hầu hết các tương tác đều yêu cầu đăng nhập
+@PreAuthorize("hasRole('USER')")
 public class InteractionController {
 
     private final IInteractionService interactionService;
