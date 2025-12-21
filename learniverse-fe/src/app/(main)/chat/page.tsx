@@ -58,18 +58,16 @@ export default function ChatPage() {
     const loadChats = async () => {
       try {
         dispatch({ type: "SET_LOADING", payload: true });
-        // Get current user ID from session storage
-        const userStr = sessionStorage.getItem("user");
+        // Get current user ID from local storage
+        const userStr = localStorage.getItem("user");
         let userId = "";
         if (userStr) {
           try {
             const userObj = JSON.parse(userStr);
             userId = userObj.id || "";
+            console.log("[CHAT] Current user ID:", userId);
           } catch (e) {
-            console.error(
-              "[CHAT] ❌ Error parsing user from sessionStorage:",
-              e
-            );
+            console.error("[CHAT] ❌ Error parsing user from localStorage:", e);
           }
         }
         setCurrentUserId(userId);
@@ -95,8 +93,10 @@ export default function ChatPage() {
                 }`;
               }
 
-              // Fetch avatar for direct chats
+              // Fetch avatar and name for direct chats
               let avatar = null;
+              let chatName = room.name || "Direct Chat";
+
               if (!room.groupChat && room.participants.length === 2) {
                 // Find the other participant (not current user)
                 const recipientId = room.participants.find(
@@ -108,9 +108,14 @@ export default function ChatPage() {
                       recipientId
                     );
                     avatar = userProfile.avatarUrl;
+                    // Use recipient's display name or username as chat name for direct messages
+                    chatName =
+                      userProfile.displayName ||
+                      userProfile.user.username ||
+                      "Direct Chat";
                   } catch (error) {
                     console.error(
-                      `[CHAT] ❌ Error fetching avatar for user ${recipientId}:`,
+                      `[CHAT] ❌ Error fetching profile for user ${recipientId}:`,
                       error
                     );
                   }
@@ -119,7 +124,7 @@ export default function ChatPage() {
 
               const chat = {
                 id: room.id,
-                name: room.name || "Direct Chat",
+                name: chatName,
                 avatar,
                 lastMessage,
                 unreadCount: room.unreadCount || 0,
