@@ -98,7 +98,7 @@ public class QuestionServiceImpl implements IQuestionService {
 
     @Override
     @Transactional
-    public QuestionResponse createQuestion(CreateQuestionRequest request) {
+    public QuestionResponse createQuestion(CreateQuestionRequest request, List<MultipartFile> files) {
         log.info("Creating question with title: {}", request.getTitle());
         User author = serviceHelper.getCurrentUser();
 

@@ -89,7 +89,7 @@ public class PostServiceImpl implements IPostService {
 
     @Override
     @Transactional // Đảm bảo tất cả thao tác DB thành công hoặc rollback
-    public PostResponse createPost(CreatePostRequest request) {
+    public PostResponse createPost(CreatePostRequest request, List<MultipartFile> files) {
         log.info("Creating new post with title: {}", request.getTitle());
         User author = serviceHelper.getCurrentUser(); // Lấy user đang đăng nhập
 

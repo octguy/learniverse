@@ -1,6 +1,10 @@
 package org.example.learniversebe.service.implementation;
 
-import lombok.extern.slf4j.Slf4j;
+import org.example.learniversebe.dto.response.NotificationResponse;
+import org.example.learniversebe.dto.response.PageResponse;
+import org.example.learniversebe.enums.NotificationType;
+import org.example.learniversebe.exception.ResourceNotFoundException;
+import org.example.learniversebe.mapper.NotificationMapper;
 import org.example.learniversebe.model.Answer;
 import org.example.learniversebe.model.Comment;
 import org.example.learniversebe.model.Notification;
@@ -8,6 +12,11 @@ import org.example.learniversebe.model.User;
 import org.example.learniversebe.repository.NotificationRepository;
 import org.example.learniversebe.repository.UserRepository;
 import org.example.learniversebe.service.INotificationService;
+import org.example.learniversebe.util.ServiceHelper;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,19 +25,26 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-/**
- * Basic implementation of INotificationService.
- * Currently logs notifications to the console.
- * TODO: Replace with actual notification sending logic (email, WebSocket, push notifications).
- */
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class NotificationServiceImpl implements INotificationService {
 
-    // Inject dependencies like EmailService, SimpMessagingTemplate (for WebSocket) etc. here
-    // private final IEmailService emailService;
-    // private final SimpMessagingTemplate messagingTemplate;
+    private final NotificationRepository notificationRepository;
+    private final UserRepository userRepository;
+    private final NotificationMapper notificationMapper;
+    private final ServiceHelper serviceHelper;
+
+    @Override
+    @Transactional
+    public Notification createNotification(UUID recipientId, UUID senderId, NotificationType type, String content, UUID relatedEntityId, String relatedEntityType) {
+        User recipient = userRepository.findById(recipientId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", recipientId.toString()));
+
+        User sender = null;
+        if (senderId != null) {
+            sender = userRepository.findById(senderId)
+                    .orElseThrow(() -> new ResourceNotFoundException("User", "id", senderId.toString()));
+        }
 
         Notification notification = new Notification();
         notification.setId(UUID.randomUUID());

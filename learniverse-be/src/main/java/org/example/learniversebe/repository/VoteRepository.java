@@ -17,6 +17,15 @@ public interface VoteRepository extends JpaRepository<Vote, UUID> {
     // Tìm vote của một user cho một item cụ thể
     Optional<Vote> findByUserIdAndVotableTypeAndVotableId(UUID userId, VotableType votableType, UUID votableId);
 
+    @Query(value = "SELECT * FROM votes v " +
+            "WHERE v.user_id = :userId " +
+            "AND v.votable_type = :#{#type.name()} " +
+            "AND v.votable_id = :votableId " +
+            "LIMIT 1", nativeQuery = true)
+    Optional<Vote> findExistingVoteRaw(@Param("userId") UUID userId,
+                                       @Param("type") VotableType type,
+                                       @Param("votableId") UUID votableId);
+
     // Đếm số upvote cho một item
     long countByVotableTypeAndVotableIdAndVoteType(VotableType votableType, UUID votableId, org.example.learniversebe.enums.VoteType voteType);
 

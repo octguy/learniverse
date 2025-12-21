@@ -21,7 +21,7 @@ public class CloudinaryStorageServiceImpl implements IStorageService {
     private final Cloudinary cloudinary;
 
     // Validate constants
-    private final long MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+    private final long MAX_IMAGE_SIZE = 5 * 1024 * 1024;
     private final long MAX_PDF_SIZE = 15 * 1024 * 1024;  // 15MB
     private final List<String> ALLOWED_IMAGE_TYPES = Arrays.asList("image/jpeg", "image/png", "image/gif", "image/webp");
     private final String PDF_TYPE = "application/pdf";
@@ -29,9 +29,20 @@ public class CloudinaryStorageServiceImpl implements IStorageService {
     @Override
     public Map<String, String> uploadFile(MultipartFile file) throws IOException {
         validateFile(file);
+
+        String contentType = file.getContentType();
+        String resourceType = "auto";
+
+        if (contentType != null && !contentType.startsWith("image/")) {
+            resourceType = "raw";
+        } else {
+            resourceType = "image";
+        }
+
         Map uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.asMap(
-                "resource_type", "auto",
-                "folder", "learniverse/posts"
+                "resource_type", resourceType,
+                "folder", "learniverse/posts",
+                "public_id", UUID.randomUUID().toString()
         ));
 
         return Map.of(
