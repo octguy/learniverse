@@ -190,6 +190,7 @@ export default function ChatPage() {
             messageType: message.messageType,
             textContent: message.textContent,
             metadata: message.metadata,
+            parentMessageId: message.parentMessageId,
             createdAt: message.createdAt,
           };
 
@@ -226,6 +227,7 @@ export default function ChatPage() {
           messageType: message.messageType,
           textContent: message.textContent,
           metadata: message.metadata,
+          parentMessageId: message.parentMessageId,
           createdAt: message.createdAt,
         };
 
@@ -255,6 +257,7 @@ export default function ChatPage() {
               messageType: m.messageType,
               textContent: m.textContent,
               metadata: m.metadata,
+              parentMessageId: m.parentMessageId,
               createdAt: m.createdAt,
             } as Message;
           })
@@ -373,10 +376,11 @@ export default function ChatPage() {
   const handleSearch = (q: string) =>
     dispatch({ type: "SET_SEARCH_QUERY", payload: q });
 
-  const handleSend = async (chatId: string, textContent: string) => {
+  const handleSend = async (chatId: string, textContent: string, parentMessageId?: string) => {
     try {
       const response = await chatService.sendMessage(chatId, {
         textContent,
+        parentMessageId,
       });
 
       if (response.data.status === "success") {
@@ -390,6 +394,7 @@ export default function ChatPage() {
           messageType: message.messageType,
           textContent: message.textContent,
           metadata: message.metadata,
+          parentMessageId: message.parentMessageId,
           createdAt: message.createdAt,
         };
 

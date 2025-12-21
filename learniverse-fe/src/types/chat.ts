@@ -13,6 +13,7 @@ export type Message = {
   messageType: "TEXT" | "IMAGE" | "VIDEO" | "FILE";
   textContent: string;
   metadata: string | null;
+  parentMessageId: string | null;
   createdAt: string;
 };
 

@@ -18,9 +18,10 @@ export default function MessageAttachment({
     return <p className="text-sm whitespace-pre-wrap break-words">{textContent}</p>;
   }
 
+
   if (messageType === "IMAGE") {
     return (
-      <div className="space-y-2">
+      <div>
         <a
           href={metadata}
           target="_blank"
@@ -31,10 +32,11 @@ export default function MessageAttachment({
             src={metadata}
             alt="Image"
             className="max-w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+            style={{ maxHeight: "400px" }}
           />
         </a>
         {textContent && (
-          <p className="text-sm whitespace-pre-wrap break-words">{textContent}</p>
+          <p className="text-sm whitespace-pre-wrap break-words mt-2">{textContent}</p>
         )}
       </div>
     );
@@ -42,14 +44,15 @@ export default function MessageAttachment({
 
   if (messageType === "VIDEO") {
     return (
-      <div className="space-y-2">
+      <div>
         <video
           src={metadata}
           controls
           className="max-w-full rounded-lg"
+          style={{ maxHeight: "400px" }}
         />
         {textContent && (
-          <p className="text-sm whitespace-pre-wrap break-words">{textContent}</p>
+          <p className="text-sm whitespace-pre-wrap break-words mt-2">{textContent}</p>
         )}
       </div>
     );
@@ -71,13 +74,13 @@ export default function MessageAttachment({
     const filename = textContent || (metadata ? getFilenameFromUrl(metadata) : "Download File");
 
     return (
-      <div className="space-y-2">
+      <div>
         <a
           href={metadata}
           download={filename}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-3 p-3 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors max-w-sm"
+          className="flex items-center gap-3 p-3 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
         >
           <FileText className="w-8 h-8 text-gray-600 flex-shrink-0" />
           <div className="flex-1 min-w-0">

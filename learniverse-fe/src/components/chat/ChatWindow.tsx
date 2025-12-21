@@ -3,18 +3,20 @@ import type { Chat, Message } from "@/types/chat";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Loader2, Paperclip } from "lucide-react";
+import { Send, Loader2, Paperclip, Reply } from "lucide-react";
 import { format, isSameDay } from "date-fns";
 import { chatService } from "@/lib/api/chatService";
 import { uploadFile } from "@/lib/api/fileUploadService";
 import FilePreview from "./FilePreview";
 import MessageAttachment from "./MessageAttachment";
+import ReplyPreview from "./ReplyPreview";
+import ParentMessage from "./ParentMessage";
 
 interface Props {
   chat: Chat;
   messages: Message[];
   userId: string;
-  onSend: (chatId: string, textContent: string) => void;
+  onSend: (chatId: string, content: string, parentMessageId?: string) => void;
   onLoadMore: () => void;
   hasMore: boolean;
   loadingMore: boolean;
@@ -46,6 +48,7 @@ const ChatWindow = ({
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
 
   // Mark messages as read when chat is opened
   useEffect(() => {
@@ -177,7 +180,15 @@ const ChatWindow = ({
     e.preventDefault();
     const content = messageInput.trim();
     if (!content) return;
-    onSend(chat.id, content);
+    
+    // Send with parentMessageId if replying
+    if (replyingTo) {
+      onSend(chat.id, content, replyingTo.id);
+      setReplyingTo(null);
+    } else {
+      onSend(chat.id, content);
+    }
+    
     setMessageInput("");
     // Force scroll to bottom when sending a message
     setAutoScroll(true);
@@ -209,6 +220,19 @@ const ChatWindow = ({
       
       setSelectedFile(file);
       setFileType(detectedType);
+    }
+  };
+
+  // Scroll to a specific message
+  const scrollToMessage = (messageId: number | string) => {
+    const element = document.getElementById(`message-${messageId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Add a highlight effect
+      element.classList.add('bg-yellow-100');
+      setTimeout(() => {
+        element.classList.remove('bg-yellow-100');
+      }, 2000);
     }
   };
 
@@ -327,7 +351,7 @@ const ChatWindow = ({
                 )}
 
                 <div
-                  id={`msg-${m.id}`}
+                  id={`message-${m.id}`}
                   className={`flex gap-2 ${
                     isOwn ? "justify-end" : "justify-start"
                   }`}
@@ -346,36 +370,140 @@ const ChatWindow = ({
                       )}
                     </div>
                   )}
-                  <div
-                    className={`flex flex-col ${
-                      isOwn ? "items-end" : "items-start"
-                    }`}
-                  >
-                    {!isOwn && showAvatar && (
-                      <span className="text-xs text-gray-600 mb-1 ml-2">
-                        {m.senderUsername}
-                      </span>
-                    )}
                     <div
-                      className={`max-w-[70%] min-w-[100px] rounded-lg px-3 py-2 ${
-                        isOwn ? "bg-blue-500 text-white" : "bg-white border"
+                      className={`flex flex-col ${
+                        isOwn ? "items-end" : "items-start"
                       }`}
-                      title={full(m.createdAt)}
                     >
-                      <MessageAttachment
-                        messageType={m.messageType as "TEXT" | "IMAGE" | "VIDEO" | "FILE"}
-                        metadata={m.metadata}
-                        textContent={m.textContent}
-                      />
-                      <div
-                        className={`mt-1 text-[10px] leading-none text-right ${
-                          isOwn ? "opacity-80" : "text-muted-foreground"
-                        }`}
-                      >
-                        {fmtTime(m.createdAt)}
+                      {!isOwn && showAvatar && (
+                        <span className="text-xs text-gray-600 mb-1 ml-2">
+                          {m.senderUsername}
+                        </span>
+                      )}
+                      <div className="group relative">
+                        {/* Different styling for media vs text messages */}
+                        {m.messageType === "TEXT" ? (
+                          <div className={`flex items-end gap-1 ${isOwn ? "justify-end" : "justify-start"}`}>
+                            {/* Reply button on LEFT for own text messages */}
+                            {isOwn && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 flex-shrink-0 mb-1"
+                                onClick={() => setReplyingTo(m)}
+                              >
+                                <Reply className="w-3 h-3" />
+                              </Button>
+                            )}
+                            
+                            <div
+                              className={`max-w-[70%] min-w-[100px] rounded-lg px-3 py-2 ${
+                                isOwn ? "bg-blue-500 text-white" : "bg-white border"
+                              }`}
+                              title={full(m.createdAt)}
+                            >
+                              {/* Parent Message Reference */}
+                              {m.parentMessageId && (
+                                <ParentMessage
+                                  senderUsername={
+                                    messages.find((msg) => msg.id === m.parentMessageId)
+                                      ?.senderUsername || "Unknown"
+                                  }
+                                  textContent={
+                                    messages.find((msg) => msg.id === m.parentMessageId)
+                                      ?.textContent || ""
+                                  }
+                                  messageType={
+                                    (messages.find((msg) => msg.id === m.parentMessageId)
+                                      ?.messageType as "TEXT" | "IMAGE" | "VIDEO" | "FILE") || "TEXT"
+                                  }
+                                  onClick={() => scrollToMessage(m.parentMessageId!)}
+                                />
+                              )}
+                              
+                              <MessageAttachment
+                                messageType={m.messageType as "TEXT" | "IMAGE" | "VIDEO" | "FILE"}
+                                metadata={m.metadata}
+                                textContent={m.textContent}
+                              />
+                              <div
+                                className={`mt-1 text-[10px] leading-none text-right ${
+                                  isOwn ? "opacity-80" : "text-muted-foreground"
+                                }`}
+                              >
+                                {fmtTime(m.createdAt)}
+                              </div>
+                            </div>
+                            
+                            {/* Reply button on RIGHT for others' text messages */}
+                            {!isOwn && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 flex-shrink-0 mb-1"
+                                onClick={() => setReplyingTo(m)}
+                              >
+                                <Reply className="w-3 h-3" />
+                              </Button>
+                            )}
+                          </div>
+                        ) : (
+                          <div className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
+                            <div className="relative inline-block max-w-[70%]">
+                              {/* Parent Message Reference for media */}
+                              {m.parentMessageId && (
+                                <div className={`mb-2 px-3 py-2 rounded-lg ${
+                                  isOwn ? "bg-blue-500 text-white" : "bg-white border"
+                                }`}>
+                                  <ParentMessage
+                                    senderUsername={
+                                      messages.find((msg) => msg.id === m.parentMessageId)
+                                        ?.senderUsername || "Unknown"
+                                    }
+                                    textContent={
+                                      messages.find((msg) => msg.id === m.parentMessageId)
+                                        ?.textContent || ""
+                                    }
+                                    messageType={
+                                      (messages.find((msg) => msg.id === m.parentMessageId)
+                                        ?.messageType as "TEXT" | "IMAGE" | "VIDEO" | "FILE") || "TEXT"
+                                    }
+                                    onClick={() => scrollToMessage(m.parentMessageId!)}
+                                  />
+                                </div>
+                              )}
+                              
+                              <MessageAttachment
+                                messageType={m.messageType as "TEXT" | "IMAGE" | "VIDEO" | "FILE"}
+                                metadata={m.metadata}
+                                textContent={m.textContent}
+                              />
+                              
+                              {/* Timestamp and Reply button in same row */}
+                              <div className="flex items-center justify-end gap-2 mt-1">
+                                <div
+                                  className={`text-[10px] leading-none ${
+                                    isOwn ? "text-blue-600" : "text-muted-foreground"
+                                  }`}
+                                >
+                                  {fmtTime(m.createdAt)}
+                                </div>
+                                
+                                {/* Reply button aligned with timestamp */}
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 flex-shrink-0"
+                                  onClick={() => setReplyingTo(m)}
+                                >
+                                  <Reply className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  </div>
                 </div>
               </React.Fragment>
             );
@@ -383,33 +511,42 @@ const ChatWindow = ({
         )}
         <div ref={messagesEndRef} />
       </div>
-      <div className="p-4 border-t bg-white flex-shrink-0">
-        <form onSubmit={handleSubmit} className="flex space-x-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            onChange={handleFileSelect}
-            className="hidden"
+      {/* Input Area */}
+      <div className="border-t bg-white flex-shrink-0">
+        {replyingTo && (
+          <ReplyPreview
+            message={replyingTo}
+            onCancel={() => setReplyingTo(null)}
           />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Paperclip className="w-5 h-5" />
-          </Button>
-          <Input
-            value={messageInput}
-            onChange={(e) => setMessageInput(e.target.value)}
-            placeholder="Nhập tin nhắn..."
-            className="flex-1"
-            autoComplete="off"
-          />
-          <Button type="submit" disabled={!messageInput.trim()}>
-            <Send className="w-4 h-4" />
-          </Button>
-        </form>
+        )}
+        <div className="p-4">
+          <form onSubmit={handleSubmit} className="flex space-x-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Paperclip className="w-5 h-5" />
+            </Button>
+            <Input
+              value={messageInput}
+              onChange={(e) => setMessageInput(e.target.value)}
+              placeholder="Nhập tin nhắn..."
+              className="flex-1"
+              autoComplete="off"
+            />
+            <Button type="submit" disabled={!messageInput.trim()}>
+              <Send className="w-4 h-4" />
+            </Button>
+          </form>
+        </div>
       </div>
 
       {/* File Preview Modal */}
