@@ -6,10 +6,7 @@ import org.example.learniversebe.dto.request.ReactionRequest;
 import org.example.learniversebe.dto.request.VoteRequest;
 import org.example.learniversebe.dto.response.BookmarkResponse;
 import org.example.learniversebe.dto.response.PageResponse;
-import org.example.learniversebe.enums.ContentType;
-import org.example.learniversebe.enums.ReactableType;
-import org.example.learniversebe.enums.ReactionType;
-import org.example.learniversebe.enums.VotableType;
+import org.example.learniversebe.enums.*;
 import org.example.learniversebe.exception.BadRequestException;
 import org.example.learniversebe.exception.ResourceNotFoundException;
 import org.example.learniversebe.mapper.BookmarkMapper;
@@ -38,13 +35,11 @@ public class InteractionServiceImpl implements IInteractionService {
     private final ReactionRepository reactionRepository;
     private final BookmarkRepository bookmarkRepository;
     private final ContentRepository contentRepository;
+    private final UserRepository userRepository;
     private final AnswerRepository answerRepository;
     private final CommentRepository commentRepository;
-    private final UserRepository userRepository;
     private final ServiceHelper serviceHelper;
     private final BookmarkMapper bookmarkMapper;
-
-    private static final Logger log = LoggerFactory.getLogger(InteractionServiceImpl.class);
 
     public InteractionServiceImpl(VoteRepository voteRepository,
                                   ReactionRepository reactionRepository,
@@ -72,51 +67,50 @@ public class InteractionServiceImpl implements IInteractionService {
     @Transactional
     public int vote(VoteRequest request) {
         log.info("Processing vote for {} with ID: {} of type: {}", request.getVotableType(), request.getVotableId(), request.getVoteType());
-        User currentUser = serviceHelper.getCurrentUser();
-        UUID votableId = request.getVotableId();
-        VotableType votableType = request.getVotableType();
-        int scoreDelta = 0; // Thay đổi điểm số cuối cùng
+        User user = serviceHelper.getCurrentUser();
+        VotableType type = request.getVotableType();
+        UUID typeId = request.getVotableId();
+        VoteType newVoteType = request.getVoteType();
 
-        // 1. Tìm entity được vote và kiểm tra điều kiện
-        Object votableEntity = findVotableEntity(votableType, votableId);
-        UUID authorId = getAuthorIdFromVotable(votableEntity);
-        if (currentUser.getId().equals(authorId)) {
-            throw new BadRequestException("User cannot vote on their own " + votableType.name().toLowerCase());
-        }
+        validateVotableEntity(type, typeId);
 
-        // 2. Tìm vote hiện tại của user (nếu có)
-        Optional<Vote> existingVoteOpt = voteRepository.findByUserIdAndVotableTypeAndVotableId(
-                currentUser.getId(), votableType, votableId);
+        Optional<Vote> existingVoteOpt = voteRepository.findExistingVoteRaw(user.getId(), type, typeId);
+
+        int scoreDelta = 0;
 
         if (existingVoteOpt.isPresent()) {
             Vote existingVote = existingVoteOpt.get();
-            // 3a. Nếu vote mới cùng loại -> Hủy vote (toggle)
-            if (existingVote.getVoteType() == request.getVoteType()) {
-                voteRepository.delete(existingVote);
-                scoreDelta = (request.getVoteType() == org.example.learniversebe.enums.VoteType.UPVOTE) ? -1 : 1;
-            }
-            // 3b. Nếu vote mới khác loại -> Cập nhật vote
-            else {
-                scoreDelta = (request.getVoteType() == org.example.learniversebe.enums.VoteType.UPVOTE) ? 2 : -2; // Từ down->up (+2), từ up->down (-2)
-                existingVote.setVoteType(request.getVoteType());
-                existingVote.setUpdatedAt(LocalDateTime.now());
+
+            if (existingVote.getDeletedAt() != null) {
+                existingVote.setDeletedAt(null);
+                existingVote.setVoteType(newVoteType);
                 voteRepository.save(existingVote);
+
+                scoreDelta = (newVoteType == VoteType.UPVOTE) ? 1 : -1;
             }
-        }
-        // 4. Nếu chưa có vote -> Tạo vote mới
-        else {
+            else {
+                if (existingVote.getVoteType() == newVoteType) {
+                    voteRepository.delete(existingVote);
+                    scoreDelta = (newVoteType == VoteType.UPVOTE) ? -1 : 1;
+                } else {
+                    existingVote.setVoteType(newVoteType);
+                    voteRepository.save(existingVote);
+                    scoreDelta = (newVoteType == VoteType.UPVOTE) ? 2 : -2;
+                }
+            }
+        } else {
             Vote newVote = new Vote();
-            newVote.setUser(currentUser);
-            newVote.setVotableType(votableType);
-            newVote.setVotableId(votableId);
-            newVote.setVoteType(request.getVoteType());
-            // @PrePersist sẽ set ID và timestamps
+            newVote.setUser(user);
+            newVote.setVotableType(type);
+            newVote.setVotableId(typeId);
+            newVote.setVoteType(newVoteType);
             voteRepository.save(newVote);
-            scoreDelta = (request.getVoteType() == org.example.learniversebe.enums.VoteType.UPVOTE) ? 1 : -1;
+
+            scoreDelta = (newVoteType == VoteType.UPVOTE) ? 1 : -1;
         }
 
-        // 5. Cập nhật vote score trên entity tương ứng
-        return updateVoteScore(votableEntity, scoreDelta);
+        // Cập nhật điểm số tổng vào bảng cha (Content/Answer)
+        return updateVoteScore(type, typeId, scoreDelta);
     }
 
 
@@ -124,45 +118,47 @@ public class InteractionServiceImpl implements IInteractionService {
     @Transactional
     public void react(ReactionRequest request) {
         log.info("Processing reaction for {} with ID: {} of type: {}", request.getReactableType(), request.getReactableId(), request.getReactionType());
-        User currentUser = serviceHelper.getCurrentUser();
-        UUID reactableId = request.getReactableId();
-        ReactableType reactableType = request.getReactableType();
+        User user = serviceHelper.getCurrentUser();
+        ReactableType type = request.getReactableType();
+        UUID typeId = request.getReactableId();
+        ReactionType newReactionType = request.getReactionType();
+
+        validateReactableEntity(type, typeId);
+
+        Optional<Reaction> existingReactionOpt = reactionRepository.findExistingReactionRaw(user.getId(), type, typeId);
+
         int countDelta = 0;
 
-        Object reactableEntity = findReactableEntity(reactableType, reactableId);
+        if (existingReactionOpt.isPresent()) {
+            Reaction existingReaction = existingReactionOpt.get();
 
-        Optional<Reaction> currentReactionOpt = reactionRepository.findByUserIdAndReactableTypeAndReactableId(
-                currentUser.getId(), reactableType, reactableId);
-
-        if (currentReactionOpt.isPresent()) {
-            Reaction currentReaction = currentReactionOpt.get();
-            if (currentReaction.getReactionType() == request.getReactionType()) {
-                reactionRepository.delete(currentReaction);
-                countDelta = -1;
+            if (existingReaction.getDeletedAt() != null) {
+                existingReaction.setDeletedAt(null);
+                existingReaction.setReactionType(newReactionType);
+                reactionRepository.save(existingReaction);
+                countDelta = 1;
             }
             else {
-                currentReaction.setReactionType(request.getReactionType());
-                reactionRepository.save(currentReaction);
+                if (existingReaction.getReactionType() == newReactionType) {
+                    reactionRepository.delete(existingReaction);
+                    countDelta = -1;
+                } else {
+                    existingReaction.setReactionType(newReactionType);
+                    reactionRepository.save(existingReaction);
+                }
             }
         } else {
             Reaction newReaction = new Reaction();
-            newReaction.setId(UUID.randomUUID());
-            newReaction.setUser(currentUser);
-            newReaction.setReactableType(reactableType);
-            newReaction.setReactableId(reactableId);
-            newReaction.setReactionType(request.getReactionType());
-
-            try {
-                reactionRepository.save(newReaction);
-                countDelta = 1;
-            } catch (DataIntegrityViolationException e) {
-                log.warn("Duplicate reaction ignored for user {} on item {}", currentUser.getId(), reactableId);
-                return;
-            }
+            newReaction.setUser(user);
+            newReaction.setReactableType(type);
+            newReaction.setReactableId(typeId);
+            newReaction.setReactionType(newReactionType);
+            reactionRepository.save(newReaction);
+            countDelta = 1;
         }
 
         if (countDelta != 0) {
-            updateReactionCountManual(reactableEntity, countDelta);
+            updateReactionCount(type, typeId, countDelta);
         }
     }
 
@@ -192,19 +188,24 @@ public class InteractionServiceImpl implements IInteractionService {
             throw new BadRequestException("Content already bookmarked by this user");
         }
 
-        Bookmark bookmark = new Bookmark();
-        bookmark.setUser(currentUser);
-        bookmark.setContent(content);
-        bookmark.setCollectionName(request.getCollectionName());
-        bookmark.setNotes(request.getNotes());
-        // @PrePersist sets timestamps and ID
+        Optional<Bookmark> existingBookmark = bookmarkRepository.findByUserIdAndContentId(currentUser.getId(), content.getId());
 
-        Bookmark savedBookmark = bookmarkRepository.save(bookmark);
+        if (existingBookmark.isPresent()) {
+            bookmarkRepository.delete(existingBookmark.get());
+            content.setBookmarkCount(Math.max(0, content.getBookmarkCount() - 1));
+            contentRepository.save(content);
+            return null;
+        } else {
+            Bookmark bookmark = new Bookmark();
+            bookmark.setUser(currentUser);
+            bookmark.setContent(content);
+            Bookmark saved = bookmarkRepository.save(bookmark);
 
-        content.setBookmarkCount(content.getBookmarkCount() + 1);
-        contentRepository.save(content);
+            content.setBookmarkCount(content.getBookmarkCount() + 1);
+            contentRepository.save(content);
 
-        return bookmarkMapper.toBookmarkResponse(savedBookmark);
+            return bookmarkMapper.toBookmarkResponse(saved);
+        }
     }
 
     @Override
@@ -233,10 +234,10 @@ public class InteractionServiceImpl implements IInteractionService {
         if (collectionName != null && !collectionName.isBlank()) {
             bookmarkPage = bookmarkRepository.findByUserIdAndCollectionNameIgnoreCaseOrderByCreatedAtDesc(currentUser.getId(), collectionName, pageable); // Cần method này
         } else {
-            bookmarkPage = bookmarkRepository.findByUserIdOrderByCreatedAtDesc(currentUser.getId(), pageable); // Cần method này
+            bookmarkPage = bookmarkRepository.findByUserIdOrderByCreatedAtDesc(currentUser.getId(), pageable);
         }
 
-        return bookmarkMapper.bookmarkPageToBookmarkPageResponse(bookmarkPage); // Cần hàm tiện ích trong mapper
+        return bookmarkMapper.bookmarkPageToBookmarkPageResponse(bookmarkPage);
     }
 
     @Override
@@ -262,65 +263,56 @@ public class InteractionServiceImpl implements IInteractionService {
 
     // --- Helper Methods ---
 
-    private Object findVotableEntity(VotableType type, UUID id) {
-        return switch (type) {
-            case CONTENT -> contentRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Content (Question) not found: " + id));
-            case ANSWER -> answerRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Answer not found: " + id));
-            // default -> throw new BadRequestException("Invalid votable type: " + type); // Enum đảm bảo hợp lệ
-        };
-    }
-
-    private Object findReactableEntity(ReactableType type, UUID id) {
-        return switch (type) {
-            case CONTENT -> contentRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Content not found: " + id));
-            case ANSWER -> answerRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Answer not found: " + id));
-            case COMMENT -> commentRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Comment not found: " + id));
-            // default -> throw new BadRequestException("Invalid reactable type: " + type);
-        };
-    }
-
-    private UUID getAuthorIdFromVotable(Object entity) {
-        if (entity instanceof Content content) {
-            return content.getAuthor().getId();
-        } else if (entity instanceof Answer answer) {
-            return answer.getAuthor().getId();
+    private void validateVotableEntity(VotableType type, UUID id) {
+        if (type == VotableType.CONTENT) {
+            if (!contentRepository.existsById(id))
+                throw new ResourceNotFoundException("Content not found");
+        } else if (type == VotableType.ANSWER) {
+            if (!answerRepository.existsById(id))
+                throw new ResourceNotFoundException("Answer not found");
         }
-        throw new IllegalArgumentException("Unsupported votable entity type");
     }
 
-    private int updateVoteScore(Object entity, int delta) {
-        if (entity instanceof Content content) {
+    private void validateReactableEntity(ReactableType type, UUID id) {
+        if (type == ReactableType.CONTENT) {
+            if (!contentRepository.existsById(id))
+                throw new ResourceNotFoundException("Content not found");
+        } else if (type == ReactableType.ANSWER) {
+            if (!answerRepository.existsById(id))
+                throw new ResourceNotFoundException("Answer not found");
+        } else if (type == ReactableType.COMMENT) {
+            if (!commentRepository.existsById(id))
+                throw new ResourceNotFoundException("Comment not found");
+        }
+    }
+
+    private int updateVoteScore(VotableType type, UUID id, int delta) {
+        if (delta == 0) return 0; // Không có thay đổi
+
+        if (type == VotableType.CONTENT) {
+            Content content = contentRepository.findById(id).orElseThrow();
             content.setVoteScore(content.getVoteScore() + delta);
-            // Có thể cập nhật upvote/downvote count nếu cần
             contentRepository.save(content);
             return content.getVoteScore();
-        } else if (entity instanceof Answer answer) {
+        } else if (type == VotableType.ANSWER) {
+            Answer answer = answerRepository.findById(id).orElseThrow();
             answer.setVoteScore(answer.getVoteScore() + delta);
-            // Có thể cập nhật upvote/downvote count nếu cần
             answerRepository.save(answer);
             return answer.getVoteScore();
         }
-        throw new IllegalArgumentException("Unsupported votable entity type");
+        return 0;
     }
 
-    private void updateReactionCount(Object entity, int delta) {
-        if (entity instanceof Content content) {
+    private void updateReactionCount(ReactableType type, UUID id, int delta) {
+        if (delta == 0) return;
+        if (type == ReactableType.CONTENT) {
+            Content content = contentRepository.findById(id).orElseThrow();
             content.setReactionCount(Math.max(0, content.getReactionCount() + delta));
             contentRepository.save(content);
-        } else if (entity instanceof Answer answer) {
-            // Cần thêm reactionCount vào Answer entity nếu muốn track
-            // answer.setReactionCount(Math.max(0, answer.getReactionCount() + delta));
-            // answerRepository.save(answer);
-        } else if (entity instanceof Comment comment) {
+        } else if (type == ReactableType.COMMENT) {
+            Comment comment = commentRepository.findById(id).orElseThrow();
             comment.setReactionCount(Math.max(0, comment.getReactionCount() + delta));
             commentRepository.save(comment);
-        } else {
-            throw new IllegalArgumentException("Unsupported reactable entity type");
         }
     }
 }

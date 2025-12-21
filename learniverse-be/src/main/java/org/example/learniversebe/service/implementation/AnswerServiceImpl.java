@@ -76,7 +76,7 @@ public class AnswerServiceImpl implements IAnswerService {
 
     @Override
     @Transactional
-    public AnswerResponse addAnswer(CreateAnswerRequest request) {
+    public AnswerResponse addAnswer(CreateAnswerRequest request, List<MultipartFile> files) {
         log.info("Adding answer to question ID: {}", request.getQuestionId());
         User author = serviceHelper.getCurrentUser();
         Content question = contentRepository.findById(request.getQuestionId())
