@@ -3,6 +3,7 @@ package org.example.learniversebe.controller;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.example.learniversebe.dto.request.EditMessageRequest;
+import org.example.learniversebe.dto.request.SendFileMessageRequest;
 import org.example.learniversebe.dto.request.SendMessageRequest;
 import org.example.learniversebe.dto.response.MessageResponse;
 import org.example.learniversebe.dto.response.pagination.PageResponse;
@@ -56,37 +57,29 @@ public class ChatMessageController {
         return ResponseEntity.status(HttpStatus.CREATED).body(apiResponse);
     }
 
-    @PostMapping(value = "/send-with-file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = "/send-with-file/{roomId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> sendMessageWithFile(
-            @RequestParam("chatRoomId") UUID chatRoomId,
+            @PathVariable UUID roomId,
             @RequestParam("messageType") MessageType messageType,
             @RequestParam(value = "textContent", required = false) String textContent,
             @RequestParam(value = "parentMessageId", required = false) UUID parentMessageId,
             @RequestParam("file") MultipartFile file) {
 
-//        SendMessageRequest request = new SendMessageRequest();
-//        request.setChatRoomId(chatRoomId);
-//        request.setMessageType(messageType);
-//        request.setTextContent(textContent);
-//        request.setParentMessageId(parentMessageId);
-//
-//        MessageResponse messageResponse = chatMessageService.sendMessageWithFile(request, file);
-//
-//        // Broadcast via WebSocket
-//        messagingTemplate.convertAndSend(
-//                "/topic/chat/" + chatRoomId,
-//                messageResponse
-//        );
-//
-//        ApiResponse<?> apiResponse = new ApiResponse<>(
-//                HttpStatus.CREATED,
-//                "Message with file sent successfully",
-//                messageResponse,
-//                null
-//        );
+        SendFileMessageRequest request = new SendFileMessageRequest();
+        request.setMessageType(messageType);
+        request.setTextContent(textContent);
+        request.setParentMessageId(parentMessageId);
 
-//        return ResponseEntity.status(HttpStatus.CREATED).body(apiResponse);
-        return null;
+        MessageResponse messageResponse = chatMessageService.sendMessageWithFile(roomId, request, file);
+
+        ApiResponse<?> apiResponse = new ApiResponse<>(
+                HttpStatus.CREATED,
+                "Message with file sent successfully",
+                messageResponse,
+                null
+        );
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(apiResponse);
     }
 
     @PostMapping("/mark-as-read/{roomId}")

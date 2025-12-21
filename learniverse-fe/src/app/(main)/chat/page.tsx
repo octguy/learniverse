@@ -189,6 +189,7 @@ export default function ChatPage() {
             senderAvatar: message.sender.senderAvatar,
             messageType: message.messageType,
             textContent: message.textContent,
+            metadata: message.metadata,
             createdAt: message.createdAt,
           };
 
@@ -224,6 +225,7 @@ export default function ChatPage() {
           senderAvatar: message.sender.senderAvatar,
           messageType: message.messageType,
           textContent: message.textContent,
+          metadata: message.metadata,
           createdAt: message.createdAt,
         };
 
@@ -252,6 +254,7 @@ export default function ChatPage() {
               senderAvatar: m.sender.senderAvatar,
               messageType: m.messageType,
               textContent: m.textContent,
+              metadata: m.metadata,
               createdAt: m.createdAt,
             } as Message;
           })
@@ -386,6 +389,7 @@ export default function ChatPage() {
           senderAvatar: message.sender.senderAvatar,
           messageType: message.messageType,
           textContent: message.textContent,
+          metadata: message.metadata,
           createdAt: message.createdAt,
         };
 

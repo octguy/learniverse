@@ -1,8 +1,10 @@
 package org.example.learniversebe.service.implementation;
 
 import com.cloudinary.Cloudinary;
+import com.cloudinary.utils.ObjectUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.example.learniversebe.dto.request.EditMessageRequest;
+import org.example.learniversebe.dto.request.SendFileMessageRequest;
 import org.example.learniversebe.dto.request.SendMessageRequest;
 import org.example.learniversebe.dto.response.MessageResponse;
 import org.example.learniversebe.dto.response.pagination.PageResponse;
@@ -29,6 +31,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -129,70 +132,95 @@ public class ChatMessageServiceImpl implements IChatMessageService {
 
     @Override
     @Transactional
-    public MessageResponse sendMessageWithFile(UUID roomId, SendMessageRequest request, MultipartFile file) {
-//        User sender = SecurityUtils.getCurrentUser();
-//
-//        // Validate chat room exists
-//        ChatRoom chatRoom = chatRoomRepository.findById(request.getChatRoomId())
-//                .orElseThrow(() -> new ResourceNotFoundException("Chat room not found"));
-//
-//        // Validate sender is participant
-//        validateParticipant(chatRoom.getId(), sender.getId());
-//
-//        // Validate file is provided
-//        if (file == null || file.isEmpty()) {
-//            throw new IllegalArgumentException("File is required");
-//        }
-//
-//        // Upload file to Cloudinary
-//        String fileUrl;
-//        try {
-//            Map uploadResult;
-//
-//            if (request.getMessageType() == MessageType.IMAGE) {
-//                uploadResult = cloudinary.uploader().upload(file.getBytes(),
-//                        ObjectUtils.asMap("folder", "learniverse/chat/images"));
-//            } else if (request.getMessageType() == MessageType.VIDEO) {
-//                uploadResult = cloudinary.uploader().upload(file.getBytes(),
-//                        ObjectUtils.asMap(
-//                                "folder", "learniverse/chat/videos",
-//                                "resource_type", "video"
-//                        ));
-//            } else {
-//                // For files
-//                uploadResult = cloudinary.uploader().upload(file.getBytes(),
-//                        ObjectUtils.asMap(
-//                                "folder", "learniverse/chat/files",
-//                                "resource_type", "raw"
-//                        ));
-//            }
-//
-//            fileUrl = (String) uploadResult.get("secure_url");
-//            log.info("File uploaded to Cloudinary: {}", fileUrl);
-//        } catch (Exception e) {
-//            log.error("Failed to upload file to Cloudinary", e);
-//            throw new RuntimeException("Failed to upload file", e);
-//        }
-//
-//        ChatMessage message = new ChatMessage();
-//        message.setChatRoom(chatRoom);
-//        message.setSender(sender);
-//        message.setMessageType(request.getMessageType());
-//        message.setTextContent(request.getTextContent()); // Optional caption
-//        message.setMetadata(fileUrl);
-////        message.setSendAt(LocalDateTime.now());
-//
-//        // Handle parent message (reply)
-//        if (request.getParentMessageId() != null) {
-//            ChatMessage parentMessage = chatMessageRepository.findById(request.getParentMessageId())
-//                    .orElseThrow(() -> new ResourceNotFoundException("Parent message not found"));
-//            message.setParentMessage(parentMessage);
-//        }
-//
-//        chatMessageRepository.save(message);
-//        log.info("Message with file sent by user {} in chat room {}", sender.getUsername(), chatRoom.getId());
+    public MessageResponse sendMessageWithFile(UUID roomId, SendFileMessageRequest request, MultipartFile file) {
+        UUID userId = SecurityUtils.getCurrentUser().getId();
+        UserProfile senderProfile = userProfileRepository.findByUserId(userId);
+        User sender = SecurityUtils.getCurrentUser();
 
-        return null;
+        // Validate chat room exists
+        ChatRoom chatRoom = chatRoomRepository.findById(roomId)
+                .orElseThrow(() -> new ResourceNotFoundException("Chat room not found"));
+
+        // Validate sender is participant
+        getParticipant(roomId, userId);
+
+        // Validate file is provided
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("File is required");
+        }
+
+        // Upload file to Cloudinary
+        String fileUrl;
+        try {
+            Map uploadResult;
+
+            if (request.getMessageType() == MessageType.IMAGE) {
+                uploadResult = cloudinary.uploader().upload(file.getBytes(),
+                        ObjectUtils.asMap("folder", "learniverse/chat/images"));
+            } else if (request.getMessageType() == MessageType.VIDEO) {
+                uploadResult = cloudinary.uploader().upload(file.getBytes(),
+                        ObjectUtils.asMap(
+                                "folder", "learniverse/chat/videos",
+                                "resource_type", "video"
+                        ));
+            } else {
+                // For files
+                uploadResult = cloudinary.uploader().upload(file.getBytes(),
+                        ObjectUtils.asMap(
+                                "folder", "learniverse/chat/files",
+                                "resource_type", "raw"
+                        ));
+            }
+
+            fileUrl = (String) uploadResult.get("secure_url");
+            log.info("File uploaded to Cloudinary: {}", fileUrl);
+        } catch (Exception e) {
+            log.error("Failed to upload file to Cloudinary", e);
+            throw new RuntimeException("Failed to upload file", e);
+        }
+
+        ChatMessage message = new ChatMessage();
+        message.setChatRoom(chatRoom);
+        message.setSender(sender);
+        message.setMessageType(request.getMessageType());
+        message.setTextContent(request.getTextContent()); // Optional caption
+        message.setMetadata(fileUrl);
+
+        // Handle parent message (reply)
+        if (request.getParentMessageId() != null) {
+            ChatMessage parentMessage = chatMessageRepository.findById(request.getParentMessageId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Parent message not found"));
+            message.setParentMessage(parentMessage);
+        }
+
+        chatMessageRepository.save(message);
+        log.info("Message with file sent by user {} in chat room {}", sender.getUsername(), chatRoom.getId());
+
+        // Build response
+        MessageResponse response = MessageResponse.builder()
+                .id(message.getId())
+                .chatRoomId(roomId)
+                .sender(SenderResponse.builder()
+                        .senderId(sender.getId())
+                        .senderName(senderProfile.getDisplayName())
+                        .senderAvatar(senderProfile.getAvatarUrl())
+                        .build())
+                .messageType(message.getMessageType().toString())
+                .textContent(message.getTextContent())
+                .metadata(message.getMetadata())
+                .parentMessageId(request.getParentMessageId())
+                .createdAt(message.getCreatedAt())
+                .build();
+
+        // Broadcast via WebSocket with ChatSocketEvent wrapper
+        ChatSocketEvent event = ChatSocketEvent.builder()
+                .eventType(SocketEventType.NEW_MESSAGE)
+                .data(response)
+                .build();
+
+        messagingTemplate.convertAndSend("/topic/chat/" + roomId, event);
+
+        return response;
     }
 
     @Override

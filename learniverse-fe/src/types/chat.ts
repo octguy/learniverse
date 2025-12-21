@@ -10,8 +10,9 @@ export type Message = {
   senderId: string;
   senderUsername: string;
   senderAvatar: string | null;
-  messageType: "TEXT" | "IMAGE" | "FILE";
+  messageType: "TEXT" | "IMAGE" | "VIDEO" | "FILE";
   textContent: string;
+  metadata: string | null;
   createdAt: string;
 };
 

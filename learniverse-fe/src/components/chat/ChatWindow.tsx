@@ -3,9 +3,12 @@ import type { Chat, Message } from "@/types/chat";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Loader2 } from "lucide-react";
+import { Send, Loader2, Paperclip } from "lucide-react";
 import { format, isSameDay } from "date-fns";
 import { chatService } from "@/lib/api/chatService";
+import { uploadFile } from "@/lib/api/fileUploadService";
+import FilePreview from "./FilePreview";
+import MessageAttachment from "./MessageAttachment";
 
 interface Props {
   chat: Chat;
@@ -38,6 +41,11 @@ const ChatWindow = ({
   const oldestMessageIdRef = useRef<string | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
   const [showLoadingSpinner, setShowLoadingSpinner] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileType, setFileType] = useState<"IMAGE" | "VIDEO" | "FILE" | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Mark messages as read when chat is opened
   useEffect(() => {
@@ -178,6 +186,87 @@ const ChatWindow = ({
     }, 100);
   };
 
+  const detectFileType = (file: File): "IMAGE" | "VIDEO" | "FILE" => {
+    const imageTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    const videoTypes = ["video/mp4", "video/webm", "video/quicktime"];
+
+    if (imageTypes.includes(file.type)) return "IMAGE";
+    if (videoTypes.includes(file.type)) return "VIDEO";
+    return "FILE";
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      console.log("[FILE] Selected file:", {
+        name: file.name,
+        type: file.type,
+        size: file.size,
+      });
+      
+      const detectedType = detectFileType(file);
+      console.log("[FILE] Detected type:", detectedType);
+      
+      setSelectedFile(file);
+      setFileType(detectedType);
+    }
+  };
+
+  const handleFileSend = async () => {
+    if (!selectedFile || !fileType) return;
+
+    // Use original filename
+    const finalCaption = selectedFile.name;
+
+    console.log("[FILE] Starting upload:", {
+      fileName: selectedFile.name,
+      fileType: fileType,
+      fileSize: selectedFile.size,
+      caption: finalCaption,
+    });
+
+    setUploading(true);
+    try {
+      const result = await uploadFile(
+        chat.id,
+        fileType,
+        selectedFile,
+        finalCaption,
+        undefined,
+        (progress) => {
+          console.log("[FILE] Upload progress:", progress + "%");
+          setUploadProgress(progress);
+        }
+      );
+      
+      console.log("[FILE] ✅ Upload successful:", result);
+      
+      // Close preview
+      setSelectedFile(null);
+      setFileType(null);
+      setUploadProgress(0);
+    } catch (error: any) {
+      console.error("[FILE] ❌ Upload failed:", error);
+      console.error("[FILE] Error details:", {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
+      alert(`Failed to upload file: ${error.response?.data?.message || error.message}`);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleFileCancel = () => {
+    setSelectedFile(null);
+    setFileType(null);
+    setUploadProgress(0);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   const fmtTime = (iso: string) => format(new Date(iso), "HH:mm");
   const fmtDate = (d: Date) => format(d, "MMM d, yyyy").toUpperCase(); // OCT 4, 2025
   const full = (iso: string) => format(new Date(iso), "HH:mm • dd/MM/yyyy");
@@ -273,9 +362,11 @@ const ChatWindow = ({
                       }`}
                       title={full(m.createdAt)}
                     >
-                      <p className="text-sm whitespace-pre-wrap break-words">
-                        {m.textContent}
-                      </p>
+                      <MessageAttachment
+                        messageType={m.messageType as "TEXT" | "IMAGE" | "VIDEO" | "FILE"}
+                        metadata={m.metadata}
+                        textContent={m.textContent}
+                      />
                       <div
                         className={`mt-1 text-[10px] leading-none text-right ${
                           isOwn ? "opacity-80" : "text-muted-foreground"
@@ -294,6 +385,20 @@ const ChatWindow = ({
       </div>
       <div className="p-4 border-t bg-white flex-shrink-0">
         <form onSubmit={handleSubmit} className="flex space-x-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Paperclip className="w-5 h-5" />
+          </Button>
           <Input
             value={messageInput}
             onChange={(e) => setMessageInput(e.target.value)}
@@ -306,8 +411,21 @@ const ChatWindow = ({
           </Button>
         </form>
       </div>
+
+      {/* File Preview Modal */}
+      {selectedFile && fileType && (
+        <FilePreview
+          file={selectedFile}
+          fileType={fileType}
+          onCancel={handleFileCancel}
+          onSend={handleFileSend}
+          uploading={uploading}
+          uploadProgress={uploadProgress}
+        />
+      )}
     </div>
   );
 };
+
 
 export default ChatWindow;

@@ -1,6 +1,7 @@
 package org.example.learniversebe.service;
 
 import org.example.learniversebe.dto.request.EditMessageRequest;
+import org.example.learniversebe.dto.request.SendFileMessageRequest;
 import org.example.learniversebe.dto.request.SendMessageRequest;
 import org.example.learniversebe.dto.response.MessageResponse;
 import org.example.learniversebe.dto.response.pagination.PageResponse;
@@ -13,7 +14,7 @@ public interface IChatMessageService {
     
     MessageResponse sendMessage(UUID roomId, SendMessageRequest request);
     
-    MessageResponse sendMessageWithFile(UUID roomId, SendMessageRequest request, MultipartFile file);
+    MessageResponse sendMessageWithFile(UUID roomId, SendFileMessageRequest request, MultipartFile file);
     
     MessageResponse editMessage(EditMessageRequest request);
 
