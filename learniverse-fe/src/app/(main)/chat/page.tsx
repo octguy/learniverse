@@ -15,6 +15,7 @@ import ChatWindow from "@/components/chat/ChatWindow";
 import WelcomeScreen from "@/components/chat/WellcomeScreen";
 import { chatReducer } from "./state/chatReducer";
 import { chatService, MessageDTO, ChatRoomDTO } from "@/lib/api/chatService";
+import { userProfileService } from "@/lib/api/userProfileService";
 import { websocketService } from "@/lib/websocketService";
 import { Chat, Message } from "@/types/chat";
 import { toast } from "sonner";
@@ -78,14 +79,11 @@ export default function ChatPage() {
         if (response.data.status === "success") {
           const chatRooms = response.data.data;
 
-          // Convert to Chat format
-          const chatsWithData = chatRooms.map((room: ChatRoomDTO) => {
-            // Convert last message if it exists
-            let lastMessage = null;
-            // console.log("Room:", room);
-            // console.log("Last Message Sender:", room.lastMessage.);
-            if (room.lastMessage) {
-              // Check if sender exists (using optional chaining)
+          // Convert to Chat format and fetch avatars for direct chats
+          const chatsWithData = await Promise.all(
+            chatRooms.map(async (room: ChatRoomDTO) => {
+              // Convert last message if it exists
+              let lastMessage = null;
               if (room.lastMessage) {
                 // Show "You:" if the message is from the current user
                 const senderPrefix =
@@ -95,23 +93,43 @@ export default function ChatPage() {
                 lastMessage = `${senderPrefix}: ${
                   room.lastMessage.content || ""
                 }`;
-              } else {
-                lastMessage = "New message";
               }
-            }
 
-            const chat = {
-              id: room.id,
-              name: room.name || "Direct Chat",
-              avatar: null,
-              lastMessage,
-              unreadCount: room.unreadCount || 0,
-              participants: room.participants,
-              isGroupChat: room.groupChat,
-            } as Chat;
+              // Fetch avatar for direct chats
+              let avatar = null;
+              if (!room.groupChat && room.participants.length === 2) {
+                // Find the other participant (not current user)
+                const recipientId = room.participants.find(
+                  (participantId) => participantId !== userId
+                );
+                if (recipientId) {
+                  try {
+                    const userProfile = await userProfileService.getUserProfile(
+                      recipientId
+                    );
+                    avatar = userProfile.avatarUrl;
+                  } catch (error) {
+                    console.error(
+                      `[CHAT] ❌ Error fetching avatar for user ${recipientId}:`,
+                      error
+                    );
+                  }
+                }
+              }
 
-            return chat;
-          });
+              const chat = {
+                id: room.id,
+                name: room.name || "Direct Chat",
+                avatar,
+                lastMessage,
+                unreadCount: room.unreadCount || 0,
+                participants: room.participants,
+                isGroupChat: room.groupChat,
+              } as Chat;
+
+              return chat;
+            })
+          );
 
           dispatch({ type: "SET_CHATS", payload: chatsWithData });
         }
@@ -376,7 +394,11 @@ export default function ChatPage() {
   const handleSearch = (q: string) =>
     dispatch({ type: "SET_SEARCH_QUERY", payload: q });
 
-  const handleSend = async (chatId: string, textContent: string, parentMessageId?: string) => {
+  const handleSend = async (
+    chatId: string,
+    textContent: string,
+    parentMessageId?: string
+  ) => {
     try {
       const response = await chatService.sendMessage(chatId, {
         textContent,

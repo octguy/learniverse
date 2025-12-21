@@ -2,7 +2,6 @@ package org.example.learniversebe.controller;
 
 import lombok.extern.slf4j.Slf4j;
 import org.example.learniversebe.dto.websocket.UserStatusDTO;
-import org.example.learniversebe.service.IPresenceService;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
@@ -17,14 +16,10 @@ import java.util.UUID;
 public class WebSocketEventListener {
 
     private final SimpMessagingTemplate messagingTemplate;
-    private final IPresenceService presenceService;
 
-    public WebSocketEventListener(SimpMessagingTemplate messagingTemplate,
-                                  IPresenceService presenceService) {
+    public WebSocketEventListener(SimpMessagingTemplate messagingTemplate) {
         this.messagingTemplate = messagingTemplate;
-        this.presenceService = presenceService;
     }
-
     @EventListener
     public void handleWebSocketConnectListener(SessionConnectEvent event) {
         StompHeaderAccessor headerAccessor = StompHeaderAccessor.wrap(event.getMessage());
@@ -50,8 +45,7 @@ public class WebSocketEventListener {
             String userIdStr = (String) headerAccessor.getSessionAttributes().get("userId");
             if (userIdStr != null) {
                 UUID userId = UUID.fromString(userIdStr);
-                presenceService.setUserOffline(userId);
-                
+
                 // Broadcast user offline status
                 UserStatusDTO statusDTO = new UserStatusDTO();
                 statusDTO.setUserId(userId);

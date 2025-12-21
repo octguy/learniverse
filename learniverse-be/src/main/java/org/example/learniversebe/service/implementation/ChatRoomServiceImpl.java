@@ -31,14 +31,18 @@ public class ChatRoomServiceImpl implements IChatRoomService {
 
     private final ChatMessageRepository chatMessageRepository;
 
+    private final UserProfileRepository userProfileRepository;
+
     public ChatRoomServiceImpl(ChatRoomRepository chatRoomRepository,
                                UserRepository userRepository,
                                ChatParticipantRepository chatParticipantRepository,
-                               ChatMessageRepository chatMessageRepository) {
+                               ChatMessageRepository chatMessageRepository,
+                               UserProfileRepository userProfileRepository) {
         this.chatMessageRepository = chatMessageRepository;
         this.chatParticipantRepository = chatParticipantRepository;
         this.userRepository = userRepository;
         this.chatRoomRepository = chatRoomRepository;
+        this.userProfileRepository = userProfileRepository;
     }
 
     @Override
@@ -298,10 +302,25 @@ public class ChatRoomServiceImpl implements IChatRoomService {
     private ChatRoomResponse buildRoomResponse(ChatRoom room, UUID currentUserId, Set<UUID> participantIds) {
         LastMessageResponse lastMessage = getLastMessageByRoom(room);
         Integer unreadCount = getUnreadCount(room.getId(), currentUserId);
+        
+        // For direct chats, set name to recipient's display name
+        String chatName = room.getName();
+        if (!room.isGroupChat() && participantIds.size() == 2) {
+            UUID recipientId = participantIds.stream()
+                    .filter(id -> !id.equals(currentUserId))
+                    .findFirst()
+                    .orElse(null);
+            
+            if (recipientId != null) {
+                chatName = userProfileRepository.findById(recipientId)
+                        .map(UserProfile::getDisplayName)
+                        .orElse("Direct Chat");
+            }
+        }
 
         return ChatRoomResponse.builder()
                 .id(room.getId())
-                .name(room.getName())
+                .name(chatName)
                 .isGroupChat(room.isGroupChat())
                 .participants(participantIds)
                 .lastMessage(lastMessage)

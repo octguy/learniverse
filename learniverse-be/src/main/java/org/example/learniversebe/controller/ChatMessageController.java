@@ -13,7 +13,6 @@ import org.example.learniversebe.enums.MessageType;
 import org.example.learniversebe.model.ApiResponse;
 import org.example.learniversebe.model.User;
 import org.example.learniversebe.service.IChatMessageService;
-import org.example.learniversebe.service.IPresenceService;
 import org.example.learniversebe.util.SecurityUtils;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -32,14 +31,11 @@ import java.util.UUID;
 public class ChatMessageController {
 
     private final IChatMessageService chatMessageService;
-    private final IPresenceService presenceService;
     private final SimpMessagingTemplate messagingTemplate;
 
     public ChatMessageController(IChatMessageService chatMessageService,
-                                 IPresenceService presenceService,
                                  SimpMessagingTemplate messagingTemplate) {
         this.chatMessageService = chatMessageService;
-        this.presenceService = presenceService;
         this.messagingTemplate = messagingTemplate;
     }
 
@@ -151,69 +147,6 @@ public class ChatMessageController {
                 HttpStatus.OK,
                 "Message fetched successfully",
                 messageResponse,
-                null
-        );
-
-        return ResponseEntity.ok(apiResponse);
-    }
-
-    @PostMapping("/presence/online")
-    @Operation(summary = "Set user status to online", description = "Sets the current user's status to online and broadcasts it via WebSocket.")
-    public ResponseEntity<?> setUserOnline() {
-        User currentUser = SecurityUtils.getCurrentUser();
-        presenceService.setUserOnline(currentUser.getId(), currentUser.getUsername());
-
-        // Broadcast online status
-        UserStatusDTO statusDTO = new UserStatusDTO();
-        statusDTO.setUserId(currentUser.getId());
-        statusDTO.setUsername(currentUser.getUsername());
-        statusDTO.setOnline(true);
-
-        messagingTemplate.convertAndSend("/topic/presence", statusDTO);
-
-        ApiResponse<?> apiResponse = new ApiResponse<>(
-                HttpStatus.OK,
-                "User status set to online",
-                statusDTO,
-                null
-        );
-
-        return ResponseEntity.ok(apiResponse);
-    }
-
-    @PostMapping("/presence/offline")
-    @Operation(summary = "Set user status to offline", description = "Sets the current user's status to offline and broadcasts it via WebSocket.")
-    public ResponseEntity<?> setUserOffline() {
-        User currentUser = SecurityUtils.getCurrentUser();
-        presenceService.setUserOffline(currentUser.getId());
-
-        // Broadcast offline status
-        UserStatusDTO statusDTO = new UserStatusDTO();
-        statusDTO.setUserId(currentUser.getId());
-        statusDTO.setUsername(currentUser.getUsername());
-        statusDTO.setOnline(false);
-
-        messagingTemplate.convertAndSend("/topic/presence", statusDTO);
-
-        ApiResponse<?> apiResponse = new ApiResponse<>(
-                HttpStatus.OK,
-                "User status set to offline",
-                null,
-                null
-        );
-
-        return ResponseEntity.ok(apiResponse);
-    }
-
-    @GetMapping("/presence/{userId}")
-    @Operation(summary = "Get user online status", description = "Retrieves the online/offline status of a specific user.")
-    public ResponseEntity<?> getUserStatus(@PathVariable UUID userId) {
-        UserStatusDTO statusDTO = presenceService.getUserStatus(userId);
-
-        ApiResponse<?> apiResponse = new ApiResponse<>(
-                HttpStatus.OK,
-                "User status fetched successfully",
-                statusDTO,
                 null
         );
 
