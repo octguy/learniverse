@@ -1,5 +1,15 @@
 import { UserTag } from "./userTag";
 
+export interface UserProfile {
+    id: string;
+    username: string;
+    email: string;
+    avatarUrl?: string;
+    fullName?: string;
+    displayName?: string;
+    bio?: string;
+}
+
 export interface UserProfileResponse {
     id: string;
     displayName: string;
