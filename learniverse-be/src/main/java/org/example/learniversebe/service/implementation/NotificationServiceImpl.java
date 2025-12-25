@@ -20,6 +20,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -48,6 +49,7 @@ public class NotificationServiceImpl implements INotificationService {
 
         Notification notification = new Notification();
         notification.setId(UUID.randomUUID());
+
         notification.setRecipient(recipient);
         notification.setSender(sender);
         notification.setNotificationType(type);
@@ -56,6 +58,10 @@ public class NotificationServiceImpl implements INotificationService {
         notification.setRelatedEntityId(relatedEntityId);
         notification.setRelatedEntityType(relatedEntityType);
         notification.setRead(false);
+
+        LocalDateTime now = LocalDateTime.now();
+        notification.setCreatedAt(now);
+        notification.setUpdatedAt(now);
 
         return notificationRepository.save(notification);
     }
@@ -92,7 +98,6 @@ public class NotificationServiceImpl implements INotificationService {
     public void notifyNewReply(User parentCommentAuthor, User replyAuthor, Comment reply) {
         if (parentCommentAuthor.getId().equals(replyAuthor.getId())) return;
 
-        // FIX: Đổi reply.getParentComment() thành reply.getParent()
         UUID relatedId = (reply.getParent() != null) ? reply.getParent().getId() : reply.getId();
 
         createNotification(
@@ -140,7 +145,6 @@ public class NotificationServiceImpl implements INotificationService {
         UUID currentUserId = serviceHelper.getCurrentUserId();
         Pageable pageable = PageRequest.of(page, size);
 
-        // Lưu ý: Sửa lại query trong Repository thành findByRecipient_IdOrderByCreatedAtDesc nếu chưa sửa
         Page<Notification> pageData = notificationRepository.findAllByRecipient_IdOrderByCreatedAtDesc(currentUserId, pageable);
 
         List<NotificationResponse> content = pageData.getContent().stream()
@@ -185,6 +189,9 @@ public class NotificationServiceImpl implements INotificationService {
         }
 
         notification.setRead(true);
+
+        notification.setUpdatedAt(LocalDateTime.now());
+
         Notification saved = notificationRepository.save(notification);
         return notificationMapper.toResponse(saved);
     }
