@@ -1,6 +1,7 @@
 package org.example.learniversebe.service.implementation;
 
 import jakarta.mail.MessagingException;
+import lombok.extern.slf4j.Slf4j;
 import org.example.learniversebe.dto.request.*;
 import org.example.learniversebe.dto.response.AuthResponse;
 import org.example.learniversebe.enums.UserRole;
@@ -15,6 +16,7 @@ import org.example.learniversebe.service.IAuthService;
 import org.example.learniversebe.service.IEmailService;
 import org.example.learniversebe.service.IPasswordResetTokenService;
 import org.example.learniversebe.service.IRefreshTokenService;
+import org.example.learniversebe.util.SecurityUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -28,11 +30,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.file.AccessDeniedException;
 import java.time.LocalDateTime;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
 
+import static java.util.stream.Collectors.toList;
+
+@Slf4j
 @Service
 public class AuthServiceImpl implements IAuthService {
 
@@ -82,10 +84,12 @@ public class AuthServiceImpl implements IAuthService {
 
     @Override
     public AuthResponse login(LoginRequest request) {
+        log.info("Login attempt for email: {}", request.getEmail());
         User user = userRepository.findByEmail(request.getEmail()).orElseThrow(() -> new BadCredentialsException("Bad credentials"));
 
         // Still throw BadCredentialsException to avoid giving hints to attackers
         if (!user.isEnabled()) {
+            log.warn("Login failed - email not verified for user: {}", request.getEmail());
             throw new AccountNotActivatedException("Email not verified!");
         }
 
@@ -104,6 +108,7 @@ public class AuthServiceImpl implements IAuthService {
         String accessToken = jwtUtil.generateToken(userDetails);
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
         String token = refreshToken.getToken();
+        log.info("User logged in successfully: {}", user.getUsername());
 
         return AuthResponse.builder()
                 .id(user.getId())
@@ -118,6 +123,16 @@ public class AuthServiceImpl implements IAuthService {
     @Override
     @Transactional
     public AuthResponse register(RegisterRequest request) {
+        return createUserWithRole(request, UserRole.ROLE_USER);
+    }
+
+    @Override
+    @Transactional
+    public AuthResponse createAdmin(RegisterRequest request) {
+        return createUserWithRole(request, UserRole.ROLE_ADMIN);
+    }
+
+    private User createUser(RegisterRequest request, UserRole roleName) {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new UserAlreadyExistException("Email already in use");
         }
@@ -126,37 +141,48 @@ public class AuthServiceImpl implements IAuthService {
             throw new UserAlreadyExistException("Username already in use");
         }
 
-        // Create a new record of user
+        // Create user
         User user = new User();
         user.setId(UUID.randomUUID());
         user.setEmail(request.getEmail());
         user.setUsername(request.getUsername());
-        user.setOnboarded(false);
         user.setEnabled(false);
         user.setStatus(UserStatus.PENDING_VERIFICATION);
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
 
-        Role role = roleRepository.findByName(UserRole.ROLE_USER)
+        // Assign role
+        Role role = roleRepository.findByName(roleName)
                 .orElseThrow(() -> new RuntimeException("Role not found"));
 
-        // Assign role to user
-        user.addRole(role); // role user will be added (cascade = CascadeType.ALL)
-        userRepository.save(user);
+        user.addRole(role);
 
-        // Create a new record of auth credentials
+        return userRepository.save(user);
+    }
+
+    private AuthCredential createCredential(User user, String password) {
         AuthCredential authCredential = new AuthCredential();
         authCredential.setId(UUID.randomUUID());
         authCredential.setUser(user);
-        authCredential.setPassword(passwordEncoder.encode(request.getPassword()));
+        authCredential.setPassword(passwordEncoder.encode(password));
         String verificationCode = generateVerificationCode();
         authCredential.setVerificationCode(verificationCode);
         authCredential.setVerificationExpiration(LocalDateTime.now().plusMinutes(expiration));
         authCredential.setCreatedAt(LocalDateTime.now());
         authCredential.setUpdatedAt(LocalDateTime.now());
         authCredentialRepository.save(authCredential);
+        return authCredential;
+    }
 
-        sendVerificationEmail(user.getEmail(), verificationCode);
+    private AuthResponse createUserWithRole(RegisterRequest request, UserRole roleName) {
+        User user = createUser(request, roleName);
+        AuthCredential credential = createCredential(user, request.getPassword());
+
+        sendVerificationEmail(user.getEmail(), credential.getVerificationCode());
+
+//        List<String> roles = user.getRoleUsers().stream()
+//                .map(roleUser -> roleUser.getRole().getName().name())
+//                .toList();
 
         return AuthResponse.builder()
                 .id(user.getId())
@@ -164,7 +190,7 @@ public class AuthServiceImpl implements IAuthService {
                 .username(user.getUsername())
                 .accessToken(null)
                 .refreshToken(null)
-                .isOnboarded(false)
+                .isOnboarded(true)
                 .build();
     }
 
@@ -281,7 +307,7 @@ public class AuthServiceImpl implements IAuthService {
 
     @Override
     public void changePassword(ChangePasswordRequest request) {
-        User currentUser = getCurrentUser();
+        User currentUser = SecurityUtils.getCurrentUser();
         Optional<AuthCredential> authCredential = authCredentialRepository.findByUser(currentUser);
 
         if (authCredential.isEmpty()) {
@@ -302,24 +328,9 @@ public class AuthServiceImpl implements IAuthService {
     @Override
     @Transactional
     public void logout() {
-        User currentUser = getCurrentUser();
+        User currentUser = SecurityUtils.getCurrentUser();
         System.out.println(currentUser.getEmail());
         refreshTokenService.deleteByUser(currentUser);
-    }
-
-    private User getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        // the code above always return an object of type UsernamePasswordAuthenticationToken
-        // if not authenticated, the object will be AnonymousAuthenticationToken (if not .authenticated() in SecurityConfig)
-
-//        System.out.println(authentication.isAuthenticated()); // always true
-
-//        System.out.println(authentication.getClass());
-//        System.out.println(authentication.getPrincipal().toString());
-//        System.out.println(authentication.getCredentials());
-
-        CustomUserDetails customUserDetails = (CustomUserDetails) authentication.getPrincipal();
-        return customUserDetails.getUser();
     }
 
     private void sendForgetPasswordEmail(String email, String token) {

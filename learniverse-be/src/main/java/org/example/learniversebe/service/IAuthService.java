@@ -10,6 +10,8 @@ public interface IAuthService {
 
     AuthResponse register(RegisterRequest request);
 
+    AuthResponse createAdmin(RegisterRequest request);
+
     void verifyUser(VerifyUserRequest request);
 
     void resendVerificationCode(String email);
