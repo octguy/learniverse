@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { friendService } from '@/lib/api/friendService';
 import { Friend } from '@/types/friend';
-import { Loader2, UserCheck, UserX } from 'lucide-react';
+import { Loader2, UserCheck, UserX, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 
@@ -20,17 +20,22 @@ export default function FriendsPage() {
                 </CardHeader>
                 <CardContent className="flex-1">
                     <Tabs defaultValue="list" className="w-full">
-                        <TabsList className="grid w-full grid-cols-2 mb-6">
+                        <TabsList className="grid w-full grid-cols-3 mb-6">
                             <TabsTrigger value="list">Danh sách bạn bè</TabsTrigger>
                             <TabsTrigger value="requests">Lời mời kết bạn</TabsTrigger>
+                            <TabsTrigger value="suggested">Gợi ý kết bạn</TabsTrigger>
                         </TabsList>
-                        
+
                         <TabsContent value="list">
                             <FriendList />
                         </TabsContent>
-                        
+
                         <TabsContent value="requests">
                             <FriendRequestList />
+                        </TabsContent>
+
+                        <TabsContent value="suggested">
+                            <SuggestedFriendsList />
                         </TabsContent>
                     </Tabs>
                 </CardContent>
@@ -149,7 +154,7 @@ function FriendRequestList() {
             {requests.map(req => (
                 <div key={req.id} className="flex items-center justify-between p-4 border rounded-lg bg-card">
                     <div className="flex items-center gap-3">
-                         <Link href={`/profile/${req.id}`}>
+                        <Link href={`/profile/${req.id}`}>
                             <Avatar className="h-10 w-10">
                                 <AvatarImage src={req.avatarUrl} />
                                 <AvatarFallback>{(req.displayName || req.fullName || req.username)?.charAt(0).toUpperCase()}</AvatarFallback>
@@ -172,6 +177,86 @@ function FriendRequestList() {
                             Từ chối
                         </Button>
                     </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function SuggestedFriendsList() {
+    const [users, setUsers] = React.useState<import("@/types/user").User[]>([]);
+    const [loading, setLoading] = React.useState(true);
+    const [requesting, setRequesting] = React.useState<string | null>(null);
+
+    React.useEffect(() => {
+        const fetchUsers = async () => {
+            try {
+                // Need to import userService dynamically or at top level. 
+                // Since this is replace_content, I'll add imports in a separate step or assume dynamic import for now if possible? 
+                // No, better to add import in a separate step. Here I write the component assuming userService is imported.
+                const { userService } = await import('@/lib/api/userService');
+                const res = await userService.getAllUsers();
+                if (Array.isArray(res.data)) {
+                    setUsers(res.data);
+                }
+            } catch (error) {
+                console.error(error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchUsers();
+    }, []);
+
+    const handleAddFriend = async (userId: string) => {
+        try {
+            setRequesting(userId);
+            await friendService.sendRequest(userId);
+            toast.success("Đã gửi lời mời kết bạn");
+            // Optionally remove from list or update UI state
+        } catch (error: any) {
+            console.error(error);
+            toast.error("Không thể gửi lời mời: " + (error.response?.data?.message || "Lỗi không xác định"));
+        } finally {
+            setRequesting(null);
+        }
+    };
+
+    if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>;
+
+    if (users.length === 0) {
+        return <div className="text-center text-muted-foreground p-8">Không có gợi ý nào.</div>;
+    }
+
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {users.map(user => (
+                <div key={user.id} className="flex items-center gap-4 p-4 border rounded-lg hover:bg-accent/50 transition">
+                    <Link href={`/profile/${user.id}`}>
+                        <Avatar className="h-12 w-12 cursor-pointer">
+                            <AvatarImage src={user.avatarUrl || undefined} />
+                            <AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                    </Link>
+                    <div className="flex-1 overflow-hidden">
+                        <Link href={`/profile/${user.id}`} className="font-semibold hover:underline truncate block">
+                            {user.username}
+                        </Link>
+                        <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                    </div>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleAddFriend(user.id)}
+                        disabled={requesting === user.id}
+                        title="Kết bạn"
+                    >
+                        {requesting === user.id ? (
+                            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                        ) : (
+                            <UserPlus className="h-5 w-5 text-muted-foreground hover:text-blue-500" />
+                        )}
+                    </Button>
                 </div>
             ))}
         </div>

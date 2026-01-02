@@ -3,7 +3,7 @@ import type { Chat, Message } from "@/types/chat";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Loader2, Paperclip, Reply } from "lucide-react";
+import { Send, Loader2, Paperclip, Reply, UserPlus } from "lucide-react";
 import { format, isSameDay } from "date-fns";
 import { chatService } from "@/lib/api/chatService";
 import { uploadFile } from "@/lib/api/fileUploadService";
@@ -11,6 +11,7 @@ import FilePreview from "./FilePreview";
 import MessageAttachment from "./MessageAttachment";
 import ReplyPreview from "./ReplyPreview";
 import ParentMessage from "./ParentMessage";
+import { AddMemberModal } from "./AddMemberModal";
 
 interface Props {
   chat: Chat;
@@ -51,6 +52,7 @@ const ChatWindow = ({
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
 
   // Mark messages as read when chat is opened
   useEffect(() => {
@@ -285,8 +287,7 @@ const ChatWindow = ({
         status: error.response?.status,
       });
       alert(
-        `Failed to upload file: ${
-          error.response?.data?.message || error.message
+        `Failed to upload file: ${error.response?.data?.message || error.message
         }`
       );
     } finally {
@@ -309,20 +310,42 @@ const ChatWindow = ({
 
   return (
     <div className="flex-1 flex flex-col bg-gray-50 h-full max-h-full">
-      <div className="p-3 border-b bg-white flex items-center shadow-sm flex-shrink-0">
-        <Avatar className="w-10 h-10 mr-3">
-          <AvatarImage src={chat.avatar || undefined} />
-          <AvatarFallback>{chat.name.charAt(0).toUpperCase()}</AvatarFallback>
-        </Avatar>
-        <div>
-          <h2 className="font-semibold text-gray-800">{chat.name}</h2>
-          {chat.isGroupChat && (
-            <p className="text-xs text-gray-500">
-              {chat.participants.length} thành viên
-            </p>
-          )}
+      <div className="p-3 border-b bg-white flex items-center justify-between shadow-sm flex-shrink-0">
+        <div className="flex items-center">
+          <Avatar className="w-10 h-10 mr-3">
+            <AvatarImage src={chat.avatar || undefined} />
+            <AvatarFallback>{chat.name.charAt(0).toUpperCase()}</AvatarFallback>
+          </Avatar>
+          <div>
+            <h2 className="font-semibold text-gray-800">{chat.name}</h2>
+            {chat.isGroupChat && (
+              <p className="text-xs text-gray-500">
+                {chat.participants.length} thành viên
+              </p>
+            )}
+          </div>
         </div>
+        {chat.isGroupChat && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsAddMemberOpen(true)}
+            title="Thêm thành viên"
+          >
+            <UserPlus className="w-5 h-5 text-gray-500" />
+          </Button>
+        )}
       </div>
+
+      <AddMemberModal
+        chatId={chat.id}
+        open={isAddMemberOpen}
+        onOpenChange={setIsAddMemberOpen}
+        onMemberAdded={() => {
+          // Ideally refresh chat details here, but for now just close
+          // You might want to trigger a reload of participants or chat info
+        }}
+      />
       <div
         ref={messagesContainerRef}
         onScroll={handleScroll}
@@ -364,9 +387,8 @@ const ChatWindow = ({
 
                 <div
                   id={`message-${m.id}`}
-                  className={`flex gap-2 ${
-                    isOwn ? "justify-end" : "justify-start"
-                  }`}
+                  className={`flex gap-2 ${isOwn ? "justify-end" : "justify-start"
+                    }`}
                 >
                   {!isOwn && (
                     <div className="flex-shrink-0">
@@ -383,9 +405,8 @@ const ChatWindow = ({
                     </div>
                   )}
                   <div
-                    className={`flex flex-col ${
-                      isOwn ? "items-end" : "items-start"
-                    }`}
+                    className={`flex flex-col ${isOwn ? "items-end" : "items-start"
+                      }`}
                   >
                     {!isOwn && showAvatar && (
                       <span className="text-xs text-gray-600 mb-1 ml-2">
@@ -396,9 +417,8 @@ const ChatWindow = ({
                       {/* Different styling for media vs text messages */}
                       {m.messageType === "TEXT" ? (
                         <div
-                          className={`flex items-end gap-1 ${
-                            isOwn ? "justify-end" : "justify-start"
-                          }`}
+                          className={`flex items-end gap-1 ${isOwn ? "justify-end" : "justify-start"
+                            }`}
                         >
                           {/* Reply button on LEFT for own text messages */}
                           {isOwn && (
@@ -413,11 +433,10 @@ const ChatWindow = ({
                           )}
 
                           <div
-                            className={`max-w-[70%] min-w-[100px] rounded-lg px-3 py-2 ${
-                              isOwn
-                                ? "bg-blue-500 text-white"
-                                : "bg-white border"
-                            }`}
+                            className={`max-w-[70%] min-w-[100px] rounded-lg px-3 py-2 ${isOwn
+                              ? "bg-blue-500 text-white"
+                              : "bg-white border"
+                              }`}
                             title={full(m.createdAt)}
                           >
                             {/* Parent Message Reference */}
@@ -451,18 +470,17 @@ const ChatWindow = ({
                             <MessageAttachment
                               messageType={
                                 m.messageType as
-                                  | "TEXT"
-                                  | "IMAGE"
-                                  | "VIDEO"
-                                  | "FILE"
+                                | "TEXT"
+                                | "IMAGE"
+                                | "VIDEO"
+                                | "FILE"
                               }
                               metadata={m.metadata}
                               textContent={m.textContent}
                             />
                             <div
-                              className={`mt-1 text-[10px] leading-none text-right ${
-                                isOwn ? "opacity-80" : "text-muted-foreground"
-                              }`}
+                              className={`mt-1 text-[10px] leading-none text-right ${isOwn ? "opacity-80" : "text-muted-foreground"
+                                }`}
                             >
                               {fmtTime(m.createdAt)}
                             </div>
@@ -482,19 +500,17 @@ const ChatWindow = ({
                         </div>
                       ) : (
                         <div
-                          className={`flex ${
-                            isOwn ? "justify-end" : "justify-start"
-                          }`}
+                          className={`flex ${isOwn ? "justify-end" : "justify-start"
+                            }`}
                         >
                           <div className="relative inline-block max-w-[70%]">
                             {/* Parent Message Reference for media */}
                             {m.parentMessageId && (
                               <div
-                                className={`mb-2 px-3 py-2 rounded-lg ${
-                                  isOwn
-                                    ? "bg-blue-500 text-white"
-                                    : "bg-white border"
-                                }`}
+                                className={`mb-2 px-3 py-2 rounded-lg ${isOwn
+                                  ? "bg-blue-500 text-white"
+                                  : "bg-white border"
+                                  }`}
                               >
                                 <ParentMessage
                                   senderUsername={
@@ -526,10 +542,10 @@ const ChatWindow = ({
                             <MessageAttachment
                               messageType={
                                 m.messageType as
-                                  | "TEXT"
-                                  | "IMAGE"
-                                  | "VIDEO"
-                                  | "FILE"
+                                | "TEXT"
+                                | "IMAGE"
+                                | "VIDEO"
+                                | "FILE"
                               }
                               metadata={m.metadata}
                               textContent={m.textContent}
@@ -538,11 +554,10 @@ const ChatWindow = ({
                             {/* Timestamp and Reply button in same row */}
                             <div className="flex items-center justify-end gap-2 mt-1">
                               <div
-                                className={`text-[10px] leading-none ${
-                                  isOwn
-                                    ? "text-blue-600"
-                                    : "text-muted-foreground"
-                                }`}
+                                className={`text-[10px] leading-none ${isOwn
+                                  ? "text-blue-600"
+                                  : "text-muted-foreground"
+                                  }`}
                               >
                                 {fmtTime(m.createdAt)}
                               </div>
