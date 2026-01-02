@@ -39,6 +39,11 @@ apiService.interceptors.response.use(
     (response) => response,
     async (error) => {
         const originalRequest = error.config;
+
+        if (!originalRequest) {
+            return Promise.reject(error);
+        }
+
         if (error.response?.status === 401 && !originalRequest._retry) {
 
             if (isRefreshing) {
@@ -46,7 +51,7 @@ apiService.interceptors.response.use(
                     failedQueue.push({ resolve, reject });
                 }).then(token => {
                     originalRequest.headers['Authorization'] = 'Bearer ' + token;
-                    return axios(originalRequest);
+                    return apiService(originalRequest);
                 });
             }
 
@@ -56,8 +61,9 @@ apiService.interceptors.response.use(
             const refreshToken = localStorage.getItem('refreshToken');
             if (!refreshToken) {
                 isRefreshing = false;
-                localStorage.clear();
-                window.location.href = '/login';
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken');
+                if (typeof window !== 'undefined') window.location.href = '/login';
                 return Promise.reject(error);
             }
 
@@ -76,8 +82,9 @@ apiService.interceptors.response.use(
 
             } catch (refreshError) {
                 processQueue(refreshError, null);
-                localStorage.clear();
-                window.location.href = '/login';
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken');
+                if (typeof window !== 'undefined') window.location.href = '/login';
                 return Promise.reject(refreshError);
             } finally {
                 isRefreshing = false;
