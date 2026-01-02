@@ -18,6 +18,7 @@ import org.example.learniversebe.service.INotificationService;
 import org.example.learniversebe.util.ServiceHelper;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -73,8 +74,7 @@ public class FriendServiceImpl implements IFriendService {
                 if (friend.getActionUserId().equals(senderId)) {
                     throw new BadRequestException("You already sent a request.");
                 } else {
-                    // Nếu đối phương đã gửi request cho mình -> Tự động chấp nhận (Edge case)
-                    return acceptFriendRequest(recipientId); // Gọi hàm accept logic
+                    return acceptFriendRequest(recipientId);
                 }
             }
             if (friend.getStatus() == FriendStatus.BLOCKED) {
@@ -88,9 +88,12 @@ public class FriendServiceImpl implements IFriendService {
         newFriend.setUserId2(ids[1]);
         newFriend.setActionUserId(senderId);
         newFriend.setStatus(FriendStatus.PENDING);
+
+        newFriend.setCreatedAt(LocalDateTime.now());
+        newFriend.setUpdatedAt(LocalDateTime.now());
+
         Friend savedFriend = friendRepository.save(newFriend);
 
-        // Gửi thông báo
         notificationService.createNotification(
                 recipientId, senderId, NotificationType.FRIEND_REQUEST,
                 "sent you a friend request.", senderId, "USER"
@@ -99,33 +102,25 @@ public class FriendServiceImpl implements IFriendService {
         return savedFriend;
     }
 
-    // UC5.2 (Accept): Chấp nhận yêu cầu
     @Override
     @Transactional
-    public Friend acceptFriendRequest(UUID senderId) { // senderId ở đây là người đã gửi request cho mình
+    public Friend acceptFriendRequest(UUID senderId) {
         UUID currentUserId = serviceHelper.getCurrentUserId();
-
         UUID[] ids = getNormalizedIds(senderId, currentUserId);
         Friend friend = friendRepository.findByUserId1AndUserId2(ids[0], ids[1])
                 .orElseThrow(() -> new ResourceNotFoundException("Friend request not found"));
 
-        // Kiểm tra logic
-        if (friend.getStatus() == FriendStatus.ACCEPTED) {
-            throw new BadRequestException("You are already friends.");
-        }
-        if (friend.getStatus() != FriendStatus.PENDING) {
-            throw new BadRequestException("No pending request found.");
-        }
-        // Chỉ người nhận (không phải actionUserId) mới được accept
-        if (friend.getActionUserId().equals(currentUserId)) {
-            throw new BadRequestException("You cannot accept your own request.");
-        }
+        if (friend.getStatus() == FriendStatus.ACCEPTED) { throw new BadRequestException("You are already friends."); }
+        if (friend.getStatus() != FriendStatus.PENDING) { throw new BadRequestException("No pending request found."); }
+        if (friend.getActionUserId().equals(currentUserId)) { throw new BadRequestException("You cannot accept your own request."); }
 
         friend.setStatus(FriendStatus.ACCEPTED);
-        friend.setActionUserId(currentUserId); // Cập nhật người hành động cuối cùng
+        friend.setActionUserId(currentUserId);
+
+        friend.setUpdatedAt(LocalDateTime.now());
+
         Friend savedFriend = friendRepository.save(friend);
 
-        // Gửi thông báo cho người đã gửi request
         notificationService.createNotification(
                 senderId, currentUserId, NotificationType.FRIEND_ACCEPT,
                 "accepted your friend request.", currentUserId, "USER"
@@ -133,8 +128,6 @@ public class FriendServiceImpl implements IFriendService {
 
         return savedFriend;
     }
-
-    // UC5.2 (Decline): Từ chối yêu cầu -> Xóa bản ghi
     @Override
     @Transactional
     public void declineFriendRequest(UUID senderId) {
