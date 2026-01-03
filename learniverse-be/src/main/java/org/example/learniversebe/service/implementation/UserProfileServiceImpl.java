@@ -17,6 +17,7 @@ import org.example.learniversebe.repository.UserProfileTagRepository;
 import org.example.learniversebe.repository.UserRepository;
 import org.example.learniversebe.repository.TagRepository;
 import org.example.learniversebe.service.IUserProfileService;
+import org.example.learniversebe.enums.UserRole;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.example.learniversebe.enums.UserTagType;
@@ -224,6 +225,11 @@ public class UserProfileServiceImpl implements IUserProfileService {
             }
         }
 
+        UserRole role = profile.getUser().getRoleUsers().stream()
+                .findFirst()
+                .map(roleUser -> roleUser.getRole().getName())
+                .orElse(UserRole.ROLE_USER);
+
         return UserProfileResponse.builder()
                 .id(profile.getId())
                 .displayName(profile.getDisplayName())
@@ -234,6 +240,7 @@ public class UserProfileServiceImpl implements IUserProfileService {
                 .answeredQuestionCount(profile.getAnsweredQuestionCount())
                 .interestTags(interestTags)
                 .skillTags(skillTags)
+                .role(role)
                 .build();
     }
 }

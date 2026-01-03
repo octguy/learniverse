@@ -31,18 +31,14 @@ public class ChatRoomServiceImpl implements IChatRoomService {
 
     private final ChatMessageRepository chatMessageRepository;
 
-    private final UserProfileRepository userProfileRepository;
-
     public ChatRoomServiceImpl(ChatRoomRepository chatRoomRepository,
                                UserRepository userRepository,
                                ChatParticipantRepository chatParticipantRepository,
-                               ChatMessageRepository chatMessageRepository,
-                               UserProfileRepository userProfileRepository) {
+                               ChatMessageRepository chatMessageRepository) {
         this.chatMessageRepository = chatMessageRepository;
         this.chatParticipantRepository = chatParticipantRepository;
         this.userRepository = userRepository;
         this.chatRoomRepository = chatRoomRepository;
-        this.userProfileRepository = userProfileRepository;
     }
 
     @Override
@@ -85,8 +81,8 @@ public class ChatRoomServiceImpl implements IChatRoomService {
         chatParticipantRepository.saveAll(participants);
 
         Set<UUID> participantIds = participants.stream()
-                .map(participant -> participant.getParticipant().getId())
-                .collect(Collectors.toSet());
+                        .map(participant -> participant.getParticipant().getId())
+                        .collect(Collectors.toSet());
 
 
         log.info("Created direct chat room between {} and {}", currentUser.getUsername(), recipientUser.getUsername());
@@ -183,7 +179,7 @@ public class ChatRoomServiceImpl implements IChatRoomService {
     @Transactional(readOnly = true)
     public ChatRoomResponse getChatRoomById(UUID chatRoomId) {
         User currentUser = SecurityUtils.getCurrentUser();
-
+        
         ChatRoom room = chatRoomRepository.findById(chatRoomId)
                 .orElseThrow(() -> new RuntimeException("Chat room not found: " + chatRoomId));
 
@@ -223,6 +219,10 @@ public class ChatRoomServiceImpl implements IChatRoomService {
     public void deleteChatRoom(UUID chatRoomId) {
         ChatRoom room = chatRoomRepository.findById(chatRoomId)
                 .orElseThrow(() -> new RuntimeException("Chat room not found"));
+
+//        messageReceiptRepository.softDeleteMessageReceiptsByRoom(chatRoomId);
+//        chatMessageRepository.softDeleteChatMessagesByRoom(chatRoomId);
+//        chatParticipantRepository.softDeleteChatParticipantsByRoom(chatRoomId);
 
         chatRoomRepository.softDeleteChatRoom(chatRoomId);
 
@@ -302,25 +302,10 @@ public class ChatRoomServiceImpl implements IChatRoomService {
     private ChatRoomResponse buildRoomResponse(ChatRoom room, UUID currentUserId, Set<UUID> participantIds) {
         LastMessageResponse lastMessage = getLastMessageByRoom(room);
         Integer unreadCount = getUnreadCount(room.getId(), currentUserId);
-        
-        // For direct chats, set name to recipient's display name
-        String chatName = room.getName();
-        if (!room.isGroupChat() && participantIds.size() == 2) {
-            UUID recipientId = participantIds.stream()
-                    .filter(id -> !id.equals(currentUserId))
-                    .findFirst()
-                    .orElse(null);
-            
-            if (recipientId != null) {
-                chatName = userProfileRepository.findById(recipientId)
-                        .map(UserProfile::getDisplayName)
-                        .orElse("Direct Chat");
-            }
-        }
 
         return ChatRoomResponse.builder()
                 .id(room.getId())
-                .name(chatName)
+                .name(room.getName())
                 .isGroupChat(room.isGroupChat())
                 .participants(participantIds)
                 .lastMessage(lastMessage)
@@ -349,21 +334,19 @@ public class ChatRoomServiceImpl implements IChatRoomService {
 
         try {
             Object[] msg = results.get(0);
-
+            
             // Validate array has expected length
             if (msg.length < 4) {
                 log.warn("Expected 4 columns but got {} for room {}", msg.length, room.getId());
                 return null;
             }
 
-            UUID senderId = msg[0] != null ? (UUID) msg[0] : null;
-            String senderDisplayName = msg[1] != null ? msg[1].toString() : null;
-            String messageType = msg[2] != null ? msg[2].toString() : null;
-            String content = msg[3] != null ? msg[3].toString() : null;
-            Timestamp createdAt = msg[4] != null ? (Timestamp) msg[4] : null;
+            String senderDisplayName = msg[0] != null ? msg[0].toString() : null;
+            String messageType = msg[1] != null ? msg[1].toString() : null;
+            String content = msg[2] != null ? msg[2].toString() : null;
+            Timestamp createdAt = msg[3] != null ? (Timestamp) msg[3] : null;
 
             return LastMessageResponse.builder()
-                    .senderId(senderId)
                     .senderName(senderDisplayName)
                     .messageType(messageType)
                     .content(content)

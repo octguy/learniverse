@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.example.learniversebe.enums.UserRole;
 
 import java.util.List;
 import java.util.UUID;
@@ -24,4 +25,5 @@ public class UserProfileResponse {
     private int answeredQuestionCount;
     private List<TagResponse> interestTags;
     private List<TagResponse> skillTags;
+    private UserRole role;
 }
