@@ -15,10 +15,11 @@ import { CommentItem } from "./CommentItem";
 
 interface CommentSectionProps {
   postId: string;
+  commentableType: "POST" | "QUESTION" | "ANSWER";
   onCommentAdded?: () => void;
 }
 
-export function CommentSection({ postId, onCommentAdded }: CommentSectionProps) {
+export function CommentSection({ postId, commentableType, onCommentAdded }: CommentSectionProps) {
   const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -27,12 +28,12 @@ export function CommentSection({ postId, onCommentAdded }: CommentSectionProps) 
 
   useEffect(() => {
     loadComments();
-  }, [postId]);
+  }, [postId, commentableType]);
 
   const loadComments = async () => {
     try {
       setIsLoading(true);
-      const data = await commentService.getComments("CONTENT", postId);
+      const data = await commentService.getComments(commentableType, postId);
       setComments(data.content);
     } catch (error) {
       console.error("Lỗi tải bình luận:", error);
@@ -47,7 +48,7 @@ export function CommentSection({ postId, onCommentAdded }: CommentSectionProps) 
     setIsSubmitting(true);
     try {
       const createdComment = await commentService.createComment({
-        commentableType: "CONTENT",
+        commentableType: commentableType,
         commentableId: postId,
         body: newComment
       });

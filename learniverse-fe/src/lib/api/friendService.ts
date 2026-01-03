@@ -1,5 +1,5 @@
 import apiService from "@/lib/apiService";
-import { Friend, FriendStatus } from "@/types/friend";
+import { Friend, FriendStatus, SuggestedFriend } from "@/types/friend";
 import { ApiResponse, PageResponse } from "@/types/api";
 
 const BASE_URL = "/friends";
@@ -25,18 +25,20 @@ export const friendService = {
         return apiService.delete<ApiResponse<void>>(`${BASE_URL}/unfriend/${friendId}`);
     },
 
-    getFriends: async (page = 0, size = 10) => {
-        return apiService.get<ApiResponse<PageResponse<Friend>>>(
-            `${BASE_URL}?page=${page}&size=${size}`
-        );
+    getFriends: async () => {
+        return apiService.get<ApiResponse<SuggestedFriend[]>>(`${BASE_URL}`);
     },
     getFriendRequests: async (page = 0, size = 10) => {
-        return apiService.get<ApiResponse<PageResponse<Friend>>>(
+        return apiService.get<ApiResponse<PageResponse<SuggestedFriend>>>(
             `${BASE_URL}/requests?page=${page}&size=${size}`
         );
     },
 
     getFriendStatus: async (targetUserId: string) => {
         return apiService.get<ApiResponse<FriendStatus>>(`${BASE_URL}/status/${targetUserId}`);
+    },
+
+    getSuggestedFriends: async () => {
+        return apiService.get<ApiResponse<SuggestedFriend[]>>(`${BASE_URL}/suggested`);
     },
 };

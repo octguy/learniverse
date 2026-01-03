@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { friendService } from '@/lib/api/friendService';
-import { Friend } from '@/types/friend';
+import { Friend, SuggestedFriend } from '@/types/friend';
 import { Loader2, UserCheck, UserX, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
@@ -45,14 +45,14 @@ export default function FriendsPage() {
 }
 
 function FriendList() {
-    const [friends, setFriends] = React.useState<Friend[]>([]);
+    const [friends, setFriends] = React.useState<SuggestedFriend[]>([]);
     const [loading, setLoading] = React.useState(true);
 
     React.useEffect(() => {
         const fetchFriends = async () => {
             try {
-                const res = await friendService.getFriends(0, 50);
-                setFriends(res.data.data?.content || []);
+                const res = await friendService.getFriends();
+                setFriends(res.data.data || []);
             } catch (error) {
                 console.error(error);
             } finally {
@@ -62,11 +62,11 @@ function FriendList() {
         fetchFriends();
     }, []);
 
-    const handleUnfriend = async (id: string) => {
+    const handleUnfriend = async (userId: string) => {
         if (!confirm("Bạn có chắc muốn hủy kết bạn?")) return;
         try {
-            await friendService.unfriend(id);
-            setFriends(prev => prev.filter(f => f.id !== id));
+            await friendService.unfriend(userId);
+            setFriends(prev => prev.filter(f => f.userId !== userId));
             toast.success("Đã hủy kết bạn");
         } catch (error) {
             toast.error("Lỗi khi hủy kết bạn");
@@ -83,19 +83,19 @@ function FriendList() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {friends.map(friend => (
                 <div key={friend.id} className="flex items-center gap-4 p-4 border rounded-lg hover:bg-accent/50 transition">
-                    <Link href={`/profile/${friend.id}`}>
+                    <Link href={`/profile/${friend.userId}`}>
                         <Avatar className="h-12 w-12 cursor-pointer">
-                            <AvatarImage src={friend.avatarUrl} />
-                            <AvatarFallback>{(friend.displayName || friend.fullName || friend.username)?.charAt(0).toUpperCase()}</AvatarFallback>
+                            <AvatarImage src={friend.avatarUrl || undefined} />
+                            <AvatarFallback>{(friend.displayName || friend.username)?.charAt(0).toUpperCase()}</AvatarFallback>
                         </Avatar>
                     </Link>
                     <div className="flex-1 overflow-hidden">
-                        <Link href={`/profile/${friend.id}`} className="font-semibold hover:underline truncate block">
-                            {friend.displayName || friend.fullName || friend.username}
+                        <Link href={`/profile/${friend.userId}`} className="font-semibold hover:underline truncate block">
+                            {friend.displayName || friend.username}
                         </Link>
                         <p className="text-xs text-muted-foreground truncate">@{friend.username}</p>
                     </div>
-                    <Button variant="ghost" size="icon" onClick={() => handleUnfriend(friend.id)} title="Hủy kết bạn">
+                    <Button variant="ghost" size="icon" onClick={() => handleUnfriend(friend.userId)} title="Hủy kết bạn">
                         <UserX className="h-5 w-5 text-muted-foreground hover:text-red-500" />
                     </Button>
                 </div>
@@ -105,7 +105,7 @@ function FriendList() {
 }
 
 function FriendRequestList() {
-    const [requests, setRequests] = React.useState<Friend[]>([]);
+    const [requests, setRequests] = React.useState<SuggestedFriend[]>([]);
     const [loading, setLoading] = React.useState(true);
 
     const fetchRequests = async () => {
@@ -123,20 +123,20 @@ function FriendRequestList() {
         fetchRequests();
     }, []);
 
-    const handleAccept = async (id: string) => {
+    const handleAccept = async (userId: string) => {
         try {
-            await friendService.acceptRequest(id);
-            setRequests(prev => prev.filter(r => r.id !== id));
+            await friendService.acceptRequest(userId);
+            setRequests(prev => prev.filter(r => r.userId !== userId));
             toast.success("Đã chấp nhận lời mời");
         } catch (error) {
             toast.error("Lỗi khi chấp nhận");
         }
     };
 
-    const handleReject = async (id: string) => {
+    const handleReject = async (userId: string) => {
         try {
-            await friendService.rejectRequest(id);
-            setRequests(prev => prev.filter(r => r.id !== id));
+            await friendService.rejectRequest(userId);
+            setRequests(prev => prev.filter(r => r.userId !== userId));
             toast.success("Đã từ chối lời mời");
         } catch (error) {
             toast.error("Lỗi khi từ chối");
@@ -154,25 +154,25 @@ function FriendRequestList() {
             {requests.map(req => (
                 <div key={req.id} className="flex items-center justify-between p-4 border rounded-lg bg-card">
                     <div className="flex items-center gap-3">
-                        <Link href={`/profile/${req.id}`}>
+                        <Link href={`/profile/${req.userId}`}>
                             <Avatar className="h-10 w-10">
-                                <AvatarImage src={req.avatarUrl} />
-                                <AvatarFallback>{(req.displayName || req.fullName || req.username)?.charAt(0).toUpperCase()}</AvatarFallback>
+                                <AvatarImage src={req.avatarUrl || undefined} />
+                                <AvatarFallback>{(req.displayName || req.username)?.charAt(0).toUpperCase()}</AvatarFallback>
                             </Avatar>
                         </Link>
                         <div>
-                            <Link href={`/profile/${req.id}`} className="font-medium hover:underline">
-                                {req.displayName || req.fullName || req.username}
+                            <Link href={`/profile/${req.userId}`} className="font-medium hover:underline">
+                                {req.displayName || req.username}
                             </Link>
                             <p className="text-xs text-muted-foreground">Muốn kết bạn với bạn</p>
                         </div>
                     </div>
                     <div className="flex gap-2">
-                        <Button size="sm" onClick={() => handleAccept(req.id)}>
+                        <Button size="sm" onClick={() => handleAccept(req.userId)}>
                             <UserCheck className="w-4 h-4 mr-2" />
                             Chấp nhận
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => handleReject(req.id)}>
+                        <Button size="sm" variant="outline" onClick={() => handleReject(req.userId)}>
                             <UserX className="w-4 h-4 mr-2" />
                             Từ chối
                         </Button>
@@ -184,20 +184,16 @@ function FriendRequestList() {
 }
 
 function SuggestedFriendsList() {
-    const [users, setUsers] = React.useState<import("@/types/user").User[]>([]);
+    const [users, setUsers] = React.useState<SuggestedFriend[]>([]);
     const [loading, setLoading] = React.useState(true);
     const [requesting, setRequesting] = React.useState<string | null>(null);
 
     React.useEffect(() => {
         const fetchUsers = async () => {
             try {
-                // Need to import userService dynamically or at top level. 
-                // Since this is replace_content, I'll add imports in a separate step or assume dynamic import for now if possible? 
-                // No, better to add import in a separate step. Here I write the component assuming userService is imported.
-                const { userService } = await import('@/lib/api/userService');
-                const res = await userService.getAllUsers();
-                if (Array.isArray(res.data)) {
-                    setUsers(res.data);
+                const res = await friendService.getSuggestedFriends();
+                if (res.data && res.data.data && Array.isArray(res.data.data)) {
+                    setUsers(res.data.data);
                 }
             } catch (error) {
                 console.error(error);
@@ -213,7 +209,7 @@ function SuggestedFriendsList() {
             setRequesting(userId);
             await friendService.sendRequest(userId);
             toast.success("Đã gửi lời mời kết bạn");
-            // Optionally remove from list or update UI state
+            setUsers(prev => prev.filter(u => u.userId !== userId));
         } catch (error: any) {
             console.error(error);
             toast.error("Không thể gửi lời mời: " + (error.response?.data?.message || "Lỗi không xác định"));
@@ -232,26 +228,27 @@ function SuggestedFriendsList() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {users.map(user => (
                 <div key={user.id} className="flex items-center gap-4 p-4 border rounded-lg hover:bg-accent/50 transition">
-                    <Link href={`/profile/${user.id}`}>
+                    <Link href={`/profile/${user.userId}`}>
                         <Avatar className="h-12 w-12 cursor-pointer">
                             <AvatarImage src={user.avatarUrl || undefined} />
                             <AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback>
                         </Avatar>
                     </Link>
                     <div className="flex-1 overflow-hidden">
-                        <Link href={`/profile/${user.id}`} className="font-semibold hover:underline truncate block">
-                            {user.username}
+                        <Link href={`/profile/${user.userId}`} className="font-semibold hover:underline truncate block">
+                            {user.displayName}
                         </Link>
-                        <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                        <p className="text-xs text-muted-foreground truncate">@{user.username}</p>
+                        {user.bio && <p className="text-xs text-muted-foreground truncate">{user.bio}</p>}
                     </div>
                     <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleAddFriend(user.id)}
-                        disabled={requesting === user.id}
+                        onClick={() => handleAddFriend(user.userId)}
+                        disabled={requesting === user.userId}
                         title="Kết bạn"
                     >
-                        {requesting === user.id ? (
+                        {requesting === user.userId ? (
                             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                         ) : (
                             <UserPlus className="h-5 w-5 text-muted-foreground hover:text-blue-500" />

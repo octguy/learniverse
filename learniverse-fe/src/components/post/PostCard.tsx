@@ -39,6 +39,7 @@ import { useAuth } from "@/context/AuthContext"
 import { Dialog } from "@/components/ui/dialog"
 import CreatePostModal from "./CreatePostModal"
 import { Edit, Trash2, Flag } from "lucide-react"
+import { postService } from "@/lib/api/postService"
 const REACTIONS_CONFIG = [
   {
     type: "LIKE" as ReactionType,
@@ -74,9 +75,10 @@ const REACTIONS_CONFIG = [
 
 interface PostCardProps {
   post: Post
+  onDelete?: (postId: string) => void
 }
 
-export function PostCard({ post }: PostCardProps) {
+export function PostCard({ post, onDelete }: PostCardProps) {
   const { user } = useAuth()
   const { author, title, body, tags = [], attachments = [], createdAt, lastEditedAt } = post
 
@@ -92,6 +94,23 @@ export function PostCard({ post }: PostCardProps) {
   const [commentCount, setCommentCount] = useState(post.commentCount)
 
   const isAuthor = user?.id === author.id
+
+  const handleDelete = async () => {
+    if (!confirm("Bạn có chắc chắn muốn xóa bài viết này không?")) return
+
+    try {
+      await postService.deletePost(post.id)
+      toast.success("Đã xóa bài viết")
+      if (onDelete) {
+        onDelete(post.id)
+      } else {
+        window.location.reload()
+      }
+    } catch (error) {
+      console.error("Lỗi xóa bài viết:", error)
+      toast.error("Không thể xóa bài viết")
+    }
+  }
 
   const handleReact = async (type: ReactionType) => {
     if (isApiLoading) return
@@ -197,7 +216,7 @@ export function PostCard({ post }: PostCardProps) {
                       <Edit className="mr-2 h-4 w-4" />
                       Chỉnh sửa bài viết
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="text-red-600">
+                    <DropdownMenuItem className="text-red-600" onClick={handleDelete}>
                       <Trash2 className="mr-2 h-4 w-4" />
                       Xóa bài viết
                     </DropdownMenuItem>
@@ -342,7 +361,11 @@ export function PostCard({ post }: PostCardProps) {
         )}
         {showComments && (
           <div className="w-full animate-in slide-in-from-top-2 duration-200">
-            <CommentSection postId={post.id} onCommentAdded={() => setCommentCount(prev => prev + 1)} />
+            <CommentSection 
+              postId={post.id} 
+              commentableType={post.contentType}
+              onCommentAdded={() => setCommentCount(prev => prev + 1)} 
+            />
           </div>
         )}
       </CardFooter>

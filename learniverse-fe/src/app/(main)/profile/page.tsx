@@ -149,7 +149,11 @@ export default function ProfilePage() {
                                 <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-400" /></div>
                             ) : myPosts.length > 0 ? (
                                 myPosts.map((post) => (
-                                    <PostCard key={post.id} post={post} />
+                                    <PostCard 
+                                        key={post.id} 
+                                        post={post} 
+                                        onDelete={(id) => setMyPosts((prev) => prev.filter((p) => p.id !== id))}
+                                    />
                                 ))
                             ) : (
                                 <div className="flex flex-col items-center justify-center py-16 text-gray-500 bg-white dark:bg-zinc-900 rounded-xl border border-dashed border-gray-300">
@@ -165,7 +169,11 @@ export default function ProfilePage() {
                             ) : savedContent.length > 0 ? (
                                 savedContent.map((bookmark) => {
                                     if (bookmark.postSummary) {
-                                        return <PostCard key={bookmark.id} post={bookmark.postSummary} />;
+                                        return <PostCard 
+                                            key={bookmark.id} 
+                                            post={bookmark.postSummary} 
+                                            onDelete={(id) => setSavedContent((prev) => prev.filter((b) => b.postSummary?.id !== id))}
+                                        />;
                                     }
                                     if (bookmark.questionSummary) {
                                         return <QuestionCard key={bookmark.id} question={bookmark.questionSummary as any} />;

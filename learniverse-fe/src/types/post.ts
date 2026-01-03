@@ -20,6 +20,7 @@ export interface CreatePostRequest {
   title: string;
   body: string;
   tagIds: string[];
+  status?: "DRAFT" | "PUBLISHED";
 }
 
 export interface UpdatePostRequest extends CreatePostRequest {

@@ -68,4 +68,8 @@ export const postService = {
         });
         return response.data.data;
     },
+    deletePost: async (id: string) => {
+        const response = await apiService.delete<ApiResponse<void>>(`/posts/${id}`);
+        return response.data;
+    },
 };
