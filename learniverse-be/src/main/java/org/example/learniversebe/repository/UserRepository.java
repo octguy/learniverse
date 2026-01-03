@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -23,4 +24,35 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     @Query(value = "select * from \"user\" where status = 'PENDING_VERIFICATION' and created_at + INTERVAL '24 hours' <= NOW();", nativeQuery = true)
     List<User> findPendingUserExceedOneDay();
+
+    // Dashboard queries
+    @Query(value = "SELECT COUNT(*) FROM \"user\" WHERE deleted_at IS NULL AND created_at >= :startOfDay AND created_at < :endOfDay", nativeQuery = true)
+    long countNewUsersInRange(@Param("startOfDay") LocalDateTime startOfDay, @Param("endOfDay") LocalDateTime endOfDay);
+
+    @Query(value = """
+            SELECT TO_CHAR(created_at, 'YYYY-MM-DD') as label, COUNT(*) as count
+            FROM "user"
+            WHERE deleted_at IS NULL AND created_at >= NOW() - INTERVAL '30 days'
+            GROUP BY TO_CHAR(created_at, 'YYYY-MM-DD')
+            ORDER BY label ASC
+            """, nativeQuery = true)
+    List<Object[]> findUserGrowthByDay();
+
+    @Query(value = """
+            SELECT TO_CHAR(created_at, 'YYYY-MM') as label, COUNT(*) as count
+            FROM "user"
+            WHERE deleted_at IS NULL AND created_at >= NOW() - INTERVAL '12 months'
+            GROUP BY TO_CHAR(created_at, 'YYYY-MM')
+            ORDER BY label ASC
+            """, nativeQuery = true)
+    List<Object[]> findUserGrowthByMonth();
+
+    @Query(value = """
+            SELECT TO_CHAR(created_at, 'YYYY') as label, COUNT(*) as count
+            FROM "user"
+            WHERE deleted_at IS NULL AND created_at >= NOW() - INTERVAL '5 years'
+            GROUP BY TO_CHAR(created_at, 'YYYY')
+            ORDER BY label ASC
+            """, nativeQuery = true)
+    List<Object[]> findUserGrowthByYear();
 }

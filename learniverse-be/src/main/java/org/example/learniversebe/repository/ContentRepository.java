@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -62,4 +63,43 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
     Page<Content> findByContentType(ContentType contentType, Pageable pageable);
 
     boolean existsByIdAndContentType(UUID questionId, ContentType contentType);
+
+    long countByContentType(ContentType contentType);
+
+    // Dashboard queries - Content comparison by period
+    @Query(value = """
+            SELECT 
+                TO_CHAR(created_at, 'YYYY-MM-DD') as label,
+                SUM(CASE WHEN content_type = 'POST' THEN 1 ELSE 0 END) as post_count,
+                SUM(CASE WHEN content_type = 'QUESTION' THEN 1 ELSE 0 END) as question_count
+            FROM contents
+            WHERE deleted_at IS NULL AND created_at >= NOW() - INTERVAL '30 days'
+            GROUP BY TO_CHAR(created_at, 'YYYY-MM-DD')
+            ORDER BY label ASC
+            """, nativeQuery = true)
+    List<Object[]> findContentComparisonByDay();
+
+    @Query(value = """
+            SELECT 
+                TO_CHAR(created_at, 'YYYY-MM') as label,
+                SUM(CASE WHEN content_type = 'POST' THEN 1 ELSE 0 END) as post_count,
+                SUM(CASE WHEN content_type = 'QUESTION' THEN 1 ELSE 0 END) as question_count
+            FROM contents
+            WHERE deleted_at IS NULL AND created_at >= NOW() - INTERVAL '12 months'
+            GROUP BY TO_CHAR(created_at, 'YYYY-MM')
+            ORDER BY label ASC
+            """, nativeQuery = true)
+    List<Object[]> findContentComparisonByMonth();
+
+    @Query(value = """
+            SELECT 
+                TO_CHAR(created_at, 'YYYY') as label,
+                SUM(CASE WHEN content_type = 'POST' THEN 1 ELSE 0 END) as post_count,
+                SUM(CASE WHEN content_type = 'QUESTION' THEN 1 ELSE 0 END) as question_count
+            FROM contents
+            WHERE deleted_at IS NULL AND created_at >= NOW() - INTERVAL '5 years'
+            GROUP BY TO_CHAR(created_at, 'YYYY')
+            ORDER BY label ASC
+            """, nativeQuery = true)
+    List<Object[]> findContentComparisonByYear();
 }
