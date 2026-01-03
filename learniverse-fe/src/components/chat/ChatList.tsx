@@ -2,6 +2,7 @@ import React from 'react';
 import ChatListItem from './ChatListItem';
 import type { Chat } from '@/types/chat';
 import { Search } from 'lucide-react';
+import { Button } from "@/components/ui/button";
 
 interface Props {
   chats: Chat[];
