@@ -42,16 +42,14 @@ import {
     Link2,
     List,
     ListOrdered,
+    Quote,
+    Sigma,
 } from "lucide-react"
 import { MarkdownRenderer } from "./MarkdownRenderer"
 import { postService } from "@/lib/api/postService"
-import { Tag } from "@/types/post"
-
-const mockUser = {
-    id: "user_mock_id",
-    username: "Huy Lê",
-    avatarUrl: "https://github.com/shadcn.png",
-}
+import { Tag, Post, PostAttachment } from "@/types/post"
+import { useAuth } from "@/context/AuthContext"
+import { TagMultiSelect, type TagOption } from "@/components/question/tag-multi-select"
 
 const MAX_IMAGE_SIZE_MB = 5
 const MAX_PDF_SIZE_MB = 15
@@ -61,23 +59,42 @@ const MAX_PDF_SIZE_BYTES = MAX_PDF_SIZE_MB * 1024 * 1024
 export default function CreatePostModalContent({
     setOpen,
     onSuccess,
+    initialData
 }: {
     setOpen: (open: boolean) => void
     onSuccess: () => void
+    initialData?: Post
 }) {
+    const { user } = useAuth()
     const [title, setTitle] = useState("")
     const [content, setContent] = useState("")
-    const [availableTags, setAvailableTags] = useState<Tag[]>([])
-    const [selectedTags, setSelectedTags] = useState<Tag[]>([])
-    const [tagInput, setTagInput] = useState("")
+    const [availableTags, setAvailableTags] = useState<TagOption[]>([])
+    const [selectedTags, setSelectedTags] = useState<TagOption[]>([])
     const [images, setImages] = useState<File[]>([])
     const [pdfs, setPdfs] = useState<File[]>([])
+    const [existingAttachments, setExistingAttachments] = useState<PostAttachment[]>([])
+    const [deletedAttachmentIds, setDeletedAttachmentIds] = useState<string[]>([])
     const [error, setError] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const [activeTab, setActiveTab] = useState("edit")
 
+    const textareaRef = useRef<HTMLTextAreaElement>(null)
     const imageInputRef = useRef<HTMLInputElement>(null)
     const pdfInputRef = useRef<HTMLInputElement>(null)
+
+    useEffect(() => {
+        if (initialData) {
+            setTitle(initialData.title)
+            setContent(initialData.body)
+            setSelectedTags(initialData.tags.map(t => ({
+                id: t.id,
+                name: t.name,
+                slug: t.slug,
+                description: null
+            })))
+            setExistingAttachments(initialData.attachments || [])
+        }
+    }, [initialData])
 
     //Lấy tags
     useEffect(() => {
@@ -85,7 +102,12 @@ export default function CreatePostModalContent({
             try {
                 const res = await postService.getAllTags();
                 if (res.data) {
-                    setAvailableTags(res.data);
+                    setAvailableTags(res.data.map((t: Tag) => ({
+                        id: t.id,
+                        name: t.name,
+                        slug: t.slug,
+                        description: t.description || null
+                    })));
                 }
             } catch (err) {
                 console.error("Lỗi tải tags:", err);
@@ -94,28 +116,65 @@ export default function CreatePostModalContent({
         fetchTags();
     }, []);
 
-    const handleTagInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === "Enter" && tagInput.trim()) {
-            e.preventDefault()
-            const inputVal = tagInput.trim().toLowerCase();
-            const matchedTag = availableTags.find(
-                t => t.name.toLowerCase() === inputVal
-            );
-            if (!matchedTag) {
-                setError(`Tag "${tagInput}" chưa có trong hệ thống. Vui lòng chọn tag có sẵn.`);
-                return;
-            }
-            if (selectedTags.length < 5 && !selectedTags.some(t => t.id === matchedTag.id)) {
-                setSelectedTags([...selectedTags, matchedTag]);
-                setTagInput("");
-                setError("");
-            }
-        }
+    const applyWrapFormatting = (
+        before: string,
+        after: string,
+        placeholder: string
+    ) => {
+        const textarea = textareaRef.current
+        if (!textarea) return
+
+        const { selectionStart, selectionEnd, value } = textarea
+        const selectedText = value.slice(selectionStart, selectionEnd)
+        const textToInsert = selectedText || placeholder
+        const nextValue = `${value.slice(
+            0,
+            selectionStart
+        )}${before}${textToInsert}${after}${value.slice(selectionEnd)}`
+
+        setContent(nextValue)
+
+        requestAnimationFrame(() => {
+            const node = textareaRef.current
+            if (!node) return
+            const start = selectionStart + before.length
+            const end = start + textToInsert.length
+            node.focus()
+            node.setSelectionRange(start, end)
+        })
     }
 
-    const removeTag = (tagId: string) => {
-        setSelectedTags(selectedTags.filter((tag) => tag.id !== tagId))
+    const applyLineFormatting = (
+        formatter: (line: string, index: number) => string,
+        placeholder: string
+    ) => {
+        const textarea = textareaRef.current
+        if (!textarea) return
+
+        const { selectionStart, selectionEnd, value } = textarea
+        const selectedText =
+            value.slice(selectionStart, selectionEnd) || placeholder
+        const lines = selectedText.split("\n")
+        const formatted = lines
+            .map((line, index) => formatter(line.trim() || placeholder, index))
+            .join("\n")
+        const nextValue = `${value.slice(
+            0,
+            selectionStart
+        )}${formatted}${value.slice(selectionEnd)}`
+
+        setContent(nextValue)
+
+        requestAnimationFrame(() => {
+            const node = textareaRef.current
+            if (!node) return
+            const start = selectionStart
+            const end = start + formatted.length
+            node.focus()
+            node.setSelectionRange(start, end)
+        })
     }
+
 
     const handleFileChange = (
         e: React.ChangeEvent<HTMLInputElement>,
@@ -167,20 +226,37 @@ export default function CreatePostModalContent({
             const payload = {
                 title: title,
                 body: content,
-                tagIds: selectedTags.map(tag => tag.id)
+                tagIds: selectedTags.map(tag => tag.id),
+                status: "PUBLISHED" 
             };
-            await postService.createPost(payload);
+            const filesToUpload = [...images, ...pdfs];
+
+            if (initialData) {
+                const updatePayload = {
+                    ...payload,
+                    deletedAttachmentIds
+                }
+                await postService.updatePost(initialData.id, updatePayload, filesToUpload);
+            } else {
+                await postService.createPost(payload, filesToUpload);
+            }
+            
             setOpen(false)
             setTitle("")
             setContent("")
             setSelectedTags([])
+            setImages([])
+            setPdfs([])
+            setExistingAttachments([])
+            setDeletedAttachmentIds([])
 
             if (onSuccess) {
                 onSuccess();
             }
         } catch (err: any) {
             console.error("Lỗi đăng bài:", err);
-            setError(err.message || "Có lỗi xảy ra khi đăng bài.");
+            const errorMessage = err.response?.data?.message || err.message || "Có lỗi xảy ra khi xử lý bài viết.";
+            setError(errorMessage);
         } finally {
             setIsLoading(false)
         }
@@ -195,9 +271,14 @@ export default function CreatePostModalContent({
         }
     };
 
+    const removeExistingFile = (attachmentId: string) => {
+        setDeletedAttachmentIds([...deletedAttachmentIds, attachmentId])
+        setExistingAttachments(existingAttachments.filter(a => a.id !== attachmentId))
+    }
+
 
     return (
-        <DialogContent className="max-w-3xl p-0">
+        <DialogContent className="max-w-5xl p-0">
             <DialogHeader className="p-6 pb-2">
                 <DialogTitle className="text-center text-xl font-bold">
                     Tạo bài đăng mới
@@ -217,11 +298,11 @@ export default function CreatePostModalContent({
                 <TabsContent value="edit" className="p-6 pt-0 space-y-4 max-h-[70vh] overflow-y-auto">
                     <div className="flex items-center gap-3">
                         <Avatar>
-                            <AvatarImage src={mockUser.avatarUrl} />
-                            <AvatarFallback>{mockUser.username.charAt(0)}</AvatarFallback>
+                            <AvatarImage src={user?.avatarUrl} />
+                            <AvatarFallback>{user?.username?.charAt(0)}</AvatarFallback>
                         </Avatar>
                         <div className="flex flex-col">
-                            <span className="font-semibold text-sm">{mockUser.username}</span>
+                            <span className="font-semibold text-sm">{user?.username}</span>
                             <Select defaultValue="anyone">
                                 <SelectTrigger className="h-7 px-2 py-1 text-xs w-fit">
                                     <SelectValue />
@@ -249,20 +330,23 @@ export default function CreatePostModalContent({
                             Detail
                         </Label>
                         <div className="border rounded-md">
-                            <div className="flex items-center gap-1 p-1 border-b bg-gray-50 rounded-t-md">
-                                <Button variant="ghost" size="icon" className="h-7 w-7"><Bold className="h-4 w-4" /></Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7"><Italic className="h-4 w-4" /></Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7"><Code className="h-4 w-4" /></Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7"><Link2 className="h-4 w-4" /></Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7"><List className="h-4 w-4" /></Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7"><ListOrdered className="h-4 w-4" /></Button>
+                            <div className="flex items-center gap-1 p-1 border-b bg-gray-50 rounded-t-md flex-wrap">
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => applyWrapFormatting("**", "**", "in đậm")}><Bold className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => applyWrapFormatting("*", "*", "in nghiêng")}><Italic className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => applyWrapFormatting("`", "`", "code")}><Code className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => applyWrapFormatting("[", "](url)", "liên kết")}><Link2 className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => applyLineFormatting((line) => `- ${line.replace(/^[-*]\s+/, "")}`, "Mục danh sách")}><List className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => applyLineFormatting((line, index) => `${index + 1}. ${line.replace(/^\d+\.\s+/, "")}`, "Mục danh sách")}><ListOrdered className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => applyLineFormatting((line) => `> ${line.replace(/^>\s?/, "")}`, "Trích dẫn")}><Quote className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => applyWrapFormatting("$$", "$$", "latex")}><Sigma className="h-4 w-4" /></Button>
                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => imageInputRef.current?.click()}><ImageIcon className="h-4 w-4" /></Button>
                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => pdfInputRef.current?.click()}><FileText className="h-4 w-4" /></Button>
                             </div>
                             <Textarea
+                                ref={textareaRef}
                                 id="post-content"
                                 placeholder="Share your in-depth knowledge and include images or LaTeX formulas."
-                                className="min-h-[150px] w-full border-none rounded-t-none px-2 shadow-none focus-visible:ring-0"
+                                className="min-h-[150px] w-full max-w-full border-none rounded-t-none px-2 shadow-none focus-visible:ring-0 resize-y whitespace-pre-wrap break-all"
                                 value={content}
                                 onChange={(e) => setContent(e.target.value)}
                             />
@@ -272,57 +356,56 @@ export default function CreatePostModalContent({
                         <Label htmlFor="post-tags" className="font-semibold">
                             Tags
                         </Label>
-                        <Input
-                            id="post-tags"
-                            placeholder="Add up to 5 tags to describes what your post is about."
-                            value={tagInput}
-                            onChange={(e) => setTagInput(e.target.value)}
-                            onKeyDown={handleTagInputKeyDown}
+                        <TagMultiSelect
+                            options={availableTags}
+                            value={selectedTags}
+                            onChange={setSelectedTags}
+                            maxSelections={5}
+                            error={error && selectedTags.length === 0 ? "Vui lòng chọn tag" : undefined}
                         />
-                        <div className="flex flex-wrap gap-2 mt-2">
-                            {selectedTags.map((tag) => (
-                                <Badge key={tag.id} variant="secondary">
-                                    {tag.name}
-                                    <X
-                                        className="ml-1 h-3 w-3 cursor-pointer"
-                                        onClick={() => removeTag(tag.id)}
-                                    />
-                                </Badge>
-                            ))}
-                        </div>
-                        {tagInput && (
-                            <div className="border rounded p-2 bg-slate-50 text-sm text-muted-foreground">
-                                Gợi ý: {availableTags
-                                    .filter(t => t.name.toLowerCase().includes(tagInput.toLowerCase()))
-                                    .slice(0, 5)
-                                    .map(t => t.name)
-                                    .join(", ")}
-                            </div>
-                        )}
                     </div>
 
                     <div className="space-y-1.5">
                         <Label className="font-semibold">Đã đính kèm</Label>
                         <div className="flex flex-col gap-2">
-                            {images.map((file, index) => (
-                                <Badge key={index} variant="outline" className="flex items-center justify-between w-fit gap-2">
-                                    <div className="flex items-center gap-1">
-                                        <ImageIcon className="h-3 w-3 text-green-500" />
-                                        {file.name}
+                            {existingAttachments.map((file) => (
+                                <Badge key={file.id} variant="outline" className="flex items-center justify-between w-full max-w-[300px] gap-2 p-2">
+                                    <div className="flex items-center gap-2 truncate">
+                                        {file.fileType === "IMAGE" ? (
+                                            <ImageIcon className="h-4 w-4 text-green-500 shrink-0" />
+                                        ) : (
+                                            <FileText className="h-4 w-4 text-blue-500 shrink-0" />
+                                        )}
+                                        <span className="truncate" title={file.fileName}>{file.fileName}</span>
                                     </div>
-                                    <X className="h-3 w-3 cursor-pointer" onClick={() => removeFile("image", index)} />
+                                    <button type="button" onClick={() => removeExistingFile(file.id)} className="shrink-0">
+                                        <X className="h-4 w-4 cursor-pointer hover:text-red-500" />
+                                    </button>
+                                </Badge>
+                            ))}
+                            {images.map((file, index) => (
+                                <Badge key={`new-img-${index}`} variant="outline" className="flex items-center justify-between w-full max-w-[300px] gap-2 p-2">
+                                    <div className="flex items-center gap-2 truncate">
+                                        <ImageIcon className="h-4 w-4 text-green-500 shrink-0" />
+                                        <span className="truncate" title={file.name}>{file.name}</span>
+                                    </div>
+                                    <button type="button" onClick={() => removeFile("image", index)} className="shrink-0">
+                                        <X className="h-4 w-4 cursor-pointer hover:text-red-500" />
+                                    </button>
                                 </Badge>
                             ))}
                             {pdfs.map((file, index) => (
-                                <Badge key={index} variant="outline" className="flex items-center justify-between w-fit gap-2">
-                                    <div className="flex items-center gap-1">
-                                        <FileText className="h-3 w-3 text-blue-500" />
-                                        {file.name}
+                                <Badge key={`new-pdf-${index}`} variant="outline" className="flex items-center justify-between w-full max-w-[300px] gap-2 p-2">
+                                    <div className="flex items-center gap-2 truncate">
+                                        <FileText className="h-4 w-4 text-blue-500 shrink-0" />
+                                        <span className="truncate" title={file.name}>{file.name}</span>
                                     </div>
-                                    <X className="h-3 w-3 cursor-pointer" onClick={() => removeFile("pdf", index)} />
+                                    <button type="button" onClick={() => removeFile("pdf", index)} className="shrink-0">
+                                        <X className="h-4 w-4 cursor-pointer hover:text-red-500" />
+                                    </button>
                                 </Badge>
                             ))}
-                            {images.length === 0 && pdfs.length === 0 && (
+                            {existingAttachments.length === 0 && images.length === 0 && pdfs.length === 0 && (
                                 <p className="text-xs text-muted-foreground">Chưa có file nào.</p>
                             )}
                         </div>
@@ -333,11 +416,11 @@ export default function CreatePostModalContent({
                     <Card className="w-full shadow-none border">
                         <CardHeader className="flex-row items-start gap-3 space-y-0">
                             <Avatar>
-                                <AvatarImage src={mockUser.avatarUrl} />
-                                <AvatarFallback>{mockUser.username.charAt(0)}</AvatarFallback>
+                                <AvatarImage src={user?.avatarUrl} />
+                                <AvatarFallback>{user?.username?.charAt(0)}</AvatarFallback>
                             </Avatar>
                             <div className="flex-1">
-                                <p className="font-semibold">{mockUser.username}</p>
+                                <p className="font-semibold">{user?.username}</p>
                                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                     <span>Vừa xong</span>
                                 </div>
@@ -354,26 +437,56 @@ export default function CreatePostModalContent({
                                     </p>
                                 )}
                             </div>
-                            {images.length > 0 && (
-                                <div className="mt-4">
-                                    <img
-                                        src={URL.createObjectURL(images[0])}
-                                        alt="Preview"
-                                        className="max-h-96 w-full rounded-md border object-contain"
-                                    />
+                            
+                            {/* Preview Images */}
+                            {(existingAttachments.some(a => a.fileType === "IMAGE") || images.length > 0) && (
+                                <div className="mt-4 space-y-4">
+                                    {existingAttachments.filter(a => a.fileType === "IMAGE").map(img => (
+                                        <img
+                                            key={img.id}
+                                            src={img.storageUrl}
+                                            alt={img.fileName}
+                                            className="max-h-96 w-full rounded-md border object-contain"
+                                        />
+                                    ))}
+                                    {images.map((img, idx) => (
+                                        <img
+                                            key={`preview-new-img-${idx}`}
+                                            src={URL.createObjectURL(img)}
+                                            alt="Preview"
+                                            className="max-h-96 w-full rounded-md border object-contain"
+                                        />
+                                    ))}
                                 </div>
                             )}
-                            {pdfs.length > 0 && (
+
+                            {/* Preview PDFs */}
+                            {(existingAttachments.some(a => a.fileType === "PDF") || pdfs.length > 0) && (
                                 <div className="mt-4 flex flex-col gap-2">
-                                    <a
-                                        href={URL.createObjectURL(pdfs[0])}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center gap-2 rounded-md border p-2 text-sm text-blue-600 hover:bg-accent w-fit"
-                                    >
-                                        <FileText className="h-4 w-4" />
-                                        {pdfs[0].name}
-                                    </a>
+                                    {existingAttachments.filter(a => a.fileType === "PDF").map(pdf => (
+                                        <a
+                                            key={pdf.id}
+                                            href={pdf.storageUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center gap-2 rounded-md border p-2 text-sm text-blue-600 hover:bg-accent w-fit"
+                                        >
+                                            <FileText className="h-4 w-4" />
+                                            {pdf.fileName}
+                                        </a>
+                                    ))}
+                                    {pdfs.map((pdf, idx) => (
+                                        <a
+                                            key={`preview-new-pdf-${idx}`}
+                                            href={URL.createObjectURL(pdf)}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center gap-2 rounded-md border p-2 text-sm text-blue-600 hover:bg-accent w-fit"
+                                        >
+                                            <FileText className="h-4 w-4" />
+                                            {pdf.name}
+                                        </a>
+                                    ))}
                                 </div>
                             )}
                         </CardContent>
@@ -405,7 +518,7 @@ export default function CreatePostModalContent({
                 </Button>
                 <Button onClick={handleSubmit} disabled={isLoading}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Đăng bài
+                    {initialData ? "Lưu thay đổi" : "Đăng bài"}
                 </Button>
             </div>
             <input

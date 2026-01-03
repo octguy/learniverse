@@ -38,13 +38,32 @@ export default function ProfilePage() {
     };
 
     const fetchMyPosts = async () => {
-        if (!profile?.user?.id) return;
+        const targetUserId = user?.id;
+
+        if (!targetUserId) return;
+
         setLoadingContent(true);
         try {
-            const data = await postService.getPostsByUser(profile.user.id);
-            setMyPosts(data.content || []);
+            const summaryPage = await postService.getPostsByUser(targetUserId);
+
+            if (!summaryPage || !summaryPage.content) {
+                setMyPosts([]);
+                return;
+            }
+
+            const detailPromises = summaryPage.content.map((summary: any) =>
+                postService.getPostById(summary.id)
+            );
+
+            const detailResponses = await Promise.all(detailPromises);
+
+            const fullPosts = detailResponses.map((res: any) => {
+                return res.data;
+            });
+
+            setMyPosts(fullPosts);
         } catch (error) {
-            console.error(error);
+            console.error("Lỗi tải bài viết:", error);
         } finally {
             setLoadingContent(false);
         }
@@ -54,7 +73,23 @@ export default function ProfilePage() {
         setLoadingContent(true);
         try {
             const data = await interactionService.getMyBookmarks();
-            setSavedContent(data.content || []);
+            const bookmarks = data.content || [];
+
+            const postPromises = bookmarks
+                .filter(b => b.postSummary)
+                .map(b => postService.getPostById(b.postSummary!.id));
+
+            const postsDetails = await Promise.all(postPromises);
+
+            const enrichedBookmarks = bookmarks.map(b => {
+                if (b.postSummary) {
+                    const detail = postsDetails.find(res => res.data.id === b.postSummary?.id);
+                    if (detail) return { ...b, postSummary: detail.data };
+                }
+                return b;
+            });
+
+            setSavedContent(enrichedBookmarks);
         } catch (error) {
             console.error("Lỗi tải bookmark:", error);
         } finally {
@@ -67,8 +102,8 @@ export default function ProfilePage() {
     }, []);
 
     useEffect(() => {
-        if (profile) fetchMyPosts();
-    }, [profile]);
+        if (user?.id) fetchMyPosts();
+    }, [user?.id, profile]);
 
     if (loading) return <div className="flex h-[50vh] items-center justify-center"><Loader2 className="animate-spin text-blue-600 w-8 h-8" /></div>;
     if (!profile) return <div className="text-center mt-10">Không tìm thấy thông tin người dùng.</div>;
@@ -114,7 +149,11 @@ export default function ProfilePage() {
                                 <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-400" /></div>
                             ) : myPosts.length > 0 ? (
                                 myPosts.map((post) => (
-                                    <PostCard key={post.id} post={post} />
+                                    <PostCard 
+                                        key={post.id} 
+                                        post={post} 
+                                        onDelete={(id) => setMyPosts((prev) => prev.filter((p) => p.id !== id))}
+                                    />
                                 ))
                             ) : (
                                 <div className="flex flex-col items-center justify-center py-16 text-gray-500 bg-white dark:bg-zinc-900 rounded-xl border border-dashed border-gray-300">
@@ -130,7 +169,11 @@ export default function ProfilePage() {
                             ) : savedContent.length > 0 ? (
                                 savedContent.map((bookmark) => {
                                     if (bookmark.postSummary) {
-                                        return <PostCard key={bookmark.id} post={bookmark.postSummary} />;
+                                        return <PostCard 
+                                            key={bookmark.id} 
+                                            post={bookmark.postSummary} 
+                                            onDelete={(id) => setSavedContent((prev) => prev.filter((b) => b.postSummary?.id !== id))}
+                                        />;
                                     }
                                     if (bookmark.questionSummary) {
                                         return <QuestionCard key={bookmark.id} question={bookmark.questionSummary as any} />;

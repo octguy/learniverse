@@ -5,7 +5,7 @@ import { Comment } from "@/types/comment";
 const BASE_URL = "/comments";
 
 export const commentService = {
-  getComments: async (type: "CONTENT" | "ANSWER", id: string, page = 0, size = 10) => {
+  getComments: async (type: "POST" | "QUESTION" | "ANSWER", id: string, page = 0, size = 10) => {
     const response = await apiService.get<ApiResponse<PageResponse<Comment>>>(BASE_URL, {
       params: {
         type,
@@ -30,7 +30,7 @@ export const commentService = {
   },
 
   createComment: async (payload: {
-    commentableType: "CONTENT" | "ANSWER";
+    commentableType: "POST" | "QUESTION" | "ANSWER";
     commentableId: string;
     body: string;
     parentId?: string;

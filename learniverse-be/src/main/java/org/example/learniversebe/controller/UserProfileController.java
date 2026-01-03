@@ -29,7 +29,7 @@ public class UserProfileController {
     @Operation(summary = "Onboard profile")
     @PostMapping(value = "/onboard")
     public ResponseEntity<UserProfileResponse> onboardProfile(Authentication authentication,
-                                                              @RequestBody @Valid UserProfileRequest data,
+                                                              @RequestPart("data") @Valid UserProfileRequest data,
                                                               @RequestParam(required = false) MultipartFile avatar,
                                                               @RequestParam(required = false) MultipartFile cover
     ) {
@@ -43,12 +43,14 @@ public class UserProfileController {
     @PutMapping(value = "/me")
     public UserProfileResponse updateMyProfile(
             Authentication authentication,
-            @RequestBody @Valid UserProfileRequest data,
-            @RequestParam(required = false) MultipartFile avatar,
-            @RequestParam(required = false) MultipartFile cover
+            @RequestPart("data") @Valid UserProfileRequest data,
+            @RequestPart(value = "avatar", required = false) MultipartFile avatar,
+            @RequestPart(value = "cover", required = false) MultipartFile cover
     ) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
         UUID userId = userDetails.getId();
+
+        UserProfileResponse response = service.updateProfile(userId, data, avatar, cover);
 
         return service.updateProfile(userId, data, avatar, cover);
     }
@@ -57,6 +59,12 @@ public class UserProfileController {
     @GetMapping("/me")
     public UserProfileResponse getMyProfile(Authentication authentication) {
         UUID userId = ((CustomUserDetails) authentication.getPrincipal()).getId();
+        return service.viewProfile(userId);
+    }
+
+    @Operation(summary = "Get user profile by user ID")
+    @GetMapping("/{userId}")
+    public UserProfileResponse getUserProfile(@PathVariable UUID userId) {
         return service.viewProfile(userId);
     }
 }

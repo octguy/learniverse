@@ -1,0 +1,155 @@
+package org.example.learniversebe.controller;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.example.learniversebe.dto.request.EditMessageRequest;
+import org.example.learniversebe.dto.request.SendFileMessageRequest;
+import org.example.learniversebe.dto.request.SendMessageRequest;
+import org.example.learniversebe.dto.response.MessageResponse;
+import org.example.learniversebe.dto.response.pagination.PageResponse;
+import org.example.learniversebe.dto.websocket.UserStatusDTO;
+import org.example.learniversebe.enums.MessageType;
+import org.example.learniversebe.model.ApiResponse;
+import org.example.learniversebe.model.User;
+import org.example.learniversebe.service.IChatMessageService;
+import org.example.learniversebe.util.SecurityUtils;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@RequestMapping("/api/v1/messages")
+@RestController
+@Tag(name = "Chat Message", description = "Endpoints for chat message functionalities")
+public class ChatMessageController {
+
+    private final IChatMessageService chatMessageService;
+    private final SimpMessagingTemplate messagingTemplate;
+
+    public ChatMessageController(IChatMessageService chatMessageService,
+                                 SimpMessagingTemplate messagingTemplate) {
+        this.chatMessageService = chatMessageService;
+        this.messagingTemplate = messagingTemplate;
+    }
+
+    @PostMapping("/send/{roomId}")
+    @Operation(summary = "Send a text message", description = "Sends a text message to a chat room. Supports replies via parentMessageId.")
+    public ResponseEntity<?> sendTextMessage(@PathVariable UUID roomId,
+                                             @Valid @RequestBody SendMessageRequest request) {
+        MessageResponse messageResponse = chatMessageService.sendMessage(roomId, request);
+
+        ApiResponse<?> apiResponse = new ApiResponse<>(
+                HttpStatus.CREATED,
+                "Message sent successfully",
+                messageResponse,
+                null
+        );
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(apiResponse);
+    }
+
+    @PostMapping(value = "/send-with-file/{roomId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Send a message with file attachment", description = "Sends a message with an attached file (image, video, or document). Supports optional text caption and replies.")
+    public ResponseEntity<?> sendMessageWithFile(
+            @PathVariable UUID roomId,
+            @RequestParam("messageType") MessageType messageType,
+            @RequestParam(value = "textContent", required = false) String textContent,
+            @RequestParam(value = "parentMessageId", required = false) UUID parentMessageId,
+            @RequestParam("file") MultipartFile file) {
+
+        SendFileMessageRequest request = new SendFileMessageRequest();
+        request.setMessageType(messageType);
+        request.setTextContent(textContent);
+        request.setParentMessageId(parentMessageId);
+
+        MessageResponse messageResponse = chatMessageService.sendMessageWithFile(roomId, request, file);
+
+        ApiResponse<?> apiResponse = new ApiResponse<>(
+                HttpStatus.CREATED,
+                "Message with file sent successfully",
+                messageResponse,
+                null
+        );
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(apiResponse);
+    }
+
+    @PostMapping("/mark-as-read/{roomId}")
+    @Operation(summary = "Mark messages as read", description = "Marks all messages in a chat room as read by the current user.")
+    public ResponseEntity<?> markMessagesAsRead(@PathVariable UUID roomId) {
+        chatMessageService.markAsRead(roomId);
+
+        ApiResponse<?> apiResponse = new ApiResponse<>(
+                HttpStatus.OK,
+                "Messages marked as read successfully",
+                null,
+                null
+        );
+
+        return ResponseEntity.ok(apiResponse);
+    }
+
+    @PutMapping("/edit")
+    @Operation(summary = "Edit a message", description = "Edits an existing message's text content. Broadcasts update via WebSocket.")
+    public ResponseEntity<?> editMessage(@Valid @RequestBody EditMessageRequest request) {
+        MessageResponse messageResponse = chatMessageService.editMessage(request);
+
+        // Broadcast update via WebSocket
+        messagingTemplate.convertAndSend(
+                "/topic/chat/" + messageResponse.getChatRoomId() + "/updates",
+                messageResponse
+        );
+
+        ApiResponse<?> apiResponse = new ApiResponse<>(
+                HttpStatus.OK,
+                "Message edited successfully",
+                messageResponse,
+                null
+        );
+
+        return ResponseEntity.ok(apiResponse);
+    }
+
+    @GetMapping("/room/{chatRoomId}")
+    @Operation(summary = "Get messages in a chat room", description = "Retrieves paginated messages from a chat room using cursor-based pagination.")
+    public ResponseEntity<?> getMessagesByChatRoom(
+            @PathVariable UUID chatRoomId,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime cursor,
+            @RequestParam(defaultValue = "20") int limit) {
+
+        PageResponse<MessageResponse> pageResponse =
+                chatMessageService.getAllMessagesInChatRoom(chatRoomId, cursor, limit);
+
+        ApiResponse<?> apiResponse = new ApiResponse<>(
+                HttpStatus.OK,
+                "Messages fetched successfully",
+                pageResponse,
+                null
+        );
+
+        return ResponseEntity.ok(apiResponse);
+    }
+
+    @GetMapping("/{messageId}")
+    @Operation(summary = "Get a message by ID", description = "Retrieves detailed information for a specific message.")
+    public ResponseEntity<?> getMessageById(@PathVariable UUID messageId) {
+        MessageResponse messageResponse = chatMessageService.getMessageById(messageId);
+
+        ApiResponse<?> apiResponse = new ApiResponse<>(
+                HttpStatus.OK,
+                "Message fetched successfully",
+                messageResponse,
+                null
+        );
+
+        return ResponseEntity.ok(apiResponse);
+    }
+}

@@ -12,7 +12,7 @@ const apiService = axios.create({
 
 apiService.interceptors.request.use(
     (config) => {
-        const accessToken = sessionStorage.getItem('accessToken');
+        const accessToken = localStorage.getItem('accessToken');
         if (accessToken) {
             config.headers['Authorization'] = `Bearer ${accessToken}`;
         }
@@ -39,6 +39,11 @@ apiService.interceptors.response.use(
     (response) => response,
     async (error) => {
         const originalRequest = error.config;
+
+        if (!originalRequest) {
+            return Promise.reject(error);
+        }
+
         if (error.response?.status === 401 && !originalRequest._retry) {
 
             if (isRefreshing) {
@@ -46,18 +51,19 @@ apiService.interceptors.response.use(
                     failedQueue.push({ resolve, reject });
                 }).then(token => {
                     originalRequest.headers['Authorization'] = 'Bearer ' + token;
-                    return axios(originalRequest);
+                    return apiService(originalRequest);
                 });
             }
 
             originalRequest._retry = true;
             isRefreshing = true;
 
-            const refreshToken = sessionStorage.getItem('refreshToken');
+            const refreshToken = localStorage.getItem('refreshToken');
             if (!refreshToken) {
                 isRefreshing = false;
-                sessionStorage.clear();
-                window.location.href = '/login';
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken');
+                if (typeof window !== 'undefined') window.location.href = '/login';
                 return Promise.reject(error);
             }
 
@@ -65,8 +71,8 @@ apiService.interceptors.response.use(
                 const rs = await authService.refreshToken({ refreshToken });
                 const { accessToken, refreshToken: newRefreshToken } = rs.data;
 
-                sessionStorage.setItem('accessToken', accessToken);
-                sessionStorage.setItem('refreshToken', newRefreshToken);
+                localStorage.setItem('accessToken', accessToken);
+                localStorage.setItem('refreshToken', newRefreshToken);
 
                 apiService.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
                 originalRequest.headers['Authorization'] = `Bearer ${accessToken}`;
@@ -76,8 +82,9 @@ apiService.interceptors.response.use(
 
             } catch (refreshError) {
                 processQueue(refreshError, null);
-                sessionStorage.clear();
-                window.location.href = '/login';
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken');
+                if (typeof window !== 'undefined') window.location.href = '/login';
                 return Promise.reject(refreshError);
             } finally {
                 isRefreshing = false;

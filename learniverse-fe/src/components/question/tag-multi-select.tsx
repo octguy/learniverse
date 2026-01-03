@@ -84,7 +84,7 @@ export function TagMultiSelect({
 
     return (
         <div className="space-y-3">
-            <Popover open={open} onOpenChange={setOpen}>
+            <Popover open={open} onOpenChange={setOpen} modal={true}>
                 <PopoverTrigger asChild>
                     <Button
                         type="button"
@@ -122,7 +122,7 @@ export function TagMultiSelect({
                             Đang tải danh sách thẻ…
                         </div>
                     ) : (
-                        <ScrollArea className="h-64 pr-1">
+                        <div className="h-64 overflow-y-auto pr-1">
                             <div className="space-y-1">
                                 {filteredOptions.length === 0 && (
                                     <p className="rounded-md border border-dashed px-3 py-8 text-center text-sm text-muted-foreground">
@@ -202,7 +202,7 @@ export function TagMultiSelect({
                                     )
                                 })}
                             </div>
-                        </ScrollArea>
+                        </div>
                     )}
 
                     {maxSelections && (

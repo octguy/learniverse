@@ -1,5 +1,6 @@
 package org.example.learniversebe.service.implementation;
 
+import lombok.extern.slf4j.Slf4j;
 import org.example.learniversebe.exception.BadRequestException;
 import org.example.learniversebe.model.PasswordResetToken;
 import org.example.learniversebe.model.User;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+@Slf4j
 @Service
 public class PasswordResetTokenImpl implements IPasswordResetTokenService {
 
@@ -30,7 +32,9 @@ public class PasswordResetTokenImpl implements IPasswordResetTokenService {
 
     @Override
     public PasswordResetToken create(User user) { // reset or create new
+        log.info("Creating password reset token for user: {}", user.getUsername());
         if (passwordResetTokenRepository.findByUser(user).isPresent()) {
+            log.debug("Updating existing password reset token for user: {}", user.getUsername());
             PasswordResetToken passwordResetToken = passwordResetTokenRepository.findByUser(user).get();
             passwordResetToken.setToken(UUID.randomUUID().toString());
             passwordResetToken.setExpiration(LocalDateTime.now().plusMinutes(expiration));
@@ -50,10 +54,12 @@ public class PasswordResetTokenImpl implements IPasswordResetTokenService {
 
     @Override
     public PasswordResetToken validateToken(String token) {
+        log.debug("Validating password reset token");
         PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(token)
                 .orElseThrow(() -> new BadRequestException("Invalid token"));
 
         if (resetToken.getExpiration().isBefore(LocalDateTime.now())) {
+            log.warn("Password reset token expired for user: {}", resetToken.getUser().getUsername());
             throw new BadRequestException("Token expired");
         }
 

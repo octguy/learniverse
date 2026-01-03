@@ -1,5 +1,6 @@
 package org.example.learniversebe.service.implementation;
 
+import lombok.extern.slf4j.Slf4j;
 import org.example.learniversebe.enums.UserRole;
 import org.example.learniversebe.model.Role;
 import org.example.learniversebe.repository.RoleRepository;
@@ -10,6 +11,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 public class RoleServiceImpl implements IRoleService {
 
@@ -26,11 +28,13 @@ public class RoleServiceImpl implements IRoleService {
 
     @Override
     public void createNewRole(UserRole role) {
+        log.info("Creating new role: {}", role);
         Role newRole = new Role();
         newRole.setId(UUID.randomUUID());
         newRole.setName(role);
         newRole.setCreatedAt(LocalDateTime.now());
         newRole.setUpdatedAt(LocalDateTime.now());
         roleRepository.save(newRole);
+        log.info("Role created successfully with ID: {}", newRole.getId());
     }
 }

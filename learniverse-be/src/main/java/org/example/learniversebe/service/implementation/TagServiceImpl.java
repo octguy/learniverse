@@ -1,5 +1,6 @@
 package org.example.learniversebe.service.implementation;
 
+import lombok.extern.slf4j.Slf4j;
 import org.example.learniversebe.dto.request.CreateTagRequest;
 import org.example.learniversebe.dto.response.PageResponse;
 import org.example.learniversebe.dto.response.TagResponse;
@@ -17,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class TagServiceImpl implements ITagService {
 
@@ -35,8 +37,10 @@ public class TagServiceImpl implements ITagService {
     @Override
     @Transactional
     public TagResponse createTag(CreateTagRequest request) {
+        log.info("Creating tag with name: {}", request.getName());
         // 1. Kiểm tra tên tag đã tồn tại chưa (không phân biệt hoa thường)
         if (tagRepository.existsByNameIgnoreCase(request.getName())) {
+            log.warn("Tag creation failed - tag name already exists: {}", request.getName());
             throw new BadRequestException("Tag name '" + request.getName() + "' already exists.");
         }
 
@@ -52,6 +56,7 @@ public class TagServiceImpl implements ITagService {
 
         // 4. Lưu vào DB (Lưu ý: @PrePersist trong Tag.java vẫn sẽ chạy và set ID, timestamps)
         Tag savedTag = tagRepository.save(tag);
+        log.info("Tag created successfully with ID: {} and slug: {}", savedTag.getId(), savedTag.getSlug());
 
         // 5. Map sang DTO Response và trả về
         return tagMapper.toTagResponse(savedTag);
@@ -68,6 +73,7 @@ public class TagServiceImpl implements ITagService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<TagResponse> searchTags(String query, Pageable pageable) {
+        log.debug("Searching tags with query: {} and pageable: {}", query, pageable);
         Page<Tag> tagPage;
         if (query == null || query.isBlank()) {
             // Nếu query rỗng, trả về tất cả

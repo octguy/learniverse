@@ -36,4 +36,5 @@ public interface BookmarkRepository extends JpaRepository<Bookmark, UUID> {
      */
     @Modifying
     @Query("UPDATE Bookmark b SET b.deletedAt = CURRENT_TIMESTAMP WHERE b.content.id = :contentId AND b.deletedAt IS NULL")
-    void softDeleteByContentId(@Param("contentId") UUID contentId);}
+    void softDeleteByContentId(@Param("contentId") UUID contentId);
+}
