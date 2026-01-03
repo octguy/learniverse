@@ -25,6 +25,25 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     @Query(value = "select * from \"user\" where status = 'PENDING_VERIFICATION' and created_at + INTERVAL '24 hours' <= NOW();", nativeQuery = true)
     List<User> findPendingUserExceedOneDay();
 
+    // Lấy random users, loại trừ danh sách IDs cho trước
+    @Query(value = "SELECT * FROM \"user\" u " +
+            "WHERE u.id NOT IN :excludedIds " +
+            "AND u.deleted_at IS NULL " +
+            "ORDER BY RANDOM() " +
+            "LIMIT :limit",
+            nativeQuery = true)
+    List<User> findRandomUsersExcluding(@Param("excludedIds") List<UUID> excludedIds,
+                                        @Param("limit") int limit);
+
+    // Trường hợp không có excludedIds (chỉ loại trừ chính mình)
+    @Query(value = "SELECT * FROM \"user\" u " +
+            "WHERE u.id <> :currentUserId " +
+            "AND u.deleted_at IS NULL " +
+            "ORDER BY RANDOM() " +
+            "LIMIT :limit",
+            nativeQuery = true)
+    List<User> findRandomUsersExcludingCurrent(@Param("currentUserId") UUID currentUserId,
+                                               @Param("limit") int limit);
     // Dashboard queries
     @Query(value = "SELECT COUNT(*) FROM \"user\" WHERE deleted_at IS NULL AND created_at >= :startOfDay AND created_at < :endOfDay", nativeQuery = true)
     long countNewUsersInRange(@Param("startOfDay") LocalDateTime startOfDay, @Param("endOfDay") LocalDateTime endOfDay);

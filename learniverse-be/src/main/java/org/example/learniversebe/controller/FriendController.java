@@ -90,4 +90,19 @@ public class FriendController {
                 new ApiResponse<>(HttpStatus.OK, "Pending sent requests retrieved.", requests, null)
         );
     }
+
+    @GetMapping("/suggestions")
+    public ResponseEntity<ApiResponse<List<UserProfileResponse>>> getSuggestedFriends(
+            @RequestParam(defaultValue = "10") int limit
+    ) {
+        // Giới hạn tối đa 50 suggestions
+        if (limit > 50) {
+            limit = 50;
+        }
+
+        List<UserProfileResponse> suggestions = friendService.getSuggestedFriends(limit);
+        return ResponseEntity.ok(
+                new ApiResponse<>(HttpStatus.OK, "Friend suggestions retrieved successfully.", suggestions, null)
+        );
+    }
 }
