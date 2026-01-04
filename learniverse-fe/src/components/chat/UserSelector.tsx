@@ -4,7 +4,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { friendService } from "@/lib/api/friendService";
-import { UserProfile } from "@/types/userProfile";
+import { SuggestedFriend } from "@/types/friend";
 import { Search, Loader2 } from "lucide-react";
 
 interface UserSelectorProps {
@@ -18,7 +18,7 @@ export function UserSelector({
     onToggleUser,
     excludedUserIds = [],
 }: UserSelectorProps) {
-    const [friends, setFriends] = useState<UserProfile[]>([]);
+    const [friends, setFriends] = useState<SuggestedFriend[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
 
@@ -26,13 +26,11 @@ export function UserSelector({
         const fetchFriends = async () => {
             try {
                 setLoading(true);
-                const response = await friendService.getFriends(0, 100);
+                const response = await friendService.getFriends();
                 if (response.data?.status === "success") {
-                    const pageData = response.data.data;
-                    if (pageData && Array.isArray(pageData.content)) {
-                        setFriends(pageData.content);
-                    } else if (Array.isArray(pageData)) {
-                        setFriends(pageData);
+                    const data = response.data.data;
+                    if (Array.isArray(data)) {
+                        setFriends(data);
                     }
                 }
             } catch (error) {
@@ -46,11 +44,11 @@ export function UserSelector({
     }, []);
 
     const filteredFriends = friends.filter((friend) => {
-        if (excludedUserIds.includes(friend.id)) return false;
+        if (excludedUserIds.includes(friend.userId)) return false;
         if (searchTerm.trim() === "") return true;
         return (
             friend.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            friend.fullName?.toLowerCase().includes(searchTerm.toLowerCase())
+            friend.displayName.toLowerCase().includes(searchTerm.toLowerCase())
         );
     });
 
@@ -81,15 +79,15 @@ export function UserSelector({
                             <div
                                 key={friend.id}
                                 className="flex items-center space-x-4 cursor-pointer hover:bg-muted/50 p-2 rounded-md transition-colors"
-                                onClick={() => onToggleUser(friend.id)}
+                                onClick={() => onToggleUser(friend.userId)}
                             >
                                 <Checkbox
-                                    id={friend.id}
-                                    checked={selectedUserIds.includes(friend.id)}
-                                    onCheckedChange={() => onToggleUser(friend.id)}
+                                    id={friend.userId}
+                                    checked={selectedUserIds.includes(friend.userId)}
+                                    onCheckedChange={() => onToggleUser(friend.userId)}
                                 />
                                 <label
-                                    htmlFor={friend.id}
+                                    htmlFor={friend.userId}
                                     className="flex items-center space-x-3 cursor-pointer w-full"
                                     onClick={(e) => e.preventDefault()}
                                 >
@@ -101,13 +99,11 @@ export function UserSelector({
                                     </Avatar>
                                     <div className="flex flex-col">
                                         <span className="text-sm font-medium leading-none">
-                                            {friend.username}
+                                            {friend.displayName || friend.username}
                                         </span>
-                                        {friend.fullName && (
-                                            <span className="text-xs text-muted-foreground">
-                                                {friend.fullName}
-                                            </span>
-                                        )}
+                                        <span className="text-xs text-muted-foreground">
+                                            @{friend.username}
+                                        </span>
                                     </div>
                                 </label>
                             </div>

@@ -10,11 +10,11 @@ export const friendService = {
     },
 
     acceptRequest: async (senderId: string) => {
-        return apiService.put<ApiResponse<void>>(`${BASE_URL}/accept/${senderId}`);
+        return apiService.post<ApiResponse<void>>(`${BASE_URL}/accept/${senderId}`);
     },
 
     rejectRequest: async (senderId: string) => {
-        return apiService.delete<ApiResponse<void>>(`${BASE_URL}/reject/${senderId}`);
+        return apiService.delete<ApiResponse<void>>(`${BASE_URL}/decline/${senderId}`);
     },
 
     cancelRequest: async (receiverId: string) => {
@@ -22,15 +22,15 @@ export const friendService = {
     },
 
     unfriend: async (friendId: string) => {
-        return apiService.delete<ApiResponse<void>>(`${BASE_URL}/unfriend/${friendId}`);
+        return apiService.delete<ApiResponse<void>>(`${BASE_URL}/${friendId}`);
     },
 
     getFriends: async () => {
         return apiService.get<ApiResponse<SuggestedFriend[]>>(`${BASE_URL}`);
     },
-    getFriendRequests: async (page = 0, size = 10) => {
-        return apiService.get<ApiResponse<PageResponse<SuggestedFriend>>>(
-            `${BASE_URL}/requests?page=${page}&size=${size}`
+    getFriendRequests: async () => {
+        return apiService.get<ApiResponse<SuggestedFriend[]>>(
+            `${BASE_URL}/requests/received`
         );
     },
 
@@ -38,7 +38,7 @@ export const friendService = {
         return apiService.get<ApiResponse<FriendStatus>>(`${BASE_URL}/status/${targetUserId}`);
     },
 
-    getSuggestedFriends: async () => {
-        return apiService.get<ApiResponse<SuggestedFriend[]>>(`${BASE_URL}/suggested`);
+    getSuggestedFriends: async (limit = 10) => {
+        return apiService.get<ApiResponse<SuggestedFriend[]>>(`${BASE_URL}/suggestions?limit=${limit}`);
     },
 };

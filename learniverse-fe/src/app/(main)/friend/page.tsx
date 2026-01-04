@@ -110,8 +110,8 @@ function FriendRequestList() {
 
     const fetchRequests = async () => {
         try {
-            const res = await friendService.getFriendRequests(0, 50);
-            setRequests(res.data.data?.content || []);
+            const res = await friendService.getFriendRequests();
+            setRequests(res.data.data || []);
         } catch (error) {
             console.error(error);
         } finally {
