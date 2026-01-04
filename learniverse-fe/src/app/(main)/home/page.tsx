@@ -96,7 +96,11 @@ export default function MainPage() {
       {!loading && !error && posts.length > 0 && (
         <div className="flex flex-col gap-6">
           {posts.map((post) => (
-            <PostCard key={post.id} post={post} />
+            <PostCard 
+              key={post.id} 
+              post={post} 
+              onDelete={(deletedId) => setPosts((prev) => prev.filter((p) => p.id !== deletedId))}
+            />
           ))}
         </div>
       )}

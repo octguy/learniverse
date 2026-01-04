@@ -64,7 +64,7 @@ export function Header() {
             <Home className="w-5 h-5" />
             <span className="text-xs">Home</span>
           </Link>
-          <Link href="/network" className="flex flex-col items-center text-gray-600 hover:text-primary">
+          <Link href="/friend" className="flex flex-col items-center text-gray-600 hover:text-primary">
             <Users className="w-5 h-5" />
             <span className="text-xs">Network</span>
           </Link>

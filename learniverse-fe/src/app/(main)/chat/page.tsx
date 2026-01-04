@@ -13,6 +13,7 @@ import { Plus, Search, Loader2 } from "lucide-react";
 import ChatList from "@/components/chat/ChatList";
 import ChatWindow from "@/components/chat/ChatWindow";
 import WelcomeScreen from "@/components/chat/WellcomeScreen";
+import { CreateGroupModal } from "@/components/chat/CreateGroupModal";
 import { chatReducer } from "./state/chatReducer";
 import { chatService, MessageDTO, ChatRoomDTO } from "@/lib/api/chatService";
 import { userProfileService } from "@/lib/api/userProfileService";
@@ -45,6 +46,70 @@ export default function ChatPage() {
     loadingMore,
   } = state;
   const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
+
+  // Define reloadChats here to be used by the modal
+  const reloadChats = async () => {
+    try {
+      const response = await chatService.getAllChats();
+      if (response.data.status === "success") {
+        const chatRooms = response.data.data;
+        // We need to re-process chats similar to initial load
+        // For brevity, I'll copy the logic, but ideally this should be a shared function
+        // Reuse currentUserId state
+
+        const chatsWithData = await Promise.all(
+          chatRooms.map(async (room: ChatRoomDTO) => {
+            let lastMessage = null;
+            if (room.lastMessage) {
+              const senderPrefix =
+                room.lastMessage.senderId === currentUserId
+                  ? "You"
+                  : room.lastMessage.senderName || "Unknown";
+              lastMessage = `${senderPrefix}: ${room.lastMessage.content || ""
+                }`;
+            }
+
+            let avatar = null;
+            let chatName = room.name || "Direct Chat";
+
+            if (!room.groupChat && room.participants.length === 2) {
+              const recipientId = room.participants.find(
+                (participantId) => participantId !== currentUserId
+              );
+              if (recipientId) {
+                try {
+                  const userProfile = await userProfileService.getUserProfile(
+                    recipientId
+                  );
+                  avatar = userProfile.avatarUrl;
+                  chatName =
+                    userProfile.displayName ||
+                    userProfile.user.username ||
+                    "Direct Chat";
+                } catch (error) {
+                  console.error("Error fetching profile", error);
+                }
+              }
+            }
+
+            return {
+              id: room.id,
+              name: chatName,
+              avatar,
+              lastMessage,
+              unreadCount: room.unreadCount || 0,
+              participants: room.participants,
+              isGroupChat: room.groupChat,
+            } as Chat;
+          })
+        );
+        dispatch({ type: "SET_CHATS", payload: chatsWithData });
+      }
+    } catch (e) {
+      console.error("Failed to reload chats", e);
+    }
+  };
 
   // Set user ID in reducer when available
   useEffect(() => {
@@ -88,9 +153,8 @@ export default function ChatPage() {
                   room.lastMessage.senderId === userId
                     ? "You"
                     : room.lastMessage.senderName || "Unknown";
-                lastMessage = `${senderPrefix}: ${
-                  room.lastMessage.content || ""
-                }`;
+                lastMessage = `${senderPrefix}: ${room.lastMessage.content || ""
+                  }`;
               }
 
               // Fetch avatar and name for direct chats
@@ -337,16 +401,16 @@ export default function ChatPage() {
           const msgs = response.data.data.data
             .map(
               (m: MessageDTO) =>
-                ({
-                  id: m.id,
-                  chatRoomId: m.chatRoomId,
-                  senderId: m.sender.senderId,
-                  senderUsername: m.sender.senderName,
-                  senderAvatar: m.sender.senderAvatar,
-                  messageType: m.messageType,
-                  textContent: m.textContent,
-                  createdAt: m.createdAt,
-                } as Message)
+              ({
+                id: m.id,
+                chatRoomId: m.chatRoomId,
+                senderId: m.sender.senderId,
+                senderUsername: m.sender.senderName,
+                senderAvatar: m.sender.senderAvatar,
+                messageType: m.messageType,
+                textContent: m.textContent,
+                createdAt: m.createdAt,
+              } as Message)
             )
             .reverse();
 
@@ -448,10 +512,16 @@ export default function ChatPage() {
         <div className="p-4 border-b">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-xl font-semibold">Tin nhắn</h1>
-            <Button size="icon" variant="ghost">
+            <Button size="icon" variant="ghost" onClick={() => setIsCreateGroupOpen(true)} title="Tạo nhóm mới">
               <Plus className="w-5 h-5" />
             </Button>
           </div>
+
+          <CreateGroupModal
+            open={isCreateGroupOpen}
+            onOpenChange={setIsCreateGroupOpen}
+            onGroupCreated={reloadChats}
+          />
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
             <Input
