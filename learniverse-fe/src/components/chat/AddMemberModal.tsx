@@ -33,7 +33,7 @@ export function AddMemberModal({
                     if (response.data?.status === "success") {
                         // Assuming response.data.data is ParticipantDTO[] based on chatService
                         const participants = response.data.data;
-                        setExistingParticipants(participants.map((p) => p.userId));
+                        setExistingParticipants(participants.map((p) => p.participantId));
                     }
                 } catch (error) {
                     console.error("Failed to fetch participants", error);
@@ -60,13 +60,7 @@ export function AddMemberModal({
 
         try {
             setAdding(true);
-            // API currently only supports adding one by one?
-            // chatService.addParticipant: (roomId: string, userId: string)
-            // We need to loop if multiple selected.
-
-            await Promise.all(
-                selectedUserIds.map((userId) => chatService.addParticipant(chatId, userId))
-            );
+            await chatService.addParticipants(chatId, selectedUserIds);
 
             onMemberAdded();
             onOpenChange(false);

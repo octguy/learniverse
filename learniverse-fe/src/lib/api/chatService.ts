@@ -10,7 +10,7 @@ export interface MessageDTO {
   id: string;
   chatRoomId: string;
   sender: SenderResponse;
-  messageType: "TEXT" | "IMAGE" | "FILE";
+  messageType: "TEXT" | "IMAGE" | "VIDEO" | "FILE";
   textContent: string;
   metadata: string | null; // URL for file/image/video
   parentMessageId: string | null;
@@ -21,6 +21,7 @@ export interface ChatRoomDTO {
   id: string;
   name: string | null;
   participants: string[];
+  isGroupChat: boolean;
   groupChat: boolean;
   createdAt: string;
   updatedAt: string;
@@ -32,13 +33,17 @@ export interface LastMessageDTO {
   senderId: string;
   senderName: string;
   content: string;
-  messageType: "TEXT" | "IMAGE" | "FILE";
+  messageType: "TEXT" | "IMAGE" | "VIDEO" | "FILE";
   sendAt: string;
 }
 
 export interface ParticipantDTO {
-  userId: string;
+  participantId: string;
+  userId?: string;
+  displayName: string;
   username: string;
+  avatarUrl: string | null;
+  role: "ADMIN" | "MEMBER";
   joinedAt: string;
   leftAt: string | null;
 }
@@ -46,6 +51,11 @@ export interface ParticipantDTO {
 export interface SendMessageRequest {
   textContent: string;
   parentMessageId?: string;
+}
+
+export interface EditMessageRequest {
+  messageId: string;
+  textContent: string;
 }
 
 export interface CreateGroupChatRequest {
@@ -84,7 +94,10 @@ export const chatService = {
     ),
 
   addParticipant: (roomId: string, userId: string) =>
-    apiService.post<ApiResponse<void>>(`/chats/${roomId}/add`, { userId }),
+    apiService.post<ApiResponse<void>>(`/chats/${roomId}/add`, { participants: [userId] }), // API guide says body: { participants: [...] }
+
+  addParticipants: (roomId: string, userIds: string[]) =>
+    apiService.post<ApiResponse<void>>(`/chats/${roomId}/add`, { participants: userIds }),
 
   removeParticipant: (roomId: string, userId: string) =>
     apiService.delete<ApiResponse<void>>(
@@ -97,6 +110,9 @@ export const chatService = {
   // Messages
   sendMessage: (roomId: string, data: SendMessageRequest) =>
     apiService.post<ApiResponse<MessageDTO>>(`/messages/send/${roomId}`, data),
+
+  editMessage: (data: EditMessageRequest) =>
+    apiService.put<ApiResponse<MessageDTO>>(`/messages/edit`, data),
 
   getChatHistory: (roomId: string, cursor?: string, limit: number = 20) => {
     const params = new URLSearchParams();

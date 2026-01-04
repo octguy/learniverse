@@ -3,7 +3,17 @@ import type { Chat, Message } from "@/types/chat";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Loader2, Paperclip, Reply, UserPlus } from "lucide-react";
+import {
+  Send,
+  Loader2,
+  Paperclip,
+  Reply,
+  UserPlus,
+  Info,
+  Pencil,
+  X,
+  MoreVertical,
+} from "lucide-react";
 import { format, isSameDay } from "date-fns";
 import { chatService } from "@/lib/api/chatService";
 import { uploadFile } from "@/lib/api/fileUploadService";
@@ -12,6 +22,14 @@ import MessageAttachment from "./MessageAttachment";
 import ReplyPreview from "./ReplyPreview";
 import ParentMessage from "./ParentMessage";
 import { AddMemberModal } from "./AddMemberModal";
+import { GroupInfoModal } from "./GroupInfoModal";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 
 interface Props {
   chat: Chat;
@@ -53,6 +71,8 @@ const ChatWindow = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
+  const [isGroupInfoOpen, setIsGroupInfoOpen] = useState(false);
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
 
   // Mark messages as read when chat is opened
   useEffect(() => {
@@ -103,6 +123,9 @@ const ChatWindow = ({
     previousMessageCountRef.current = 0;
     oldestMessageIdRef.current = null;
     setAutoScroll(true);
+    setReplyingTo(null);
+    setEditingMessage(null);
+    setMessageInput("");
   }, [chat.id]);
 
   // Auto-scroll to bottom only for NEW messages (not when loading old messages)
@@ -186,10 +209,32 @@ const ChatWindow = ({
     }
   };
 
+  const handleEditMessage = async (content: string) => {
+    if (!editingMessage) return;
+    try {
+      const response = await chatService.editMessage({
+        messageId: editingMessage.id,
+        textContent: content
+      });
+      if (response.data.status === "success") {
+        setEditingMessage(null);
+        setMessageInput("");
+      }
+    } catch (error) {
+      console.error("Failed to edit message", error);
+      toast.error("Không thể chỉnh sửa tin nhắn");
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const content = messageInput.trim();
     if (!content) return;
+
+    if (editingMessage) {
+      handleEditMessage(content);
+      return;
+    }
 
     // Send with parentMessageId if replying
     if (replyingTo) {
@@ -205,6 +250,18 @@ const ChatWindow = ({
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, 100);
+  };
+
+  const startEditing = (message: Message) => {
+    setEditingMessage(message);
+    setMessageInput(message.textContent);
+    setReplyingTo(null); // Cancel reply if any
+    fileInputRef.current && (fileInputRef.current.value = ""); // Clear file input
+  };
+
+  const cancelEditing = () => {
+    setEditingMessage(null);
+    setMessageInput("");
   };
 
   const detectFileType = (file: File): "IMAGE" | "VIDEO" | "FILE" => {
@@ -325,16 +382,28 @@ const ChatWindow = ({
             )}
           </div>
         </div>
-        {chat.isGroupChat && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsAddMemberOpen(true)}
-            title="Thêm thành viên"
-          >
-            <UserPlus className="w-5 h-5 text-gray-500" />
-          </Button>
-        )}
+        <div className="flex items-center gap-1">
+          {chat.isGroupChat && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsAddMemberOpen(true)}
+                title="Thêm thành viên"
+              >
+                <UserPlus className="w-5 h-5 text-gray-500" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsGroupInfoOpen(true)}
+                title="Thông tin nhóm"
+              >
+                <Info className="w-5 h-5 text-gray-500" />
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       <AddMemberModal
@@ -346,6 +415,17 @@ const ChatWindow = ({
           // You might want to trigger a reload of participants or chat info
         }}
       />
+      <GroupInfoModal
+        chatId={chat.id}
+        chatName={chat.name}
+        open={isGroupInfoOpen}
+        onOpenChange={setIsGroupInfoOpen}
+        currentUserId={userId}
+        onLeaveGroup={() => {
+          window.location.reload();
+        }}
+      />
+
       <div
         ref={messagesContainerRef}
         onScroll={handleScroll}
@@ -413,7 +493,23 @@ const ChatWindow = ({
                         {m.senderUsername}
                       </span>
                     )}
-                    <div className="group relative">
+                    <div className="group relative flex items-center">
+                      {isOwn && m.messageType === "TEXT" && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity mr-2">
+                              <MoreVertical className="h-3 w-3 text-muted-foreground" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => startEditing(m)}>
+                              <Pencil className="w-3 h-3 mr-2" />
+                              Chỉnh sửa
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+
                       {/* Different styling for media vs text messages */}
                       {m.messageType === "TEXT" ? (
                         <div
@@ -433,7 +529,7 @@ const ChatWindow = ({
                           )}
 
                           <div
-                            className={`max-w-[70%] min-w-[100px] rounded-lg px-3 py-2 ${isOwn
+                            className={`max-w-[100%] min-w-[100px] rounded-lg px-3 py-2 ${isOwn
                               ? "bg-blue-500 text-white"
                               : "bg-white border"
                               }`}
@@ -503,7 +599,7 @@ const ChatWindow = ({
                           className={`flex ${isOwn ? "justify-end" : "justify-start"
                             }`}
                         >
-                          <div className="relative inline-block max-w-[70%]">
+                          <div className="relative inline-block max-w-[100%]">
                             {/* Parent Message Reference for media */}
                             {m.parentMessageId && (
                               <div
@@ -592,6 +688,17 @@ const ChatWindow = ({
             onCancel={() => setReplyingTo(null)}
           />
         )}
+        {editingMessage && (
+          <div className="px-4 py-2 bg-yellow-50 border-b flex items-center justify-between">
+            <div className="flex items-center text-sm text-yellow-700">
+              <Pencil className="w-4 h-4 mr-2" />
+              Đang chỉnh sửa tin nhắn
+            </div>
+            <Button variant="ghost" size="sm" onClick={cancelEditing} className="h-6 w-6 p-0 hover:bg-yellow-200">
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
         <div className="p-4">
           <form onSubmit={handleSubmit} className="flex space-x-2">
             <input
@@ -604,6 +711,7 @@ const ChatWindow = ({
               type="button"
               variant="ghost"
               size="icon"
+              disabled={!!editingMessage}
               onClick={() => fileInputRef.current?.click()}
             >
               <Paperclip className="w-5 h-5" />
@@ -611,7 +719,7 @@ const ChatWindow = ({
             <Input
               value={messageInput}
               onChange={(e) => setMessageInput(e.target.value)}
-              placeholder="Nhập tin nhắn..."
+              placeholder={editingMessage ? "Nhập nội dung mới..." : "Nhập tin nhắn..."}
               className="flex-1"
               autoComplete="off"
             />

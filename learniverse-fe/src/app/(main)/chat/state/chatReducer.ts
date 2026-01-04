@@ -20,9 +20,44 @@ export function chatReducer(state: AppState, action: Action): AppState {
       return { ...state, searchQuery: action.payload };
 
     case "SEND_MESSAGE": {
-      // WebSocket will handle updating the message list and last message
-      // Just return state as-is
-      return state;
+      const message = action.payload.message;
+      const chatId = action.payload.chatId;
+
+      const currentMessages = state.messages[chatId] || [];
+
+      const messageExists = currentMessages.some((m) => m.id === message.id);
+
+      if (messageExists) {
+        return state;
+      }
+
+      const updatedMessages = [...currentMessages, message];
+
+      const chatToUpdate = state.chats.find((c) => c.id === chatId);
+      if (!chatToUpdate) return state;
+
+      const otherChats = state.chats.filter((c) => c.id !== chatId);
+
+      let displayContent = message.textContent;
+      if (message.messageType === "IMAGE") displayContent = "[Hình ảnh]";
+      else if (message.messageType === "VIDEO") displayContent = "[Video]";
+      else if (message.messageType === "FILE") displayContent = "[Tệp tin]";
+
+      const senderPrefix = "You";
+
+      const updatedChat = {
+        ...chatToUpdate,
+        lastMessage: `${senderPrefix}: ${displayContent}`,
+      };
+
+      return {
+        ...state,
+        chats: [updatedChat, ...otherChats],
+        messages: {
+          ...state.messages,
+          [chatId]: updatedMessages,
+        },
+      };
     }
 
     case "SET_USER_ID":
@@ -130,9 +165,14 @@ export function chatReducer(state: AppState, action: Action): AppState {
           ? "You"
           : message.senderUsername;
 
+      let displayContent = message.textContent;
+      if (message.messageType === "IMAGE") displayContent = "[Hình ảnh]";
+      else if (message.messageType === "VIDEO") displayContent = "[Video]";
+      else if (message.messageType === "FILE") displayContent = "[Tệp tin]";
+
       const updatedChat = {
         ...chatToUpdate,
-        lastMessage: `${senderPrefix}: ${message.textContent}`,
+        lastMessage: `${senderPrefix}: ${displayContent}`,
         unreadCount: isCurrentChat ? 0 : chatToUpdate.unreadCount + 1,
       };
 

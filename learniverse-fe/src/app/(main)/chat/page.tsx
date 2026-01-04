@@ -66,8 +66,13 @@ export default function ChatPage() {
                 room.lastMessage.senderId === currentUserId
                   ? "You"
                   : room.lastMessage.senderName || "Unknown";
-              lastMessage = `${senderPrefix}: ${room.lastMessage.content || ""
-                }`;
+
+              let content = room.lastMessage.content;
+              if (room.lastMessage.messageType === "IMAGE") content = "[Hình ảnh]";
+              else if (room.lastMessage.messageType === "VIDEO") content = "[Video]";
+              else if (room.lastMessage.messageType === "FILE") content = "[Tệp tin]";
+
+              lastMessage = `${senderPrefix}: ${content || ""}`;
             }
 
             let avatar = null;
@@ -153,8 +158,13 @@ export default function ChatPage() {
                   room.lastMessage.senderId === userId
                     ? "You"
                     : room.lastMessage.senderName || "Unknown";
-                lastMessage = `${senderPrefix}: ${room.lastMessage.content || ""
-                  }`;
+
+                let content = room.lastMessage.content;
+                if (room.lastMessage.messageType === "IMAGE") content = "[Hình ảnh]";
+                else if (room.lastMessage.messageType === "VIDEO") content = "[Video]";
+                else if (room.lastMessage.messageType === "FILE") content = "[Tệp tin]";
+
+                lastMessage = `${senderPrefix}: ${content || ""}`;
               }
 
               // Fetch avatar and name for direct chats
