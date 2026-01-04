@@ -23,10 +23,12 @@ import { GrowthDataPoint } from "@/types/dashboard";
 export function UserGrowthChart({ period }: { period: string }) {
   const [data, setData] = useState<GrowthDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
+      setError(false);
       try {
         // Map period string to enum expected by API
         const apiPeriod = period.toUpperCase() as 'DAY' | 'MONTH' | 'YEAR';
@@ -34,6 +36,7 @@ export function UserGrowthChart({ period }: { period: string }) {
         setData(response.data);
       } catch (error) {
         console.error("Failed to fetch user growth data:", error);
+        setError(true);
       } finally {
         setLoading(false);
       }
@@ -55,6 +58,10 @@ export function UserGrowthChart({ period }: { period: string }) {
           {loading ? (
             <div className="flex h-full items-center justify-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : error ? (
+            <div className="flex h-full items-center justify-center text-red-500">
+              Lỗi tải dữ liệu
             </div>
           ) : data.length === 0 ? (
             <div className="flex h-full items-center justify-center text-muted-foreground">

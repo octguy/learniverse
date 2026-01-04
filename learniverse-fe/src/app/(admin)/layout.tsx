@@ -13,23 +13,19 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const { user } = useAuth(); // Giả định AuthContext trả về user và isLoading
+  const { user, loading: isLoading } = useAuth();
   const router = useRouter();
-  const isLoading = false; // Tạm thời set false hoặc lấy từ state khác nếu cần
 
-  // Bảo vệ route Admin
   useEffect(() => {
     if (!isLoading) {
       if (!user) {
         router.push("/login");
       } else {
-        // Kiểm tra Role dựa trên Backend Enum: UserRole.ADMIN
-        // Backend roles: ROLE_ADMIN, ROLE_USER, ROLE_MODERATOR
         const isAdmin = user.role === "ROLE_ADMIN" || 
                         user.roles?.includes("ROLE_ADMIN");
         
         if (!isAdmin) {
-          router.push("/"); // Đẩy về trang chủ nếu không phải admin
+          router.push("/home");
         }
       }
     }

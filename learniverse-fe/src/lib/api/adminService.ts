@@ -17,7 +17,12 @@ export const adminService = {
             return res.data;
         } catch (error) {
             console.error("Error fetching stats:", error);
-            return { totalUsers: 0, newUsersToday: 0, totalPosts: 0, totalQuestions: 0 };
+            return {
+                totalUsers: 0,
+                newUsersToday: 0,
+                totalPosts: 0,
+                totalQuestions: 0
+            };
         }
     },
 

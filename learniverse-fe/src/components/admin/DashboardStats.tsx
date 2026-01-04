@@ -14,6 +14,7 @@ import { DashboardStatsResponse } from "@/types/dashboard";
 export function DashboardStats() {
   const [stats, setStats] = useState<DashboardStatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -22,6 +23,7 @@ export function DashboardStats() {
         setStats(data);
       } catch (error) {
         console.error("Failed to fetch dashboard stats:", error);
+        setError(true);
       } finally {
         setLoading(false);
       }
@@ -33,28 +35,28 @@ export function DashboardStats() {
   const statItems = [
     {
       title: "Tổng người dùng",
-      value: loading ? "..." : stats?.totalUsers?.toLocaleString() ?? "0",
+      value: loading ? "..." : error ? "Lỗi" : stats?.totalUsers?.toLocaleString() ?? "0",
       change: "Tổng số user",
       icon: Users,
       color: "text-blue-600",
     },
     {
       title: "User mới hôm nay",
-      value: loading ? "..." : stats?.newUsersToday?.toLocaleString() ?? "0",
+      value: loading ? "..." : error ? "Lỗi" : stats?.newUsersToday?.toLocaleString() ?? "0",
       change: "Đăng ký hôm nay",
       icon: UserPlus,
       color: "text-green-600",
     },
     {
       title: "Tổng bài viết",
-      value: loading ? "..." : stats?.totalPosts?.toLocaleString() ?? "0",
+      value: loading ? "..." : error ? "Lỗi" : stats?.totalPosts?.toLocaleString() ?? "0",
       change: "Bài viết chia sẻ",
       icon: FileText,
       color: "text-purple-600",
     },
     {
       title: "Tổng câu hỏi",
-      value: loading ? "..." : stats?.totalQuestions?.toLocaleString() ?? "0",
+      value: loading ? "..." : error ? "Lỗi" : stats?.totalQuestions?.toLocaleString() ?? "0",
       change: "Câu hỏi thảo luận",
       icon: HelpCircle,
       color: "text-orange-600",
