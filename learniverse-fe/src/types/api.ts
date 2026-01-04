@@ -25,6 +25,8 @@ export interface AuthResponse {
     accessToken: string;
     refreshToken: string;
     isOnboarded: boolean;
+    role?: string;
+    roles?: string[];
 }
 
 export interface RegisterRequest {

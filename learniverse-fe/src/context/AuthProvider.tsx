@@ -5,26 +5,51 @@ import { AuthContext, AuthContextType, UserProfile } from './AuthContext';
 import { authService } from '@/lib/api/authService';
 import { userProfileService } from '@/lib/api/userProfileService';
 import type { AuthResponse, RegisterRequest } from '@/types/api';
+import { parseJwt } from '@/lib/utils';
 
 interface AuthProviderProps {
     children: ReactNode;
 }
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
-    const [user, setUser] = useState<UserProfile | null>(() => {
-        if (typeof window !== 'undefined') {
-            const storedUser = localStorage.getItem('user');
-            try {
-                return storedUser ? JSON.parse(storedUser) : null;
-            } catch (e) {
-                console.error("Error parsing user from local", e);
-                return null;
-            }
-        }
-        return null;
-    });
+    const [user, setUser] = useState<UserProfile | null>(null);
     const [accessToken, setAccessToken] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const storedUserStr = localStorage.getItem('user');
+            const storedToken = localStorage.getItem('accessToken');
+
+            if (storedUserStr) {
+                try {
+                    let storedUser = JSON.parse(storedUserStr);
+
+                    // Hydrate roles from token if missing in stored user
+                    if ((!storedUser.role && !storedUser.roles) && storedToken) {
+                        const decoded = parseJwt(storedToken);
+                        if (decoded) {
+                            const extractedRoles = decoded.roles || decoded.authorities || (decoded.scope ? decoded.scope.split(' ') : []);
+                            if (Array.isArray(extractedRoles) && extractedRoles.length > 0) {
+                                storedUser.roles = extractedRoles;
+                                storedUser.role = extractedRoles.includes('ROLE_ADMIN') ? 'ROLE_ADMIN' : extractedRoles[0];
+                                // Update storage
+                                localStorage.setItem('user', JSON.stringify(storedUser));
+                            } else if (typeof extractedRoles === 'string') {
+                                storedUser.roles = [extractedRoles];
+                                storedUser.role = extractedRoles;
+                                localStorage.setItem('user', JSON.stringify(storedUser));
+                            }
+                        }
+                    }
+
+                    setUser(storedUser);
+                } catch (e) {
+                    console.error("Error parsing user from local", e);
+                }
+            }
+        }
+    }, []);
 
     const refreshAuth = useCallback(async () => {
         const storedRefreshToken = localStorage.getItem('refreshToken');
@@ -52,12 +77,43 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     const login = async (data: AuthResponse) => {
         const { id, username, email, accessToken, refreshToken, isOnboarded } = data;
+        let { role, roles } = data;
+
+        // Set token immediately so apiService can use it
+        localStorage.setItem('accessToken', accessToken);
+        localStorage.setItem('refreshToken', refreshToken);
+
+        // Try to extract roles from token if not provided
+        if ((!role && !roles) && accessToken) {
+            const decoded = parseJwt(accessToken);
+            if (decoded) {
+                const extractedRoles = decoded.roles || decoded.authorities || (decoded.scope ? decoded.scope.split(' ') : []);
+                if (Array.isArray(extractedRoles) && extractedRoles.length > 0) {
+                    roles = extractedRoles;
+                    role = roles.includes('ROLE_ADMIN') ? 'ROLE_ADMIN' : extractedRoles[0];
+                } else if (typeof extractedRoles === 'string') {
+                    roles = [extractedRoles];
+                    role = extractedRoles;
+                }
+            }
+        }
 
         let avatarUrl: string | undefined;
         try {
-            sessionStorage.setItem('accessToken', accessToken);
+            // Fetch full profile to get role if backend provides it there
             const profile = await userProfileService.getMyProfile();
             avatarUrl = profile.avatarUrl;
+            
+            // If profile has role, use it (priority over token/login response)
+            if (profile.role) {
+                role = profile.role;
+                // If roles array is missing but we have a single role, create the array
+                if (!profile.roles || profile.roles.length === 0) {
+                    roles = [profile.role];
+                } else {
+                    roles = profile.roles;
+                }
+            }
         } catch (error) {
             console.error("Error fetching profile during login:", error);
         }
@@ -67,15 +123,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             username,
             email,
             isOnboarded: isOnboarded ?? false,
-            avatarUrl
+            avatarUrl,
+            role,
+            roles
         };
 
         setUser(userProfile);
         setAccessToken(accessToken);
 
-        localStorage.setItem('accessToken', accessToken);
-        localStorage.setItem('refreshToken', refreshToken);
+        // Update user in storage
         localStorage.setItem('user', JSON.stringify(userProfile));
+
+        return userProfile;
     };
 
     const completeOnboarding = () => {
