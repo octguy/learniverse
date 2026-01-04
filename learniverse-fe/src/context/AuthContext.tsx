@@ -9,13 +9,15 @@ export interface UserProfile {
     email: string;
     isOnboarded: boolean;
     avatarUrl?: string;
+    role?: string;
+    roles?: string[];
 }
 
 export interface AuthContextType {
     user: UserProfile | null;
     accessToken: string | null;
     loading: boolean;
-    login: (data: AuthResponse) => Promise<void>;
+    login: (data: AuthResponse) => Promise<UserProfile>;
     logout: () => void;
     register: (data: RegisterRequest) => Promise<AuthResponse>;
     completeOnboarding: () => void;

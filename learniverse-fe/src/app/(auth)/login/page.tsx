@@ -47,8 +47,13 @@ export default function LoginPage() {
         setLoading(true);
         try {
             const apiResponse = await authService.login(formData);
-            await login(apiResponse.data);
-            window.location.href = "/home";
+            const user = await login(apiResponse.data);
+            
+            if (user.roles?.includes('ROLE_ADMIN') || user.role === 'ROLE_ADMIN') {
+                window.location.href = "/admin";
+            } else {
+                window.location.href = "/home";
+            }
         } catch (err: any) {
             let errMsg = getErrorMessage(err);
             const isUnverified = err.httpStatus === 403 || err.errorCode === "EMAIL_NOT_VERIFIED";
