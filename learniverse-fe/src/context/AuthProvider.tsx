@@ -79,6 +79,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         const { id, username, email, accessToken, refreshToken, isOnboarded } = data;
         let { role, roles } = data;
 
+        // Set token immediately so apiService can use it
+        localStorage.setItem('accessToken', accessToken);
+        localStorage.setItem('refreshToken', refreshToken);
+
         // Try to extract roles from token if not provided
         if ((!role && !roles) && accessToken) {
             const decoded = parseJwt(accessToken);
@@ -86,7 +90,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                 const extractedRoles = decoded.roles || decoded.authorities || (decoded.scope ? decoded.scope.split(' ') : []);
                 if (Array.isArray(extractedRoles) && extractedRoles.length > 0) {
                     roles = extractedRoles;
-                    role = roles.includes('ROLE_ADMIN') ? 'ROLE_ADMIN' : roles[0];
+                    role = roles.includes('ROLE_ADMIN') ? 'ROLE_ADMIN' : extractedRoles[0];
                 } else if (typeof extractedRoles === 'string') {
                     roles = [extractedRoles];
                     role = extractedRoles;
@@ -96,9 +100,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
         let avatarUrl: string | undefined;
         try {
-            sessionStorage.setItem('accessToken', accessToken);
+            // Fetch full profile to get role if backend provides it there
             const profile = await userProfileService.getMyProfile();
             avatarUrl = profile.avatarUrl;
+            
+            // If profile has role, use it (priority over token/login response)
+            if (profile.role) {
+                role = profile.role;
+                // If roles array is missing but we have a single role, create the array
+                if (!profile.roles || profile.roles.length === 0) {
+                    roles = [profile.role];
+                } else {
+                    roles = profile.roles;
+                }
+            }
         } catch (error) {
             console.error("Error fetching profile during login:", error);
         }
@@ -116,8 +131,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setUser(userProfile);
         setAccessToken(accessToken);
 
-        localStorage.setItem('accessToken', accessToken);
-        localStorage.setItem('refreshToken', refreshToken);
+        // Update user in storage
         localStorage.setItem('user', JSON.stringify(userProfile));
 
         return userProfile;

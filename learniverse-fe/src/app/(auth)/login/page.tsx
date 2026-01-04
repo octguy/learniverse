@@ -50,7 +50,7 @@ export default function LoginPage() {
             const user = await login(apiResponse.data);
             
             if (user.roles?.includes('ROLE_ADMIN') || user.role === 'ROLE_ADMIN') {
-                window.location.href = "/admin";
+                window.location.href = "/admin/dashboard";
             } else {
                 window.location.href = "/home";
             }

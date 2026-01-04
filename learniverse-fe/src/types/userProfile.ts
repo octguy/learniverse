@@ -30,6 +30,8 @@ export interface UserProfileResponse {
     };
     interestTags: UserTag[];
     skillTags: UserTag[];
+    role?: string;
+    roles?: string[];
 }
 
 export interface UpdateProfileRequest {
