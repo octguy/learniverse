@@ -31,7 +31,6 @@ public class Vote extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "votable_type", nullable = false)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private VotableType votableType;
 
     @Column(name = "votable_id", nullable = false)
@@ -43,7 +42,6 @@ public class Vote extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "vote_type", nullable = false)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private VoteType voteType;
 
     @PrePersist

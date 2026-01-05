@@ -37,7 +37,6 @@ public class Share extends BaseEntity{
 
     @Enumerated(EnumType.STRING)
     @Column(name = "share_type", nullable = false)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private ShareType shareType;
 
     @Column(name = "target_id")
