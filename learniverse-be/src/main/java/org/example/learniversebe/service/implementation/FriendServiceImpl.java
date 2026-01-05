@@ -295,31 +295,6 @@ public class FriendServiceImpl implements IFriendService {
                 .map(f -> f.getUserId1().equals(currentUserId) ? f.getUserId2() : f.getUserId1())
                 .collect(Collectors.toList());
     }
-    }
-
-    private List<UserProfileResponse> getUserProfileResponses(List<UUID> userIds) {
-        if (userIds.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        // Lấy tất cả UserProfiles có sẵn
-        List<UserProfile> profiles = userProfileRepository.findByUserIdIn(userIds);
-        Map<UUID, UserProfile> profileMap = profiles.stream()
-                .collect(Collectors.toMap(p -> p.getUser().getId(), p -> p));
-
-        // Tìm các userId không có profile
-        Set<UUID> missingProfileUserIds = userIds.stream()
-                .filter(userId -> !profileMap.containsKey(userId))
-                .collect(Collectors.toSet());
-
-        // Nếu có user thiếu profile, lấy thông tin từ User entity
-        Map<UUID, User> userFallbackMap = new HashMap<>();
-        if (!missingProfileUserIds.isEmpty()) {
-            List<User> users = userRepository.findAllById(missingProfileUserIds);
-            userFallbackMap = users.stream()
-                    .collect(Collectors.toMap(User::getId, u -> u));
-        }
-        }
 
     private List<UserProfileResponse> getUserProfileResponses(List<UUID> userIds) {
         if (userIds.isEmpty()) {
@@ -359,37 +334,6 @@ public class FriendServiceImpl implements IFriendService {
         }
 
         return responses;
-        // Map kết quả với thứ tự ban đầu
-        List<UserProfileResponse> responses = new ArrayList<>();
-        for (UUID userId : userIds) {
-            if (profileMap.containsKey(userId)) {
-                // Có UserProfile → dùng mapper bình thường
-                responses.add(userMapper.toProfileResponse(profileMap.get(userId)));
-            } else if (userFallbackMap.containsKey(userId)) {
-                // Không có UserProfile → tạo response từ User
-                User user = userFallbackMap.get(userId);
-                responses.add(createFallbackProfileResponse(user));
-            }
-            // Nếu cả User cũng không tồn tại, bỏ qua (không thêm vào list)
-        }
-
-        return responses;
-    }
-
-    private UserProfileResponse createFallbackProfileResponse(User user) {
-        UserProfileResponse response = new UserProfileResponse();
-        response.setId(null);
-        response.setUserId(user.getId());
-        response.setUsername(user.getUsername());
-        response.setDisplayName(user.getUsername());
-        response.setAvatarUrl(null);
-        response.setCoverUrl(null);
-        response.setBio(null);
-        response.setPostCount(0);
-        response.setAnsweredQuestionCount(0);
-        response.setInterestTags(null);
-        response.setSkillTags(null);
-        return response;
     }
 
     private UserProfileResponse createFallbackProfileResponse(User user) {
@@ -462,61 +406,4 @@ public class FriendServiceImpl implements IFriendService {
 
         return res;
     }
-
-
-    private UserProfileResponse mapToUserProfileResponse(Object[] r) {
-
-        UUID userId = (UUID) r[0];
-        String username = (String) r[1];
-
-        UUID profileId = (UUID) r[2];
-        String displayName = (String) r[3];
-        String bio = (String) r[4];
-        String avatarUrl = (String) r[5];
-        String coverUrl = (String) r[6];
-        Integer postCount = (Integer) r[7];
-        Integer answeredCount = (Integer) r[8];
-
-        UserProfileResponse res = new UserProfileResponse();
-
-        res.setUserId(userId);
-        res.setUsername(username);
-
-        if (profileId != null) {
-            // Có profile
-            res.setId(profileId);
-            res.setDisplayName(
-                    displayName != null ? displayName : username
-            );
-            res.setBio(bio);
-            res.setAvatarUrl(avatarUrl);
-            res.setCoverUrl(coverUrl);
-            res.setPostCount(postCount != null ? postCount : 0);
-            res.setAnsweredQuestionCount(
-                    answeredCount != null ? answeredCount : 0
-            );
-
-            // TODO: load tags nếu cần
-            res.setInterestTags(List.of());
-            res.setSkillTags(List.of());
-
-        } else {
-            // Không có profile
-            res.setId(null);
-            res.setDisplayName(username);
-            res.setBio(null);
-            res.setAvatarUrl(null);
-            res.setCoverUrl(null);
-            res.setPostCount(0);
-            res.setAnsweredQuestionCount(0);
-            res.setInterestTags(List.of());
-            res.setSkillTags(List.of());
-        }
-
-        // role nếu cần → lấy từ user
-        // res.setRole(...)
-
-        return res;
-    }
-
 }
