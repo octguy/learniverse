@@ -1,10 +1,7 @@
 package org.example.learniversebe.model;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.example.learniversebe.enums.NotificationType;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
@@ -48,4 +45,12 @@ public class Notification extends BaseEntity {
 
     @Column(name = "related_entity_type")
     private String relatedEntityType;
+
+    public boolean getIsRead() {
+        return isRead;
+    }
+
+    public void setIsRead(boolean isRead) {
+        this.isRead = isRead;
+    }
 }

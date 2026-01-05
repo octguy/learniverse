@@ -46,6 +46,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
             nativeQuery = true)
     List<User> findRandomUsersExcludingCurrent(@Param("currentUserId") UUID currentUserId,
                                                @Param("limit") int limit);
+
     // Dashboard queries
     @Query(value = "SELECT COUNT(*) FROM \"user\" WHERE deleted_at IS NULL AND created_at >= :startOfDay AND created_at < :endOfDay", nativeQuery = true)
     long countNewUsersInRange(@Param("startOfDay") LocalDateTime startOfDay, @Param("endOfDay") LocalDateTime endOfDay);

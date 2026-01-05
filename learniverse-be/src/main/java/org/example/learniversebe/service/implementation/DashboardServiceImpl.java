@@ -1,13 +1,18 @@
 package org.example.learniversebe.service.implementation;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.example.learniversebe.dto.request.BroadcastNotificationRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.example.learniversebe.dto.request.SendNotificationRequest;
 import org.example.learniversebe.dto.request.UpdateUserRoleRequest;
 import org.example.learniversebe.dto.request.UpdateUserStatusRequest;
+import org.example.learniversebe.dto.request.BroadcastNotificationRequest;
 import org.example.learniversebe.dto.response.*;
 import org.example.learniversebe.enums.ContentType;
 import org.example.learniversebe.enums.DashboardPeriod;
+import org.example.learniversebe.mapper.NotificationMapper;
+import org.example.learniversebe.model.Notification;
 import org.example.learniversebe.enums.NotificationType;
 import org.example.learniversebe.enums.UserRole;
 import org.example.learniversebe.exception.ResourceNotFoundException;
@@ -15,20 +20,24 @@ import org.example.learniversebe.mapper.NotificationMapper;
 import org.example.learniversebe.model.Notification;
 import org.example.learniversebe.model.Role;
 import org.example.learniversebe.model.RoleUser;
+import org.example.learniversebe.mapper.NotificationMapper;
+import org.example.learniversebe.model.Notification;
 import org.example.learniversebe.model.User;
 import org.example.learniversebe.repository.ContentRepository;
 import org.example.learniversebe.repository.NotificationRepository;
+import org.example.learniversebe.repository.NotificationRepository;
 import org.example.learniversebe.repository.RoleRepository;
 import org.example.learniversebe.repository.RoleUserRepository;
+import org.example.learniversebe.repository.NotificationRepository;
 import org.example.learniversebe.repository.TagRepository;
 import org.example.learniversebe.repository.UserRepository;
 import org.example.learniversebe.service.IDashboardService;
+import org.example.learniversebe.service.INotificationService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -50,6 +59,7 @@ public class DashboardServiceImpl implements IDashboardService {
     private final NotificationRepository notificationRepository;
     private final NotificationMapper notificationMapper;
 
+    private final INotificationService notificationService;
     private static final int PAGE_SIZE = 20;
 
     @Override
@@ -173,7 +183,7 @@ public class DashboardServiceImpl implements IDashboardService {
     @Override
     public PageResponse<NewUserResponse> getAllUsers(int page, int size, String search) {
         log.info("Getting all users with page: {}, size: {}, search: {}", page, size, search);
-        
+
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<User> userPage;
 
@@ -209,7 +219,7 @@ public class DashboardServiceImpl implements IDashboardService {
     @Transactional
     public NewUserResponse updateUserStatus(UUID userId, UpdateUserStatusRequest request) {
         log.info("Updating user status for userId: {} to status: {}", userId, request.getStatus());
-        
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId.toString()));
 
@@ -231,7 +241,7 @@ public class DashboardServiceImpl implements IDashboardService {
     @Transactional
     public NewUserResponse updateUserRole(UUID userId, UpdateUserRoleRequest request) {
         log.info("Updating user role for userId: {} to role: {}", userId, request.getRole());
-        
+
         User user = userRepository.findByIdWithRoles(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId.toString()));
 
@@ -240,7 +250,7 @@ public class DashboardServiceImpl implements IDashboardService {
 
         // Clear existing roles and add the new one
         user.getRoleUsers().clear();
-        
+
         RoleUser roleUser = new RoleUser();
         roleUser.setUser(user);
         roleUser.setRole(newRole);
@@ -262,10 +272,10 @@ public class DashboardServiceImpl implements IDashboardService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public PageResponse<NotificationResponse> getAllNotifications(int page, int size) {
         log.info("Getting all notifications with page: {}, size: {}", page, size);
-        
+
         Pageable pageable = PageRequest.of(page, size);
         Page<Notification> notificationPage = notificationRepository.findAllByOrderByCreatedAtDesc(pageable);
 
@@ -289,7 +299,7 @@ public class DashboardServiceImpl implements IDashboardService {
     @Transactional
     public int sendNotification(SendNotificationRequest request) {
         log.info("Sending notification: {}", request);
-        
+
         List<User> recipients;
         NotificationType notificationType;
 
@@ -317,7 +327,7 @@ public class DashboardServiceImpl implements IDashboardService {
             notification.setContent(request.getContent());
             notification.setRelatedEntityId(request.getRelatedEntityId());
             notification.setRelatedEntityType(request.getRelatedEntityType());
-            notification.setRead(false);
+            notification.setIsRead(false);
             notification.setCreatedAt(now);
             notification.setUpdatedAt(now);
 
@@ -328,4 +338,27 @@ public class DashboardServiceImpl implements IDashboardService {
         log.info("Successfully sent {} notifications", sentCount);
         return sentCount;
     }
+    @Override
+    @Transactional
+    public int broadcastNotification(BroadcastNotificationRequest request) {
+        // Lấy tất cả users đang active
+        List<User> allUsers = userRepository.findAll().stream()
+                .filter(User::isEnabled)
+                .toList();
+
+        // Gửi thông báo cho từng user
+        for (User user : allUsers) {
+            notificationService.createNotification(
+                    user.getId(),
+                    null,
+                    request.getNotificationType(),
+                    request.getContent(),
+                    request.getRelatedEntityId(),
+                    request.getRelatedEntityType()
+            );
+        }
+
+        return allUsers.size();
+    }
+
 }

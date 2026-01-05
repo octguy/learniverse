@@ -1,5 +1,6 @@
 package org.example.learniversebe.service;
 
+import org.example.learniversebe.dto.request.BroadcastNotificationRequest;
 import org.example.learniversebe.dto.request.SendNotificationRequest;
 import org.example.learniversebe.dto.request.UpdateUserRoleRequest;
 import org.example.learniversebe.dto.request.UpdateUserStatusRequest;
@@ -43,6 +44,7 @@ public interface IDashboardService {
      * @return PageResponse of NewUserResponse
      */
     PageResponse<NewUserResponse> getNewestUsers(int page);
+    int broadcastNotification(BroadcastNotificationRequest request);
 
     /**
      * Get all users with pagination and search functionality
