@@ -34,12 +34,10 @@ public class Content extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "content_type", nullable = false)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private ContentType contentType;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private ContentStatus status = ContentStatus.DRAFT;
 
     @Column(length = 300)

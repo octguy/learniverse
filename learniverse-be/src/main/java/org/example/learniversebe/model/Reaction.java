@@ -43,7 +43,6 @@ public class Reaction extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "reaction_type", nullable = false)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private ReactionType reactionType;
 
     @PrePersist

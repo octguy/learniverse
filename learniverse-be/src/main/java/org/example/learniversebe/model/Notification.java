@@ -29,7 +29,6 @@ public class Notification extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "notification_type", nullable = false)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private NotificationType notificationType;
 
     @ManyToOne(fetch = FetchType.LAZY)
