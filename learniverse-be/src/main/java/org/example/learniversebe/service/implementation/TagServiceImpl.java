@@ -2,20 +2,25 @@ package org.example.learniversebe.service.implementation;
 
 import lombok.extern.slf4j.Slf4j;
 import org.example.learniversebe.dto.request.CreateTagRequest;
+import org.example.learniversebe.dto.request.UpdateTagRequest;
 import org.example.learniversebe.dto.response.PageResponse;
 import org.example.learniversebe.dto.response.TagResponse;
 import org.example.learniversebe.exception.BadRequestException;
+import org.example.learniversebe.exception.ResourceNotFoundException;
 import org.example.learniversebe.mapper.TagMapper;
 import org.example.learniversebe.model.Tag;
+import org.example.learniversebe.repository.ContentTagRepository;
 import org.example.learniversebe.repository.TagRepository;
+import org.example.learniversebe.repository.UserProfileTagRepository;
 import org.example.learniversebe.service.ITagService;
-import org.example.learniversebe.util.SlugGenerator; // Import SlugGenerator
+import org.example.learniversebe.util.SlugGenerator;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -23,13 +28,19 @@ import java.util.stream.Collectors;
 public class TagServiceImpl implements ITagService {
 
     private final TagRepository tagRepository;
+    private final ContentTagRepository contentTagRepository;
+    private final UserProfileTagRepository userProfileTagRepository;
     private final TagMapper tagMapper;
-    private final SlugGenerator slugGenerator; // Inject SlugGenerator
+    private final SlugGenerator slugGenerator;
 
     public TagServiceImpl(TagRepository tagRepository,
+                          ContentTagRepository contentTagRepository,
+                          UserProfileTagRepository userProfileTagRepository,
                           TagMapper tagMapper,
                           SlugGenerator slugGenerator) {
         this.tagRepository = tagRepository;
+        this.contentTagRepository = contentTagRepository;
+        this.userProfileTagRepository = userProfileTagRepository;
         this.tagMapper = tagMapper;
         this.slugGenerator = slugGenerator;
     }
@@ -85,5 +96,62 @@ public class TagServiceImpl implements ITagService {
 
         // Sử dụng hàm tiện ích trong mapper để chuyển đổi
         return tagMapper.tagPageToTagPageResponse(tagPage);
+    }
+
+    @Override
+    @Transactional
+    public TagResponse updateTag(UUID tagId, UpdateTagRequest request) {
+        log.info("Updating tag with ID: {}", tagId);
+
+        // 1. Find the tag
+        Tag tag = tagRepository.findById(tagId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tag", "id", tagId.toString()));
+
+        // 2. If name is being updated, check for duplicates
+        if (request.getName() != null && !request.getName().isBlank()) {
+            // Check if the new name already exists (excluding current tag)
+            if (!tag.getName().equalsIgnoreCase(request.getName()) 
+                    && tagRepository.existsByNameIgnoreCase(request.getName())) {
+                log.warn("Tag update failed - tag name already exists: {}", request.getName());
+                throw new BadRequestException("Tag name '" + request.getName() + "' already exists.");
+            }
+            tag.setName(request.getName());
+            // Update slug when name changes
+            tag.setSlug(slugGenerator.generateSlug(request.getName()));
+        }
+
+        // 3. Update description if provided
+        if (request.getDescription() != null) {
+            tag.setDescription(request.getDescription());
+        }
+
+        // 4. Save and return
+        Tag updatedTag = tagRepository.save(tag);
+        log.info("Tag updated successfully with ID: {}", updatedTag.getId());
+
+        return tagMapper.toTagResponse(updatedTag);
+    }
+
+    @Override
+    @Transactional
+    public void deleteTag(UUID tagId) {
+        log.info("Deleting tag with ID: {}", tagId);
+
+        // Check if tag exists
+        if (!tagRepository.existsById(tagId)) {
+            throw new ResourceNotFoundException("Tag", "id", tagId.toString());
+        }
+
+        // Soft delete all ContentTag records that reference this tag
+        contentTagRepository.softDeleteByTagId(tagId);
+        log.info("Soft deleted all ContentTag records for tag ID: {}", tagId);
+
+        // Soft delete all UserProfileTag records that reference this tag
+        userProfileTagRepository.softDeleteByTagId(tagId);
+        log.info("Soft deleted all UserProfileTag records for tag ID: {}", tagId);
+
+        // Soft delete the tag (handled by @SQLDelete annotation in Tag entity)
+        tagRepository.deleteById(tagId);
+        log.info("Tag deleted successfully with ID: {}", tagId);
     }
 }

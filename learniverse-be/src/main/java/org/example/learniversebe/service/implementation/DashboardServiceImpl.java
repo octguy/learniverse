@@ -1,11 +1,20 @@
 package org.example.learniversebe.service.implementation;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.example.learniversebe.dto.request.UpdateUserRoleRequest;
+import org.example.learniversebe.dto.request.UpdateUserStatusRequest;
 import org.example.learniversebe.dto.response.*;
 import org.example.learniversebe.enums.ContentType;
 import org.example.learniversebe.enums.DashboardPeriod;
+import org.example.learniversebe.enums.UserRole;
+import org.example.learniversebe.exception.ResourceNotFoundException;
+import org.example.learniversebe.model.Role;
+import org.example.learniversebe.model.RoleUser;
 import org.example.learniversebe.model.User;
 import org.example.learniversebe.repository.ContentRepository;
+import org.example.learniversebe.repository.RoleRepository;
+import org.example.learniversebe.repository.RoleUserRepository;
 import org.example.learniversebe.repository.TagRepository;
 import org.example.learniversebe.repository.UserRepository;
 import org.example.learniversebe.service.IDashboardService;
@@ -14,6 +23,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -21,6 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class DashboardServiceImpl implements IDashboardService {
@@ -28,6 +39,8 @@ public class DashboardServiceImpl implements IDashboardService {
     private final UserRepository userRepository;
     private final ContentRepository contentRepository;
     private final TagRepository tagRepository;
+    private final RoleRepository roleRepository;
+    private final RoleUserRepository roleUserRepository;
 
     private static final int PAGE_SIZE = 20;
 
@@ -146,6 +159,97 @@ public class DashboardServiceImpl implements IDashboardService {
                 .last(userPage.isLast())
                 .first(userPage.isFirst())
                 .numberOfElements(userPage.getNumberOfElements())
+                .build();
+    }
+
+    @Override
+    public PageResponse<NewUserResponse> getAllUsers(int page, int size, String search) {
+        log.info("Getting all users with page: {}, size: {}, search: {}", page, size, search);
+        
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<User> userPage;
+
+        if (search != null && !search.isBlank()) {
+            userPage = userRepository.searchByEmailOrUsername(search.trim(), pageable);
+        } else {
+            userPage = userRepository.findAll(pageable);
+        }
+
+        List<NewUserResponse> users = userPage.getContent().stream()
+                .map(user -> NewUserResponse.builder()
+                        .id(user.getId())
+                        .username(user.getUsername())
+                        .email(user.getEmail())
+                        .createdAt(user.getCreatedAt())
+                        .status(user.getStatus())
+                        .build())
+                .toList();
+
+        return PageResponse.<NewUserResponse>builder()
+                .content(users)
+                .totalElements(userPage.getTotalElements())
+                .totalPages(userPage.getTotalPages())
+                .currentPage(userPage.getNumber())
+                .pageSize(userPage.getSize())
+                .last(userPage.isLast())
+                .first(userPage.isFirst())
+                .numberOfElements(userPage.getNumberOfElements())
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public NewUserResponse updateUserStatus(UUID userId, UpdateUserStatusRequest request) {
+        log.info("Updating user status for userId: {} to status: {}", userId, request.getStatus());
+        
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId.toString()));
+
+        user.setStatus(request.getStatus());
+        User updatedUser = userRepository.save(user);
+
+        log.info("User status updated successfully for userId: {}", userId);
+
+        return NewUserResponse.builder()
+                .id(updatedUser.getId())
+                .username(updatedUser.getUsername())
+                .email(updatedUser.getEmail())
+                .createdAt(updatedUser.getCreatedAt())
+                .status(updatedUser.getStatus())
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public NewUserResponse updateUserRole(UUID userId, UpdateUserRoleRequest request) {
+        log.info("Updating user role for userId: {} to role: {}", userId, request.getRole());
+        
+        User user = userRepository.findByIdWithRoles(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId.toString()));
+
+        Role newRole = roleRepository.findByName(request.getRole())
+                .orElseThrow(() -> new ResourceNotFoundException("Role", "name", request.getRole().name()));
+
+        // Clear existing roles and add the new one
+        user.getRoleUsers().clear();
+        
+        RoleUser roleUser = new RoleUser();
+        roleUser.setUser(user);
+        roleUser.setRole(newRole);
+        roleUser.setCreatedAt(LocalDateTime.now());
+        roleUser.setUpdatedAt(LocalDateTime.now());
+        user.getRoleUsers().add(roleUser);
+
+        User updatedUser = userRepository.save(user);
+
+        log.info("User role updated successfully for userId: {}", userId);
+
+        return NewUserResponse.builder()
+                .id(updatedUser.getId())
+                .username(updatedUser.getUsername())
+                .email(updatedUser.getEmail())
+                .createdAt(updatedUser.getCreatedAt())
+                .status(updatedUser.getStatus())
                 .build();
     }
 }

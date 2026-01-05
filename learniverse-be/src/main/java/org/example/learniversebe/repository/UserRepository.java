@@ -1,6 +1,8 @@
 package org.example.learniversebe.repository;
 
 import org.example.learniversebe.model.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -74,4 +76,16 @@ public interface UserRepository extends JpaRepository<User, UUID> {
             ORDER BY label ASC
             """, nativeQuery = true)
     List<Object[]> findUserGrowthByYear();
+
+    /**
+     * Search users by email or username with pagination
+     */
+    @Query("SELECT u FROM User u WHERE LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(u.username) LIKE LOWER(CONCAT('%', :search, '%'))")
+    Page<User> searchByEmailOrUsername(@Param("search") String search, Pageable pageable);
+
+    /**
+     * Find user by ID with roles eagerly fetched
+     */
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.roleUsers ru LEFT JOIN FETCH ru.role WHERE u.id = :userId")
+    Optional<User> findByIdWithRoles(@Param("userId") UUID userId);
 }
