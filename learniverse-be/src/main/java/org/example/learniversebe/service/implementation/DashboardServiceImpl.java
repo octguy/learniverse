@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.learniversebe.dto.request.SendNotificationRequest;
 import org.example.learniversebe.dto.request.UpdateUserRoleRequest;
 import org.example.learniversebe.dto.request.UpdateUserStatusRequest;
+import org.example.learniversebe.dto.request.BroadcastNotificationRequest;
 import org.example.learniversebe.dto.response.*;
 import org.example.learniversebe.enums.ContentType;
 import org.example.learniversebe.enums.DashboardPeriod;
@@ -19,12 +20,15 @@ import org.example.learniversebe.mapper.NotificationMapper;
 import org.example.learniversebe.model.Notification;
 import org.example.learniversebe.model.Role;
 import org.example.learniversebe.model.RoleUser;
+import org.example.learniversebe.mapper.NotificationMapper;
+import org.example.learniversebe.model.Notification;
 import org.example.learniversebe.model.User;
 import org.example.learniversebe.repository.ContentRepository;
 import org.example.learniversebe.repository.NotificationRepository;
 import org.example.learniversebe.repository.NotificationRepository;
 import org.example.learniversebe.repository.RoleRepository;
 import org.example.learniversebe.repository.RoleUserRepository;
+import org.example.learniversebe.repository.NotificationRepository;
 import org.example.learniversebe.repository.TagRepository;
 import org.example.learniversebe.repository.UserRepository;
 import org.example.learniversebe.service.IDashboardService;
@@ -34,7 +38,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -336,6 +339,51 @@ public class DashboardServiceImpl implements IDashboardService {
 
         log.info("Successfully sent {} notifications", sentCount);
         return sentCount;
+    }
+    @Override
+    public PageResponse<NotificationResponse> getAllNotifications(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+
+        // Lấy tất cả notifications, sắp xếp theo thời gian tạo mới nhất
+        Page<Notification> pageData = notificationRepository
+                .findAllByOrderByCreatedAtDesc(pageable);
+
+        List<NotificationResponse> content = pageData.getContent().stream()
+                .map(notificationMapper::toResponse)
+                .collect(Collectors.toList());
+
+        return PageResponse.<NotificationResponse>builder()
+                .content(content)
+                .currentPage(pageData.getNumber())
+                .pageSize(pageData.getSize())
+                .totalElements(pageData.getTotalElements())
+                .totalPages(pageData.getTotalPages())
+                .last(pageData.isLast())
+                .first(pageData.isFirst())
+                .numberOfElements(pageData.getNumberOfElements())
+                .build();
+    }
+    @Override
+    @Transactional
+    public int broadcastNotification(BroadcastNotificationRequest request) {
+        // Lấy tất cả users đang active
+        List<User> allUsers = userRepository.findAll().stream()
+                .filter(User::isEnabled)
+                .toList();
+
+        // Gửi thông báo cho từng user
+        for (User user : allUsers) {
+            notificationService.createNotification(
+                    user.getId(),
+                    null,
+                    request.getNotificationType(),
+                    request.getContent(),
+                    request.getRelatedEntityId(),
+                    request.getRelatedEntityType()
+            );
+        }
+
+        return allUsers.size();
     }
     @Override
     public PageResponse<NotificationResponse> getAllNotifications(int page, int size) {

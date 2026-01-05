@@ -46,8 +46,6 @@ public interface IDashboardService {
     PageResponse<NewUserResponse> getNewestUsers(int page);
     int broadcastNotification(BroadcastNotificationRequest request);
 
-    PageResponse<NotificationResponse> getAllNotifications(int page, int size);
-
     /**
      * Get all users with pagination and search functionality
      * @param page page number (0-based)
