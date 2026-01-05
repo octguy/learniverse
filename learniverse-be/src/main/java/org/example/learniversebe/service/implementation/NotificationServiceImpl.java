@@ -57,7 +57,7 @@ public class NotificationServiceImpl implements INotificationService {
         notification.setContent(content);
         notification.setRelatedEntityId(relatedEntityId);
         notification.setRelatedEntityType(relatedEntityType);
-        notification.setRead(false);
+        notification.setIsRead(false);
 
         LocalDateTime now = LocalDateTime.now();
         notification.setCreatedAt(now);
@@ -185,10 +185,10 @@ public class NotificationServiceImpl implements INotificationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Notification", "id", notificationId.toString()));
 
         if (!notification.getRecipient().getId().equals(currentUserId)) {
-            throw new ResourceNotFoundException("Notification", "id", notificationId.toString());
+            throw new RuntimeException("Notification " + notificationId.toString() + "does not belong to current user.");
         }
 
-        notification.setRead(true);
+        notification.setIsRead(true);
 
         notification.setUpdatedAt(LocalDateTime.now());
 

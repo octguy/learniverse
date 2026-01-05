@@ -16,4 +16,6 @@ public interface IFriendService {
     List<UserProfileResponse> getPendingFriendRequests(); // Received
     List<UserProfileResponse> getSentFriendRequests();    // Sent
     List<UserProfileResponse> getSuggestedFriends(int limit); // Suggest friend
+
+    List<UserProfileResponse> searchFriends(String keyword);
 }
