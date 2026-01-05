@@ -10,30 +10,56 @@ import { Bell, Check } from 'lucide-react';
 
 import type { Notification } from '@/types/notification';
 import { NotificationItem } from '@/components/notification/NotificationItem';
-import { mockNotifications } from '@/lib/mockData';
+import { notificationService } from '@/lib/api/notificationService';
+import { useNotification } from '@/context/NotificationContext';
 
 export default function NotificationPage() {
 
-    const [notifications, setNotifications] = React.useState(mockNotifications);
+    const [notifications, setNotifications] = React.useState<Notification[]>([]);
+    const { refreshNotifications } = useNotification();
 
-    const unreadNotifications = React.useMemo(() => {
-        return notifications.filter((n) => !n.read);
-    }, [notifications]);
+    React.useEffect(() => {
+        loadNotifications();
+    }, []);
 
-    const handleMarkAllAsRead = () => {
-        setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    const loadNotifications = async () => {
+        try {
+            const data = await notificationService.getNotifications(0, 50); // Load more for the full page
+            setNotifications(data.content);
+        } catch (error) {
+            console.error("Failed to load notifications", error);
+        }
     };
 
-    const handleItemClick = (id: string) => {
-        setNotifications((prev) =>
-            prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-        );
+    const unreadNotifications = React.useMemo(() => {
+        return notifications.filter((n) => !n.isRead);
+    }, [notifications]);
+
+    const handleMarkAllAsRead = async () => {
+        try {
+            await notificationService.markAllAsRead();
+            setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+            refreshNotifications();
+        } catch (error) {
+            console.error("Failed to mark all as read", error);
+        }
+    };
+
+    const handleItemClick = async (id: string) => {
+        try {
+            await notificationService.markAsRead(id);
+            setNotifications((prev) =>
+                prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+            );
+            refreshNotifications();
+        } catch (error) {
+            console.error("Failed to mark as read", error);
+        }
     };
 
     const renderList = (list: Notification[]) => {
         if (list.length === 0) {
             return (
-                // THAY ĐỔI 1: Thêm "h-full" để div này lấp đầy TabsContent
                 <div className="flex h-full flex-col items-center justify-center p-10 text-sm text-muted-foreground">
                     <Bell className="h-10 w-10 opacity-50 mb-3" />
                     <p>Không có thông báo nào.</p>
@@ -53,7 +79,7 @@ export default function NotificationPage() {
     };
 
     return (
-        // THAY ĐỔI 2: Thêm "flex-1 flex flex-col" để Card lấp đầy layout
+        
         <Card className="max-w-3xl mx-auto shadow-md flex-1 flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between border-b">
                 <CardTitle>Thông báo</CardTitle>
@@ -68,9 +94,9 @@ export default function NotificationPage() {
                 </Button>
             </CardHeader>
 
-            {/* THAY ĐỔI 3: Thêm "flex-1" để CardContent lấp đầy Card */}
+            
             <CardContent className="p-0 flex-1">
-                {/* THAY ĐỔI 4: Thêm "flex-1" để Tabs lấp đầy CardContent */}
+                
                 <Tabs defaultValue="all" className="flex flex-col h-full">
                     <TabsList className="w-full justify-start rounded-none border-b bg-transparent px-6">
                         <TabsTrigger value="all">Tất cả</TabsTrigger>
@@ -83,8 +109,6 @@ export default function NotificationPage() {
                             )}
                         </TabsTrigger>
                     </TabsList>
-
-                    {/* TabsContent đã có "flex-1" từ component gốc */}
                     <TabsContent value="all" className="p-0">
                         {renderList(notifications)}
                     </TabsContent>

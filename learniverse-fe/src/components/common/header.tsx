@@ -6,13 +6,15 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Bell, HomeIcon, Search, MessageCircle, Users, Settings, LogOut, Home, LayoutGrid, BadgeQuestionMark } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useNotification } from '@/context/NotificationContext';
 import { Skeleton } from '@/components/ui/skeleton';
+import { NotificationBell } from '@/components/notification/NotificationBell';
 
-
-const unreadCount = 5;
 
 export function Header() {
   const { user, loading } = useAuth();
+  const { unreadMessagesCount, pendingFriendRequestsCount, unreadNotificationsCount } = useNotification();
+  
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-2 sticky top-0 z-50">
       <div className="flex items-center gap-x-20 max-w-7xl mx-auto">
@@ -64,9 +66,14 @@ export function Header() {
             <Home className="w-5 h-5" />
             <span className="text-xs">Home</span>
           </Link>
-          <Link href="/friend" className="flex flex-col items-center text-gray-600 hover:text-primary">
+          <Link href="/friend" className="flex flex-col items-center text-gray-600 hover:text-primary relative">
             <Users className="w-5 h-5" />
             <span className="text-xs">Network</span>
+            {pendingFriendRequestsCount > 0 && (
+              <span className="absolute -top-1 right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
+                {pendingFriendRequestsCount > 9 ? "9+" : pendingFriendRequestsCount}
+              </span>
+            )}
           </Link>
           <Link href="/questions" className="flex flex-col items-center text-gray-600 hover:text-primary">
             <BadgeQuestionMark className="w-5 h-5" />
@@ -75,16 +82,13 @@ export function Header() {
           <Link href="/chat" className="flex flex-col items-center text-gray-600 hover:text-primary relative">
             <MessageCircle className="w-5 h-5" />
             <span className="text-xs">Chat</span>
-            {unreadCount > 0 && (
+            {unreadMessagesCount > 0 && (
               <span className="absolute -top-1 right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
-                {unreadCount > 9 ? "9+" : unreadCount}
+                {unreadMessagesCount > 9 ? "9+" : unreadMessagesCount}
               </span>
             )}
           </Link>
-          <Link href="/notifications" className="flex flex-col items-center text-gray-600 hover:text-primary">
-            <Bell className="w-5 h-5" />
-            <span className="text-xs">Notifications</span>
-          </Link>
+          <NotificationBell />
 
           {loading ? (
             <div className="flex flex-col items-center text-gray-600 cursor-wait">
