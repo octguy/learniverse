@@ -17,7 +17,7 @@ import java.util.UUID;
 @Repository
 public interface ContentRepository extends JpaRepository<Content, UUID> {
 
-    Page<Content> findByContentTypeAndStatus(ContentType contentType, ContentStatus contentStatus, Pageable pageable);
+    Page<Content> findByContentTypeInAndStatus(List<ContentType> contentTypes, ContentStatus status, Pageable pageable);
 
     Page<Content> findByContentTypeOrderByCreatedAtDesc(ContentType contentType, Pageable pageable);
 
@@ -43,12 +43,15 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
     @Query("SELECT c FROM Content c JOIN c.contentTags ct WHERE c.contentType = 'POST' AND c.status = 'PUBLISHED' AND ct.tag.id = :tagId")
     Page<Content> findPublishedPostsByTagId(@Param("tagId") UUID tagId, Pageable pageable);
 
-    @Query(value = "SELECT * FROM contents c WHERE c.deleted_at IS NULL AND c.content_type = 'POST' AND c.status = 'PUBLISHED' AND c.search_vector @@ plainto_tsquery('simple', :query)",
-            countQuery = "SELECT count(*) FROM contents c WHERE c.deleted_at IS NULL AND c.content_type = 'POST' AND c.status = 'PUBLISHED' AND c.search_vector @@ plainto_tsquery('simple', :query)",
-            nativeQuery = true)
+    @Query("SELECT c FROM Content c " +
+            "WHERE c.contentType = 'POST' " +
+            "AND c.status = 'PUBLISHED' " +
+            "AND c.deletedAt IS NULL " +
+            "AND (LOWER(c.title) LIKE LOWER(CONCAT('%', :query, '%')) " +
+            "     OR LOWER(c.body) LIKE LOWER(CONCAT('%', :query, '%')))")
     Page<Content> searchPublishedPosts(@Param("query") String query, Pageable pageable);
 
-    Page<Content> findByAuthorIdAndContentTypeAndStatusOrderByPublishedAtDesc(UUID authorId, ContentType contentType, ContentStatus contentStatus, Pageable pageable);
+    Page<Content> findByAuthorIdAndContentTypeInAndStatusOrderByPublishedAtDesc(UUID authorId, List<ContentType> contentTypes, ContentStatus contentStatus, Pageable pageable);
 
     Page<Content> findByContentTypeAndStatusOrderByPublishedAtDesc(ContentType contentType, ContentStatus contentStatus, Pageable pageable);
 
@@ -102,4 +105,12 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
             ORDER BY label ASC
             """, nativeQuery = true)
     List<Object[]> findContentComparisonByYear();
+
+    Page<Content> findByAuthorIdAndContentTypeAndStatusOrderByUpdatedAtDesc(UUID id, ContentType contentType, ContentStatus contentStatus, Pageable pageable);
+
+    Page<Content> findByContentTypeAndStatus(ContentType contentType, ContentStatus status, Pageable pageable);
+
+    Page<Content> findByAuthorIdAndContentTypeAndStatusOrderByPublishedAtDesc(UUID authorId, ContentType contentType, ContentStatus status, Pageable pageable);
+
+    Page<Content> findByAuthorIdAndContentTypeInAndStatusOrderByUpdatedAtDesc(UUID id, List<ContentType> types, ContentStatus searchStatus, Pageable pageable);
 }

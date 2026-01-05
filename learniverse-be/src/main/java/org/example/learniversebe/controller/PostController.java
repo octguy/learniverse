@@ -3,14 +3,15 @@ package org.example.learniversebe.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.example.learniversebe.dto.request.CreatePostRequest;
 import org.example.learniversebe.dto.request.UpdatePostRequest;
+import org.example.learniversebe.dto.request.UpdateStatusRequest;
 import org.example.learniversebe.dto.response.PageResponse;
 import org.example.learniversebe.dto.response.PostResponse;
 import org.example.learniversebe.dto.response.PostSummaryResponse;
+import org.example.learniversebe.enums.ContentStatus;
 import org.example.learniversebe.model.ApiResponse;
 import org.example.learniversebe.service.IPostService;
 import org.springdoc.core.annotations.ParameterObject;
@@ -60,14 +61,15 @@ public class PostController {
                 .body(new ApiResponse<>(HttpStatus.CREATED, "Post created successfully", response, null));
     }
 
-    @PutMapping("/{postId}/publish")
-    @PreAuthorize("hasRole('USER')")
-    @Operation(summary = "Publish a draft post", description = "Chuyển trạng thái bài viết từ DRAFT sang PUBLISHED")
-    public ResponseEntity<ApiResponse<PostResponse>> publishPost(@PathVariable UUID postId) {
-        PostResponse response = postService.publishPost(postId);
-        return ResponseEntity.ok(
-                new ApiResponse<>(HttpStatus.OK, "Post published successfully", response, null)
-        );
+    @PatchMapping("/{postId}/status")
+    @Operation(summary = "Update post status", description = "Switch status between DRAFT, PUBLISHED, ARCHIVED.")
+    public ResponseEntity<ApiResponse<PostResponse>> updatePostStatus(
+            @PathVariable UUID postId,
+            @Valid @RequestBody UpdateStatusRequest request) {
+
+        PostResponse response = postService.updatePostStatus(postId, request.getStatus());
+
+        return ResponseEntity.ok(new ApiResponse<>(HttpStatus.OK, "Post status updated successfully", response, null));
     }
 
     @GetMapping("/feed")
@@ -115,6 +117,37 @@ public class PostController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/me/drafts")
+    @Operation(summary = "Get my draft posts", description = "Retrieves a paginated list of draft posts created by the current user.")
+    public ResponseEntity<ApiResponse<PageResponse<PostSummaryResponse>>> getMyDrafts(
+            @ParameterObject @PageableDefault(sort = "updatedAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
+
+        PageResponse<PostSummaryResponse> drafts = postService.getMyDraftPosts(pageable);
+
+        return ResponseEntity.ok(new ApiResponse<>(HttpStatus.OK, "Draft posts retrieved successfully", drafts, null));
+    }
+
+    @GetMapping("/me/archived")
+    @Operation(summary = "Get my archived posts", description = "Retrieves a paginated list of archived posts (hidden from public).")
+    public ResponseEntity<ApiResponse<PageResponse<PostSummaryResponse>>> getMyArchivedPosts(
+            @ParameterObject @PageableDefault(sort = "updatedAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
+
+        PageResponse<PostSummaryResponse> archivedPosts = postService.getMyArchivedPosts(pageable);
+
+        return ResponseEntity.ok(new ApiResponse<>(HttpStatus.OK, "Archived posts retrieved successfully", archivedPosts, null));
+    }
+
+    @GetMapping("/me")
+    @Operation(summary = "Get current user's posts", description = "Retrieves posts of the current user. Defaults to PUBLISHED status if not specified.")
+    public ResponseEntity<ApiResponse<PageResponse<PostSummaryResponse>>> getMyPosts(
+            @RequestParam(required = false) ContentStatus status,
+            @ParameterObject @PageableDefault(sort = "publishedAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
+
+        PageResponse<PostSummaryResponse> myPosts = postService.getMyPosts(status, pageable);
+
+        return ResponseEntity.ok(new ApiResponse<>(HttpStatus.OK, "User posts retrieved successfully", myPosts, null));
+    }
+
     @GetMapping("/search")
     @Operation(summary = "Search for posts", description = "Performs a full-text search for posts based on a query string.")
     public ResponseEntity<ApiResponse<PageResponse<PostSummaryResponse>>> searchPosts(
@@ -125,13 +158,22 @@ public class PostController {
         return ResponseEntity.ok(response);
     }
 
-    @PutMapping("/{postId}")
+    @PutMapping(value = "/{postId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('USER')")
-    @Operation(summary = "Update an existing post", description = "UC 2.2: Updates a post. Requires user to be the author and within the 24-hour edit limit.")
+    @Operation(summary = "Update an existing post", description = "Update post content and attachments.")
     public ResponseEntity<ApiResponse<PostResponse>> updatePost(
             @PathVariable UUID postId,
-            @Valid @RequestBody UpdatePostRequest request) {
-        PostResponse updatedPost = postService.updatePost(postId, request);
+
+            @RequestPart("post")
+            @Parameter(content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE))
+            @Valid UpdatePostRequest request,
+
+            @RequestPart(value = "files", required = false)
+            @Parameter(description = "New attachments to add")
+            List<MultipartFile> files
+    ) {
+        PostResponse updatedPost = postService.updatePost(postId, request, files);
+
         ApiResponse<PostResponse> response = new ApiResponse<>(HttpStatus.OK, "Post updated successfully", updatedPost, null);
         return ResponseEntity.ok(response);
     }

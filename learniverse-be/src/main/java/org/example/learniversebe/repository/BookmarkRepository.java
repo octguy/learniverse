@@ -15,11 +15,22 @@ import java.util.UUID;
 @Repository
 public interface BookmarkRepository extends JpaRepository<Bookmark, UUID> {
 
-    // Tìm bookmark của user cho một content cụ thể
+    /** Tìm bookmark của user cho một content cụ thể
+     * @param userId Id người dùng
+     * @param contentId Id content
+     * @return Bookmark
+     */
     Optional<Bookmark> findByUserIdAndContentId(UUID userId, UUID contentId);
 
-    // Lấy danh sách bookmark của user (có phân trang)
-    Page<Bookmark> findByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
+    /** Tìm bookmark kể cả đã xóa mềm (để xử lý restore)
+     */
+    @Query("SELECT b FROM Bookmark b WHERE b.user.id = :userId AND b.content.id = :contentId")
+    Optional<Bookmark> findByUserIdAndContentIdIncludingDeleted(
+            @Param("userId") UUID userId,
+            @Param("contentId") UUID contentId);
+
+    @Query("SELECT b FROM Bookmark b JOIN FETCH b.content c LEFT JOIN FETCH c.author WHERE b.user.id = :userId AND b.deletedAt IS NULL ORDER BY b.createdAt DESC")
+    Page<Bookmark> findByUserIdOrderByCreatedAtDesc(@Param("userId") UUID userId, Pageable pageable);
 
     // Đếm số bookmark của user
     long countByUserId(UUID userId);
@@ -29,8 +40,12 @@ public interface BookmarkRepository extends JpaRepository<Bookmark, UUID> {
 
     boolean existsByUserIdAndContentId(UUID currentUserId, UUID contentId);
 
-    Page<Bookmark> findByUserIdAndCollectionNameIgnoreCaseOrderByCreatedAtDesc(UUID id, String collectionName, Pageable pageable);
-
+    @Query("SELECT b FROM Bookmark b JOIN FETCH b.content c LEFT JOIN FETCH c.author WHERE b.user.id = :userId AND LOWER(b.collectionName) = LOWER(:collectionName) ORDER BY b.createdAt DESC")
+    Page<Bookmark> findByUserIdAndCollectionNameIgnoreCaseOrderByCreatedAtDesc(
+            @Param("userId") UUID userId,
+            @Param("collectionName") String collectionName,
+            Pageable pageable
+    );
     /**
      * Xóa mềm tất cả bookmarks của một content
      */
