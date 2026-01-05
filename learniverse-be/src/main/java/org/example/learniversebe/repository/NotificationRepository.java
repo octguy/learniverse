@@ -20,4 +20,9 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
     @Modifying
     @Query("UPDATE Notification n SET n.isRead = true WHERE n.recipient.id = :recipientId AND n.isRead = false")
     void markAllAsReadByRecipientId(UUID recipientId);
+
+    /**
+     * Get all notifications ordered by creation date (for admin dashboard)
+     */
+    Page<Notification> findAllByOrderByCreatedAtDesc(Pageable pageable);
 }

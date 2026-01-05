@@ -1,5 +1,6 @@
 package org.example.learniversebe.service;
 
+import org.example.learniversebe.dto.request.SendNotificationRequest;
 import org.example.learniversebe.dto.request.UpdateUserRoleRequest;
 import org.example.learniversebe.dto.request.UpdateUserStatusRequest;
 import org.example.learniversebe.dto.response.*;
@@ -67,4 +68,19 @@ public interface IDashboardService {
      * @return updated user response
      */
     NewUserResponse updateUserRole(UUID userId, UpdateUserRoleRequest request);
+
+    /**
+     * Get all notifications with pagination
+     * @param page page number (0-based)
+     * @param size page size
+     * @return PageResponse of NotificationResponse
+     */
+    PageResponse<NotificationResponse> getAllNotifications(int page, int size);
+
+    /**
+     * Send notification to specific users or broadcast to all users
+     * @param request the notification request containing content and optional recipient IDs
+     * @return number of notifications sent
+     */
+    int sendNotification(SendNotificationRequest request);
 }

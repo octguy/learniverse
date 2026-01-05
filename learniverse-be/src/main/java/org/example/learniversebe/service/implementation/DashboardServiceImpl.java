@@ -2,17 +2,22 @@ package org.example.learniversebe.service.implementation;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.example.learniversebe.dto.request.SendNotificationRequest;
 import org.example.learniversebe.dto.request.UpdateUserRoleRequest;
 import org.example.learniversebe.dto.request.UpdateUserStatusRequest;
 import org.example.learniversebe.dto.response.*;
 import org.example.learniversebe.enums.ContentType;
 import org.example.learniversebe.enums.DashboardPeriod;
+import org.example.learniversebe.enums.NotificationType;
 import org.example.learniversebe.enums.UserRole;
 import org.example.learniversebe.exception.ResourceNotFoundException;
+import org.example.learniversebe.mapper.NotificationMapper;
+import org.example.learniversebe.model.Notification;
 import org.example.learniversebe.model.Role;
 import org.example.learniversebe.model.RoleUser;
 import org.example.learniversebe.model.User;
 import org.example.learniversebe.repository.ContentRepository;
+import org.example.learniversebe.repository.NotificationRepository;
 import org.example.learniversebe.repository.RoleRepository;
 import org.example.learniversebe.repository.RoleUserRepository;
 import org.example.learniversebe.repository.TagRepository;
@@ -30,6 +35,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -41,6 +47,8 @@ public class DashboardServiceImpl implements IDashboardService {
     private final TagRepository tagRepository;
     private final RoleRepository roleRepository;
     private final RoleUserRepository roleUserRepository;
+    private final NotificationRepository notificationRepository;
+    private final NotificationMapper notificationMapper;
 
     private static final int PAGE_SIZE = 20;
 
@@ -251,5 +259,73 @@ public class DashboardServiceImpl implements IDashboardService {
                 .createdAt(updatedUser.getCreatedAt())
                 .status(updatedUser.getStatus())
                 .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<NotificationResponse> getAllNotifications(int page, int size) {
+        log.info("Getting all notifications with page: {}, size: {}", page, size);
+        
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Notification> notificationPage = notificationRepository.findAllByOrderByCreatedAtDesc(pageable);
+
+        List<NotificationResponse> notifications = notificationPage.getContent().stream()
+                .map(notificationMapper::toResponse)
+                .collect(Collectors.toList());
+
+        return PageResponse.<NotificationResponse>builder()
+                .content(notifications)
+                .totalElements(notificationPage.getTotalElements())
+                .totalPages(notificationPage.getTotalPages())
+                .currentPage(notificationPage.getNumber())
+                .pageSize(notificationPage.getSize())
+                .last(notificationPage.isLast())
+                .first(notificationPage.isFirst())
+                .numberOfElements(notificationPage.getNumberOfElements())
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public int sendNotification(SendNotificationRequest request) {
+        log.info("Sending notification: {}", request);
+        
+        List<User> recipients;
+        NotificationType notificationType;
+
+        if (request.getRecipientIds() == null || request.getRecipientIds().isEmpty()) {
+            // Broadcast to all users
+            recipients = userRepository.findAll();
+            notificationType = NotificationType.BROADCAST;
+            log.info("Broadcasting notification to all {} users", recipients.size());
+        } else {
+            // Send to specific users
+            recipients = userRepository.findAllById(request.getRecipientIds());
+            notificationType = NotificationType.SYSTEM;
+            log.info("Sending notification to {} specific users", recipients.size());
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        int sentCount = 0;
+
+        for (User recipient : recipients) {
+            Notification notification = new Notification();
+            notification.setId(UUID.randomUUID());
+            notification.setRecipient(recipient);
+            notification.setSender(null); // System notification, no sender
+            notification.setNotificationType(notificationType);
+            notification.setContent(request.getContent());
+            notification.setRelatedEntityId(request.getRelatedEntityId());
+            notification.setRelatedEntityType(request.getRelatedEntityType());
+            notification.setRead(false);
+            notification.setCreatedAt(now);
+            notification.setUpdatedAt(now);
+
+            notificationRepository.save(notification);
+            sentCount++;
+        }
+
+        log.info("Successfully sent {} notifications", sentCount);
+        return sentCount;
     }
 }
