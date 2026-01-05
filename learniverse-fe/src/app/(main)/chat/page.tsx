@@ -21,6 +21,8 @@ import { websocketService } from "@/lib/websocketService";
 import { Chat, Message } from "@/types/chat";
 import { toast } from "sonner";
 import { useNotification } from "@/context/NotificationContext";
+import { friendService } from "@/lib/api/friendService";
+import { SuggestedFriend } from "@/types/friend";
 
 const initialState = {
   chats: [],
@@ -49,6 +51,57 @@ export default function ChatPage() {
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
   const { refreshMessages } = useNotification();
+  const [friends, setFriends] = useState<SuggestedFriend[]>([]);
+
+  useEffect(() => {
+    const loadFriends = async () => {
+      try {
+        const res = await friendService.getFriends();
+        if (res.data.status === "success") {
+          setFriends(res.data.data);
+        }
+      } catch (e) {
+        console.error("Failed to load friends", e);
+      }
+    };
+    loadFriends();
+  }, []);
+
+  const filteredFriends = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const query = searchQuery.toLowerCase();
+    return friends.filter((f) => {
+      const name = f.displayName || f.username || "";
+      return name.toLowerCase().includes(query);
+    });
+  }, [friends, searchQuery]);
+
+  const handleSelectFriend = async (friendId: string) => {
+    const existingChat = chats.find(
+      (c) => !c.isGroupChat && c.participants.includes(friendId)
+    );
+
+    if (existingChat) {
+      dispatch({ type: "SELECT_CHAT", payload: existingChat.id });
+      dispatch({ type: "SET_SEARCH_QUERY", payload: "" });
+      loadMessages(existingChat.id);
+      return;
+    }
+
+    try {
+      const res = await chatService.createDirectChat(friendId);
+      if (res.data.status === "success") {
+        const chat = res.data.data;
+        await reloadChats();
+        await refreshMessages(); // Trigger global subscription update for the new chat
+        dispatch({ type: "SELECT_CHAT", payload: chat.id });
+        dispatch({ type: "SET_SEARCH_QUERY", payload: "" });
+      }
+    } catch (error) {
+      console.error("Failed to create chat:", error);
+      toast.error("Không thể tạo cuộc trò chuyện");
+    }
+  };
 
   // Define reloadChats here to be used by the modal
   const reloadChats = async () => {
@@ -415,16 +468,16 @@ export default function ChatPage() {
           const msgs = response.data.data.data
             .map(
               (m: MessageDTO) =>
-                ({
-                  id: m.id,
-                  chatRoomId: m.chatRoomId,
-                  senderId: m.sender.senderId,
-                  senderUsername: m.sender.senderName,
-                  senderAvatar: m.sender.senderAvatar,
-                  messageType: m.messageType,
-                  textContent: m.textContent,
-                  createdAt: m.createdAt,
-                } as Message)
+              ({
+                id: m.id,
+                chatRoomId: m.chatRoomId,
+                senderId: m.sender.senderId,
+                senderUsername: m.sender.senderName,
+                senderAvatar: m.sender.senderAvatar,
+                messageType: m.messageType,
+                textContent: m.textContent,
+                createdAt: m.createdAt,
+              } as Message)
             )
             .reverse();
 
@@ -474,7 +527,7 @@ export default function ChatPage() {
     loadMessages(id);
     // Mark as read in backend
     chatService.markAsRead(id).then(() => {
-        refreshMessages(); // Update global count
+      refreshMessages(); // Update global count
     });
   };
 
@@ -558,8 +611,10 @@ export default function ChatPage() {
 
         <ChatList
           chats={filteredChats}
+          friends={filteredFriends}
           currentChatId={currentChatId}
           onSelect={handleSelect}
+          onSelectFriend={handleSelectFriend}
         />
       </div>
 

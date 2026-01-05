@@ -100,12 +100,11 @@ const ChatWindow = ({
     return () => clearTimeout(timer);
   }, [loadingMore]);
 
-  // Scroll to bottom on initial load
+
   useEffect(() => {
     if (isInitialLoadRef.current && messages.length > 0) {
-      // Use requestAnimationFrame to ensure DOM is ready
       requestAnimationFrame(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
+        messagesEndRef.current?.scrollIntoView({ behavior: "instant", block: "nearest" });
         isInitialLoadRef.current = false;
         setInitialLoading(false);
       });
@@ -140,7 +139,7 @@ const ChatWindow = ({
     ) {
       // New message added at the bottom
       if (autoScroll) {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }
     }
 
@@ -248,7 +247,7 @@ const ChatWindow = ({
     // Force scroll to bottom when sending a message
     setAutoScroll(true);
     setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }, 100);
   };
 

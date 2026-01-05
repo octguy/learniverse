@@ -56,7 +56,7 @@ export function SideBar() {
     ]
 
     return (
-        <aside className="w-64 hidden md:flex flex-col h-[calc(100vh-4rem)] sticky top-16 border-r pr-4 pb-4">
+        <aside className="w-64 hidden md:flex flex-col h-full border-r pr-4 pb-4 overflow-y-auto">
             <div className="py-4">
                 {isAuthLoading ? (
                     <div className="flex items-center space-x-4">
