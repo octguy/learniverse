@@ -79,17 +79,6 @@ public class DashboardController {
         return ResponseEntity.ok(dashboardService.getNewestUsers(page));
     }
 
-    @Operation(summary = "Get all notifications",
-            description = "Returns paginated list of all notifications in the system (admin only)")
-    @GetMapping("/notifications")
-    public ResponseEntity<PageResponse<NotificationResponse>> getAllNotifications(
-            @Parameter(description = "Page number (0-based)")
-            @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "Page size")
-            @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(dashboardService.getAllNotifications(page, size));
-    }
-
     @Operation(summary = "Send notification to all users",
             description = "Broadcasts a notification to all users in the system (admin only)")
     @PostMapping("/notifications/broadcast")

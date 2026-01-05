@@ -59,9 +59,7 @@ public class DashboardServiceImpl implements IDashboardService {
     private final NotificationRepository notificationRepository;
     private final NotificationMapper notificationMapper;
 
-    private final NotificationRepository notificationRepository;
     private final INotificationService notificationService;
-    private final NotificationMapper notificationMapper;
     private static final int PAGE_SIZE = 20;
 
     @Override
@@ -274,7 +272,7 @@ public class DashboardServiceImpl implements IDashboardService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public PageResponse<NotificationResponse> getAllNotifications(int page, int size) {
         log.info("Getting all notifications with page: {}, size: {}", page, size);
 
@@ -329,7 +327,7 @@ public class DashboardServiceImpl implements IDashboardService {
             notification.setContent(request.getContent());
             notification.setRelatedEntityId(request.getRelatedEntityId());
             notification.setRelatedEntityType(request.getRelatedEntityType());
-            notification.setRead(false);
+            notification.setIsRead(false);
             notification.setCreatedAt(now);
             notification.setUpdatedAt(now);
 
@@ -339,29 +337,6 @@ public class DashboardServiceImpl implements IDashboardService {
 
         log.info("Successfully sent {} notifications", sentCount);
         return sentCount;
-    }
-    @Override
-    public PageResponse<NotificationResponse> getAllNotifications(int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
-
-        // Lấy tất cả notifications, sắp xếp theo thời gian tạo mới nhất
-        Page<Notification> pageData = notificationRepository
-                .findAllByOrderByCreatedAtDesc(pageable);
-
-        List<NotificationResponse> content = pageData.getContent().stream()
-                .map(notificationMapper::toResponse)
-                .collect(Collectors.toList());
-
-        return PageResponse.<NotificationResponse>builder()
-                .content(content)
-                .currentPage(pageData.getNumber())
-                .pageSize(pageData.getSize())
-                .totalElements(pageData.getTotalElements())
-                .totalPages(pageData.getTotalPages())
-                .last(pageData.isLast())
-                .first(pageData.isFirst())
-                .numberOfElements(pageData.getNumberOfElements())
-                .build();
     }
     @Override
     @Transactional
