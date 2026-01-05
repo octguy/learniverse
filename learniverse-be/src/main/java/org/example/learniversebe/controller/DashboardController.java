@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.example.learniversebe.dto.request.SendNotificationRequest;
 import org.example.learniversebe.dto.request.UpdateTagRequest;
 import org.example.learniversebe.dto.request.UpdateUserRoleRequest;
 import org.example.learniversebe.dto.request.UpdateUserStatusRequest;
@@ -17,6 +18,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -125,5 +127,30 @@ public class DashboardController {
             @PathVariable UUID userId,
             @Valid @RequestBody UpdateUserRoleRequest request) {
         return ResponseEntity.ok(dashboardService.updateUserRole(userId, request));
+    }
+
+    // ==================== Notification Management ====================
+
+    @Operation(summary = "Get all notifications",
+            description = "Returns paginated list of all notifications in the system")
+    @GetMapping("/notifications")
+    public ResponseEntity<PageResponse<NotificationResponse>> getAllNotifications(
+            @Parameter(description = "Page number (0-based)")
+            @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size")
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(dashboardService.getAllNotifications(page, size));
+    }
+
+    @Operation(summary = "Send notification",
+            description = "Send notification to specific users or broadcast to all users. If recipientIds is null or empty, notification will be broadcast to all users.")
+    @PostMapping("/notifications")
+    public ResponseEntity<Map<String, Object>> sendNotification(
+            @Valid @RequestBody SendNotificationRequest request) {
+        int sentCount = dashboardService.sendNotification(request);
+        return ResponseEntity.ok(Map.of(
+                "message", "Notifications sent successfully",
+                "sentCount", sentCount
+        ));
     }
 }
