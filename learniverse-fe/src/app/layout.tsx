@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthProvider";
+import { NotificationProvider } from "@/context/NotificationContext";
 import "katex/dist/katex.min.css";
 import { Toaster } from "@/components/ui/sonner";
 const geistSans = Geist({
@@ -30,7 +31,9 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
       <AuthProvider>
+        <NotificationProvider>
           {children}
+        </NotificationProvider>
       </AuthProvider>
       <Toaster position="top-right" richColors />
       </body>

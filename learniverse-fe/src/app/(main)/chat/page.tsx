@@ -20,6 +20,7 @@ import { userProfileService } from "@/lib/api/userProfileService";
 import { websocketService } from "@/lib/websocketService";
 import { Chat, Message } from "@/types/chat";
 import { toast } from "sonner";
+import { useNotification } from "@/context/NotificationContext";
 
 const initialState = {
   chats: [],
@@ -47,6 +48,7 @@ export default function ChatPage() {
   } = state;
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
+  const { refreshMessages } = useNotification();
 
   // Define reloadChats here to be used by the modal
   const reloadChats = async () => {
@@ -54,10 +56,6 @@ export default function ChatPage() {
       const response = await chatService.getAllChats();
       if (response.data.status === "success") {
         const chatRooms = response.data.data;
-        // We need to re-process chats similar to initial load
-        // For brevity, I'll copy the logic, but ideally this should be a shared function
-        // Reuse currentUserId state
-
         const chatsWithData = await Promise.all(
           chatRooms.map(async (room: ChatRoomDTO) => {
             let lastMessage = null;
@@ -474,6 +472,10 @@ export default function ChatPage() {
   const handleSelect = (id: string) => {
     dispatch({ type: "SELECT_CHAT", payload: id });
     loadMessages(id);
+    // Mark as read in backend
+    chatService.markAsRead(id).then(() => {
+        refreshMessages(); // Update global count
+    });
   };
 
   const handleSearch = (q: string) =>
