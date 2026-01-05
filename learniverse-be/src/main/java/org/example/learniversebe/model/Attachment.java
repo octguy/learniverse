@@ -41,7 +41,6 @@ public class Attachment extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "file_type", nullable = false)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private AttachmentType fileType;
 
     @Column(name = "file_size", nullable = false)
