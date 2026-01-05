@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -335,22 +336,33 @@ public class ChatRoomServiceImpl implements IChatRoomService {
         try {
             Object[] msg = results.get(0);
             
-            // Validate array has expected length
-            if (msg.length < 4) {
-                log.warn("Expected 4 columns but got {} for room {}", msg.length, room.getId());
+            // Query returns: user_id (0), display_name (1), message_type (2), text_content (3), created_at (4)
+            if (msg.length < 5) {
+                log.warn("Expected 5 columns but got {} for room {}", msg.length, room.getId());
                 return null;
             }
 
-            String senderDisplayName = msg[0] != null ? msg[0].toString() : null;
-            String messageType = msg[1] != null ? msg[1].toString() : null;
-            String content = msg[2] != null ? msg[2].toString() : null;
-            Timestamp createdAt = msg[3] != null ? (Timestamp) msg[3] : null;
+            String senderDisplayName = msg[1] != null ? msg[1].toString() : null;
+            String messageType = msg[2] != null ? msg[2].toString() : null;
+            String content = msg[3] != null ? msg[3].toString() : null;
+            
+            LocalDateTime sendAt = null;
+            if (msg[4] != null) {
+                if (msg[4] instanceof Timestamp) {
+                    sendAt = ((Timestamp) msg[4]).toLocalDateTime();
+                } else if (msg[4] instanceof LocalDateTime) {
+                    sendAt = (LocalDateTime) msg[4];
+                } else {
+                    // Handle String representation of timestamp
+                    sendAt = LocalDateTime.parse(msg[4].toString().replace(" ", "T"));
+                }
+            }
 
             return LastMessageResponse.builder()
                     .senderName(senderDisplayName)
                     .messageType(messageType)
                     .content(content)
-                    .sendAt(createdAt != null ? createdAt.toLocalDateTime() : null)
+                    .sendAt(sendAt)
                     .build();
         } catch (Exception e) {
             log.error("Error processing last message data for room {}: {}", room.getId(), e.getMessage(), e);
