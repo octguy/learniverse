@@ -11,7 +11,6 @@ import org.example.learniversebe.exception.UnauthorizedException;
 import org.example.learniversebe.mapper.AnswerMapper;
 import org.example.learniversebe.mapper.ContentMapper;
 import org.example.learniversebe.model.*;
-import org.example.learniversebe.model.composite_key.ContentTagId;
 import org.example.learniversebe.repository.*;
 import org.example.learniversebe.service.IInteractionService;
 import org.example.learniversebe.service.IQuestionService;
@@ -275,6 +274,34 @@ public class QuestionServiceImpl implements IQuestionService {
         response.setAnswers(answerPageResponse.getContent());
 
         return response;
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public PageResponse<QuestionSummaryResponse> getMyQuestions(ContentStatus status, Pageable pageable) {
+        User currentUser = serviceHelper.getCurrentUser();
+
+        ContentStatus searchStatus = (status != null) ? status : ContentStatus.PUBLISHED;
+
+        Page<Content> questionPage;
+
+        if (searchStatus == ContentStatus.DRAFT || searchStatus == ContentStatus.ARCHIVED) {
+            questionPage = contentRepository.findByAuthorIdAndContentTypeAndStatusOrderByUpdatedAtDesc(
+                    currentUser.getId(),
+                    ContentType.QUESTION,
+                    searchStatus,
+                    pageable
+            );
+        } else {
+            questionPage = contentRepository.findByAuthorIdAndContentTypeAndStatusOrderByPublishedAtDesc(
+                    currentUser.getId(),
+                    ContentType.QUESTION,
+                    searchStatus,
+                    pageable
+            );
+        }
+
+        return contentMapper.contentPageToQuestionSummaryPage(questionPage);
     }
 
     @Override

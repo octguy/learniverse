@@ -10,13 +10,12 @@ import org.example.learniversebe.enums.*;
 import org.example.learniversebe.exception.BadRequestException;
 import org.example.learniversebe.exception.ResourceNotFoundException;
 import org.example.learniversebe.mapper.BookmarkMapper;
+import org.example.learniversebe.mapper.ContentMapper;
 import org.example.learniversebe.model.*;
 import org.example.learniversebe.repository.*;
 import org.example.learniversebe.service.IInteractionService;
 import org.example.learniversebe.util.ServiceHelper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.dao.DataIntegrityViolationException;
+import org.hibernate.Hibernate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -35,11 +34,12 @@ public class InteractionServiceImpl implements IInteractionService {
     private final ReactionRepository reactionRepository;
     private final BookmarkRepository bookmarkRepository;
     private final ContentRepository contentRepository;
-    private final UserRepository userRepository;
     private final AnswerRepository answerRepository;
     private final CommentRepository commentRepository;
     private final ServiceHelper serviceHelper;
     private final BookmarkMapper bookmarkMapper;
+    private final ContentMapper contentMapper;
+
 
     public InteractionServiceImpl(VoteRepository voteRepository,
                                   ReactionRepository reactionRepository,
@@ -47,9 +47,8 @@ public class InteractionServiceImpl implements IInteractionService {
                                   ContentRepository contentRepository,
                                   AnswerRepository answerRepository,
                                   CommentRepository commentRepository,
-                                  UserRepository userRepository,
                                   ServiceHelper serviceHelper,
-                                  BookmarkMapper bookmarkMapper
+                                  BookmarkMapper bookmarkMapper, ContentMapper contentMapper
     ) {
         this.voteRepository = voteRepository;
         this.reactionRepository = reactionRepository;
@@ -57,9 +56,9 @@ public class InteractionServiceImpl implements IInteractionService {
         this.contentRepository = contentRepository;
         this.answerRepository = answerRepository;
         this.commentRepository = commentRepository;
-        this.userRepository = userRepository;
         this.serviceHelper = serviceHelper;
         this.bookmarkMapper = bookmarkMapper;
+        this.contentMapper = contentMapper;
     }
 
 
@@ -184,27 +183,41 @@ public class InteractionServiceImpl implements IInteractionService {
         Content content = contentRepository.findById(request.getContentId())
                 .orElseThrow(() -> new ResourceNotFoundException("Content not found with id: " + request.getContentId()));
 
-        if (bookmarkRepository.existsByUserIdAndContentId(currentUser.getId(), content.getId())) {
-            throw new BadRequestException("Content already bookmarked by this user");
-        }
+        Optional<Bookmark> existingBookmarkOpt = bookmarkRepository
+                .findByUserIdAndContentIdIncludingDeleted(currentUser.getId(), content.getId());
 
-        Optional<Bookmark> existingBookmark = bookmarkRepository.findByUserIdAndContentId(currentUser.getId(), content.getId());
+        if (existingBookmarkOpt.isPresent()) {
+            Bookmark existingBookmark = existingBookmarkOpt.get();
 
-        if (existingBookmark.isPresent()) {
-            bookmarkRepository.delete(existingBookmark.get());
-            content.setBookmarkCount(Math.max(0, content.getBookmarkCount() - 1));
-            contentRepository.save(content);
-            return null;
+            if (existingBookmark.getDeletedAt() != null) {
+                existingBookmark.setDeletedAt(null);
+                existingBookmark.setCollectionName(request.getCollectionName());
+                existingBookmark.setNotes(request.getNotes());
+                existingBookmark.setUpdatedAt(LocalDateTime.now());
+                Bookmark restored = bookmarkRepository.save(existingBookmark);
+
+                content.setBookmarkCount(content.getBookmarkCount() + 1);
+                contentRepository.save(content);
+
+                return bookmarkMapper.toBookmarkResponse(restored, contentMapper);
+            } else {
+                bookmarkRepository.delete(existingBookmark);
+                content.setBookmarkCount(Math.max(0, content.getBookmarkCount() - 1));
+                contentRepository.save(content);
+                return null;
+            }
         } else {
             Bookmark bookmark = new Bookmark();
             bookmark.setUser(currentUser);
             bookmark.setContent(content);
+            bookmark.setCollectionName(request.getCollectionName());
+            bookmark.setNotes(request.getNotes());
             Bookmark saved = bookmarkRepository.save(bookmark);
 
             content.setBookmarkCount(content.getBookmarkCount() + 1);
             contentRepository.save(content);
 
-            return bookmarkMapper.toBookmarkResponse(saved);
+            return bookmarkMapper.toBookmarkResponse(saved, contentMapper);
         }
     }
 
@@ -232,12 +245,20 @@ public class InteractionServiceImpl implements IInteractionService {
         Page<Bookmark> bookmarkPage;
 
         if (collectionName != null && !collectionName.isBlank()) {
-            bookmarkPage = bookmarkRepository.findByUserIdAndCollectionNameIgnoreCaseOrderByCreatedAtDesc(currentUser.getId(), collectionName, pageable); // Cần method này
+            bookmarkPage = bookmarkRepository.findByUserIdAndCollectionNameIgnoreCaseOrderByCreatedAtDesc(
+                    currentUser.getId(), collectionName, pageable);
         } else {
-            bookmarkPage = bookmarkRepository.findByUserIdOrderByCreatedAtDesc(currentUser.getId(), pageable);
+            bookmarkPage = bookmarkRepository.findByUserIdOrderByCreatedAtDesc(
+                    currentUser.getId(), pageable);
         }
 
-        return bookmarkMapper.bookmarkPageToBookmarkPageResponse(bookmarkPage);
+        bookmarkPage.getContent().forEach(bookmark -> {
+            Hibernate.initialize(bookmark.getContent());
+            if (bookmark.getContent() != null) {
+                Hibernate.initialize(bookmark.getContent().getAuthor());
+            }
+        });
+        return bookmarkMapper.bookmarkPageToBookmarkPageResponse(bookmarkPage, contentMapper);
     }
 
     @Override
@@ -265,8 +286,7 @@ public class InteractionServiceImpl implements IInteractionService {
 
     private void validateVotableEntity(VotableType type, UUID id) {
         if (type == VotableType.CONTENT) {
-            if (!contentRepository.existsById(id))
-                throw new ResourceNotFoundException("Content not found");
+            validateContentAccess(id);
         } else if (type == VotableType.ANSWER) {
             if (!answerRepository.existsById(id))
                 throw new ResourceNotFoundException("Answer not found");
@@ -275,14 +295,22 @@ public class InteractionServiceImpl implements IInteractionService {
 
     private void validateReactableEntity(ReactableType type, UUID id) {
         if (type == ReactableType.CONTENT) {
-            if (!contentRepository.existsById(id))
-                throw new ResourceNotFoundException("Content not found");
+            validateContentAccess(id);
         } else if (type == ReactableType.ANSWER) {
             if (!answerRepository.existsById(id))
                 throw new ResourceNotFoundException("Answer not found");
         } else if (type == ReactableType.COMMENT) {
             if (!commentRepository.existsById(id))
                 throw new ResourceNotFoundException("Comment not found");
+        }
+    }
+
+    private void validateContentAccess(UUID contentId) {
+        Content content = contentRepository.findById(contentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Content not found"));
+
+        if (content.getStatus() != ContentStatus.PUBLISHED) {
+            throw new BadRequestException("Cannot interact with content that is not PUBLISHED (Current status: " + content.getStatus() + ")");
         }
     }
 

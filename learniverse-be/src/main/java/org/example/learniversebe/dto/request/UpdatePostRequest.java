@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -29,4 +30,7 @@ public class UpdatePostRequest {
 
     @Schema(description = "Lý do chỉnh sửa (tùy chọn)")
     private String editReason;
+
+    @Schema(description = "Tệp muốn xóa")
+    private List<UUID> attachmentsToDelete;
 }

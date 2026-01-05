@@ -47,6 +47,7 @@ public interface ContentMapper {
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "deletedAt", ignore = true)
+    @Mapping(target = "originalContent", ignore = true)
     Content createPostRequestToContent(CreatePostRequest request);
 
     /**
@@ -75,6 +76,7 @@ public interface ContentMapper {
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "deletedAt", ignore = true)
+    @Mapping(target = "originalContent", ignore = true)
     Content createQuestionRequestToContent(CreateQuestionRequest request);
 
     /**
@@ -85,6 +87,7 @@ public interface ContentMapper {
     @Mapping(source = "contentTags", target = "tags", qualifiedByName = "contentTagsToTagResponses")
     @Mapping(target = "bookmarkedByCurrentUser", ignore = true)
     @Mapping(target = "currentUserReaction", ignore = true)
+    @Mapping(source = "originalContent", target = "originalPost", qualifiedByName = "mapOriginalPost")
     PostResponse contentToPostResponse(Content content);
 
     /**
@@ -95,6 +98,7 @@ public interface ContentMapper {
     @Mapping(source = "body", target = "bodyExcerpt", qualifiedByName = "generateExcerpt")
     @Mapping(target = "bookmarkedByCurrentUser", ignore = true)
     @Mapping(target = "currentUserReaction", ignore = true)
+    @Mapping(source = "originalContent", target = "originalPost", qualifiedByName = "mapOriginalPost")
     PostSummaryResponse contentToPostSummaryResponse(Content content);
 
     /**
@@ -178,5 +182,23 @@ public interface ContentMapper {
         }
         int limit = 150;
         return body.length() > limit ? body.substring(0, limit) + "..." : body;
+    }
+
+    @Named("mapOriginalPost")
+    default PostSummaryResponse mapOriginalPost(Content originalContent) {
+        if (originalContent == null) {
+            return null;
+        }
+
+        if (originalContent.getDeletedAt() != null) {
+            // Frontend check nếu Post có type=SHARED/POST mà originalPost=null
+            // -> Hiển thị "Bài viết không tồn tại"
+            return null;
+        }
+
+        PostSummaryResponse response = contentToPostSummaryResponse(originalContent);
+        response.setOriginalPost(null);
+
+        return response;
     }
 }

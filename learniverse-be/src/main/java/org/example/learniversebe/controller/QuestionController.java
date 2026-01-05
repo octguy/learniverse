@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.example.learniversebe.dto.request.CreateQuestionRequest;
 import org.example.learniversebe.dto.request.UpdateQuestionRequest;
+import org.example.learniversebe.enums.ContentStatus;
 import org.example.learniversebe.model.ApiResponse;
 import org.example.learniversebe.dto.response.PageResponse;
 import org.example.learniversebe.dto.response.QuestionResponse;
@@ -110,6 +111,17 @@ public class QuestionController {
         PageResponse<QuestionSummaryResponse> questionPage = questionService.getQuestionsByTag(tagId, pageable);
         ApiResponse<PageResponse<QuestionSummaryResponse>> response = new ApiResponse<>(HttpStatus.OK, "Questions by tag retrieved successfully", questionPage, null);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/me")
+    @Operation(summary = "Get current user's questions", description = "Retrieves questions of the current user. Supports filtering by status (DRAFT, PUBLISHED, ARCHIVED). Defaults to PUBLISHED.")
+    public ResponseEntity<ApiResponse<PageResponse<QuestionSummaryResponse>>> getMyQuestions(
+            @RequestParam(required = false) ContentStatus status,
+            @ParameterObject @PageableDefault(sort = "publishedAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
+
+        PageResponse<QuestionSummaryResponse> myQuestions = questionService.getMyQuestions(status, pageable);
+
+        return ResponseEntity.ok(new ApiResponse<>(HttpStatus.OK, "User questions retrieved successfully", myQuestions, null));
     }
 
     @GetMapping("/search")
