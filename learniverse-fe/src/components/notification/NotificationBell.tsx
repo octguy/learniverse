@@ -60,14 +60,16 @@ export function NotificationBell() {
     return (
         <Popover open={isOpen} onOpenChange={setIsOpen}>
             <PopoverTrigger asChild>
-                <div className="flex flex-col items-center text-gray-600 hover:text-primary relative cursor-pointer">
-                    <Bell className="w-5 h-5" />
+                <div className="flex flex-col items-center text-gray-600 hover:text-primary cursor-pointer">
+                    <div className="relative">
+                        <Bell className="w-5 h-5" />
+                        {unreadNotificationsCount > 0 && (
+                            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center border-2 border-white">
+                                {unreadNotificationsCount > 9 ? "9+" : unreadNotificationsCount}
+                            </span>
+                        )}
+                    </div>
                     <span className="text-xs">Notifications</span>
-                    {unreadNotificationsCount > 0 && (
-                        <span className="absolute -top-1 right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
-              {unreadNotificationsCount > 9 ? "9+" : unreadNotificationsCount}
-            </span>
-                    )}
                 </div>
             </PopoverTrigger>
             <PopoverContent className="w-96 p-0 h-[450px] flex flex-col" align="end">

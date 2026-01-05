@@ -33,6 +33,14 @@ export interface WebSocketMessage {
   textContent: string;
 }
 
+export interface NotificationEvent {
+  id: string;
+  type: string;
+  content: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
 class WebSocketService {
   private client: Client | null = null;
   private reconnectDelay = 5000;
@@ -212,7 +220,7 @@ class WebSocketService {
             // We don't need to add them to the message list
             return;
           }
-          
+
           if (event.eventType !== SocketEventType.NEW_MESSAGE) {
             console.warn(
               "[WS] ⚠️ Unexpected event type:",
@@ -323,6 +331,33 @@ class WebSocketService {
           callback(event);
         } catch (error) {
           console.error("[WebSocket] Error parsing status event:", error);
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }
+
+  // Subscribe to notifications
+  subscribeToNotifications(
+    userId: string,
+    callback: (notification: NotificationEvent) => void
+  ) {
+    if (!this.client?.connected) {
+      console.error("[WebSocket] Not connected");
+      return null;
+    }
+
+    console.log("[WS] 🔔 Subscribing to notifications for user:", userId);
+    const subscription = this.client.subscribe(
+      `/topic/notifications/${userId}`,
+      (message) => {
+        try {
+          const notification = JSON.parse(message.body);
+          console.log("[WS] 🔔 Notification received:", notification);
+          callback(notification);
+        } catch (error) {
+          console.error("[WS] ❌ Error parsing notification:", error);
         }
       }
     );
