@@ -205,6 +205,22 @@ public class FriendServiceImpl implements IFriendService {
         return getUserProfileResponses(userIds);
     }
 
+    @Override
+    public List<UserProfileResponse> searchFriends(String keyword) {
+        UUID currentUserId = serviceHelper.getCurrentUserId();
+
+        // Validate keyword nếu cần (trim, check rỗng...)
+        if (keyword == null) keyword = "";
+        keyword = keyword.trim();
+
+        List<Object[]> rows =
+                userProfileRepository.searchFriendsRaw(currentUserId, keyword);
+
+        return rows.stream()
+                .map(this::mapToUserProfileResponse)
+                .toList();
+    }
+
     // ==================== PRIVATE HELPER METHODS ====================
 
     private UUID[] getNormalizedIds(UUID id1, UUID id2) {
@@ -335,4 +351,60 @@ public class FriendServiceImpl implements IFriendService {
         response.setSkillTags(null);
         return response;
     }
+
+    private UserProfileResponse mapToUserProfileResponse(Object[] r) {
+
+        UUID userId = (UUID) r[0];
+        String username = (String) r[1];
+
+        UUID profileId = (UUID) r[2];
+        String displayName = (String) r[3];
+        String bio = (String) r[4];
+        String avatarUrl = (String) r[5];
+        String coverUrl = (String) r[6];
+        Integer postCount = (Integer) r[7];
+        Integer answeredCount = (Integer) r[8];
+
+        UserProfileResponse res = new UserProfileResponse();
+
+        res.setUserId(userId);
+        res.setUsername(username);
+
+        if (profileId != null) {
+            // Có profile
+            res.setId(profileId);
+            res.setDisplayName(
+                    displayName != null ? displayName : username
+            );
+            res.setBio(bio);
+            res.setAvatarUrl(avatarUrl);
+            res.setCoverUrl(coverUrl);
+            res.setPostCount(postCount != null ? postCount : 0);
+            res.setAnsweredQuestionCount(
+                    answeredCount != null ? answeredCount : 0
+            );
+
+            // TODO: load tags nếu cần
+            res.setInterestTags(List.of());
+            res.setSkillTags(List.of());
+
+        } else {
+            // Không có profile
+            res.setId(null);
+            res.setDisplayName(username);
+            res.setBio(null);
+            res.setAvatarUrl(null);
+            res.setCoverUrl(null);
+            res.setPostCount(0);
+            res.setAnsweredQuestionCount(0);
+            res.setInterestTags(List.of());
+            res.setSkillTags(List.of());
+        }
+
+        // role nếu cần → lấy từ user
+        // res.setRole(...)
+
+        return res;
+    }
+
 }

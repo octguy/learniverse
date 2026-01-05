@@ -1,14 +1,20 @@
 package org.example.learniversebe.service.implementation;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.example.learniversebe.dto.request.BroadcastNotificationRequest;
 import org.example.learniversebe.dto.response.*;
 import org.example.learniversebe.enums.ContentType;
 import org.example.learniversebe.enums.DashboardPeriod;
+import org.example.learniversebe.mapper.NotificationMapper;
+import org.example.learniversebe.model.Notification;
 import org.example.learniversebe.model.User;
 import org.example.learniversebe.repository.ContentRepository;
+import org.example.learniversebe.repository.NotificationRepository;
 import org.example.learniversebe.repository.TagRepository;
 import org.example.learniversebe.repository.UserRepository;
 import org.example.learniversebe.service.IDashboardService;
+import org.example.learniversebe.service.INotificationService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -20,6 +26,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +36,9 @@ public class DashboardServiceImpl implements IDashboardService {
     private final ContentRepository contentRepository;
     private final TagRepository tagRepository;
 
+    private final NotificationRepository notificationRepository;
+    private final INotificationService notificationService;
+    private final NotificationMapper notificationMapper;
     private static final int PAGE_SIZE = 20;
 
     @Override
@@ -147,5 +157,50 @@ public class DashboardServiceImpl implements IDashboardService {
                 .first(userPage.isFirst())
                 .numberOfElements(userPage.getNumberOfElements())
                 .build();
+    }
+    @Override
+    public PageResponse<NotificationResponse> getAllNotifications(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+
+        // Lấy tất cả notifications, sắp xếp theo thời gian tạo mới nhất
+        Page<Notification> pageData = notificationRepository
+                .findAllByOrderByCreatedAtDesc(pageable);
+
+        List<NotificationResponse> content = pageData.getContent().stream()
+                .map(notificationMapper::toResponse)
+                .collect(Collectors.toList());
+
+        return PageResponse.<NotificationResponse>builder()
+                .content(content)
+                .currentPage(pageData.getNumber())
+                .pageSize(pageData.getSize())
+                .totalElements(pageData.getTotalElements())
+                .totalPages(pageData.getTotalPages())
+                .last(pageData.isLast())
+                .first(pageData.isFirst())
+                .numberOfElements(pageData.getNumberOfElements())
+                .build();
+    }
+    @Override
+    @Transactional
+    public int broadcastNotification(BroadcastNotificationRequest request) {
+        // Lấy tất cả users đang active
+        List<User> allUsers = userRepository.findAll().stream()
+                .filter(User::isEnabled)
+                .toList();
+
+        // Gửi thông báo cho từng user
+        for (User user : allUsers) {
+            notificationService.createNotification(
+                    user.getId(),
+                    null,
+                    request.getNotificationType(),
+                    request.getContent(),
+                    request.getRelatedEntityId(),
+                    request.getRelatedEntityType()
+            );
+        }
+
+        return allUsers.size();
     }
 }

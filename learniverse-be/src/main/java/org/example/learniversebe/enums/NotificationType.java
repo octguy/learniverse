@@ -14,6 +14,7 @@ public enum NotificationType {
     REPORT,
     ANSWER,
     ANSWER_ACCEPTED,
-    VOTE
+    VOTE,
+    SYSTEM
 
 }

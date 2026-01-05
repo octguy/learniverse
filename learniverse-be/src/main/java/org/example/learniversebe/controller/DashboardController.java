@@ -3,10 +3,15 @@ package org.example.learniversebe.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.example.learniversebe.dto.request.BroadcastNotificationRequest;
 import org.example.learniversebe.dto.response.*;
 import org.example.learniversebe.enums.DashboardPeriod;
+import org.example.learniversebe.model.ApiResponse;
 import org.example.learniversebe.service.IDashboardService;
+import org.example.learniversebe.service.INotificationService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -61,5 +66,32 @@ public class DashboardController {
             @Parameter(description = "Page number (0-based)")
             @RequestParam(defaultValue = "0") int page) {
         return ResponseEntity.ok(dashboardService.getNewestUsers(page));
+    }
+
+    @Operation(summary = "Get all notifications",
+            description = "Returns paginated list of all notifications in the system (admin only)")
+    @GetMapping("/notifications")
+    public ResponseEntity<PageResponse<NotificationResponse>> getAllNotifications(
+            @Parameter(description = "Page number (0-based)")
+            @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size")
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(dashboardService.getAllNotifications(page, size));
+    }
+
+    @Operation(summary = "Send notification to all users",
+            description = "Broadcasts a notification to all users in the system (admin only)")
+    @PostMapping("/notifications/broadcast")
+    public ResponseEntity<ApiResponse<String>> broadcastNotification(
+            @RequestBody @Valid BroadcastNotificationRequest request) {
+        int sentCount = dashboardService.broadcastNotification(request);
+        return ResponseEntity.ok(
+                new ApiResponse<>(
+                        HttpStatus.OK,
+                        "Notification sent to " + sentCount + " users",
+                        "Broadcast successful",
+                        null
+                )
+        );
     }
 }

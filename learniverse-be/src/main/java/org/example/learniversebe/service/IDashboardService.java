@@ -1,5 +1,6 @@
 package org.example.learniversebe.service;
 
+import org.example.learniversebe.dto.request.BroadcastNotificationRequest;
 import org.example.learniversebe.dto.response.*;
 import org.example.learniversebe.enums.DashboardPeriod;
 
@@ -39,4 +40,7 @@ public interface IDashboardService {
      * @return PageResponse of NewUserResponse
      */
     PageResponse<NewUserResponse> getNewestUsers(int page);
+    int broadcastNotification(BroadcastNotificationRequest request);
+
+    PageResponse<NotificationResponse> getAllNotifications(int page, int size);
 }
