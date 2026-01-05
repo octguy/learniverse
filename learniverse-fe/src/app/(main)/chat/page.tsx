@@ -68,9 +68,12 @@ export default function ChatPage() {
                   : room.lastMessage.senderName || "Unknown";
 
               let content = room.lastMessage.content;
-              if (room.lastMessage.messageType === "IMAGE") content = "[Hình ảnh]";
-              else if (room.lastMessage.messageType === "VIDEO") content = "[Video]";
-              else if (room.lastMessage.messageType === "FILE") content = "[Tệp tin]";
+              if (room.lastMessage.messageType === "IMAGE")
+                content = "[Hình ảnh]";
+              else if (room.lastMessage.messageType === "VIDEO")
+                content = "[Video]";
+              else if (room.lastMessage.messageType === "FILE")
+                content = "[Tệp tin]";
 
               lastMessage = `${senderPrefix}: ${content || ""}`;
             }
@@ -160,9 +163,12 @@ export default function ChatPage() {
                     : room.lastMessage.senderName || "Unknown";
 
                 let content = room.lastMessage.content;
-                if (room.lastMessage.messageType === "IMAGE") content = "[Hình ảnh]";
-                else if (room.lastMessage.messageType === "VIDEO") content = "[Video]";
-                else if (room.lastMessage.messageType === "FILE") content = "[Tệp tin]";
+                if (room.lastMessage.messageType === "IMAGE")
+                  content = "[Hình ảnh]";
+                else if (room.lastMessage.messageType === "VIDEO")
+                  content = "[Video]";
+                else if (room.lastMessage.messageType === "FILE")
+                  content = "[Tệp tin]";
 
                 lastMessage = `${senderPrefix}: ${content || ""}`;
               }
@@ -228,7 +234,7 @@ export default function ChatPage() {
     let isSubscribed = true;
 
     const connectWS = async () => {
-      const token = sessionStorage.getItem("accessToken");
+      const token = localStorage.getItem("accessToken");
       if (!token) {
         console.error("[WEBSOCKET] ❌ No access token found");
         return;
@@ -411,16 +417,16 @@ export default function ChatPage() {
           const msgs = response.data.data.data
             .map(
               (m: MessageDTO) =>
-              ({
-                id: m.id,
-                chatRoomId: m.chatRoomId,
-                senderId: m.sender.senderId,
-                senderUsername: m.sender.senderName,
-                senderAvatar: m.sender.senderAvatar,
-                messageType: m.messageType,
-                textContent: m.textContent,
-                createdAt: m.createdAt,
-              } as Message)
+                ({
+                  id: m.id,
+                  chatRoomId: m.chatRoomId,
+                  senderId: m.sender.senderId,
+                  senderUsername: m.sender.senderName,
+                  senderAvatar: m.sender.senderAvatar,
+                  messageType: m.messageType,
+                  textContent: m.textContent,
+                  createdAt: m.createdAt,
+                } as Message)
             )
             .reverse();
 
@@ -522,7 +528,12 @@ export default function ChatPage() {
         <div className="p-4 border-b">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-xl font-semibold">Tin nhắn</h1>
-            <Button size="icon" variant="ghost" onClick={() => setIsCreateGroupOpen(true)} title="Tạo nhóm mới">
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => setIsCreateGroupOpen(true)}
+              title="Tạo nhóm mới"
+            >
               <Plus className="w-5 h-5" />
             </Button>
           </div>
