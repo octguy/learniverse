@@ -29,6 +29,7 @@ export default function ProfilePage() {
 
     const [myPosts, setMyPosts] = useState<PostResponse[]>([]);
     const [savedContent, setSavedContent] = useState<BookmarkResponse[]>([]);
+    const [savedTotalCount, setSavedTotalCount] = useState(0);
     const [loadingContent, setLoadingContent] = useState(false);
 
     const [friends, setFriends] = useState<SuggestedFriend[]>([]);
@@ -96,7 +97,24 @@ export default function ProfilePage() {
             const data = await interactionService.getMyBookmarks();
             // @ts-ignore
             const bookmarks = data.content || [];
-            setSavedContent(bookmarks);
+            if (data.totalElements) setSavedTotalCount(data.totalElements);
+            
+            // Enrich bookmarks with full post details to ensure content/images are available
+            const enhancedBookmarks = await Promise.all(bookmarks.map(async (b: any) => {
+                if (b.postSummary) {
+                    try {
+                        const detail = await postService.getPostById(b.postSummary.id);
+                        if (detail?.data) {
+                            return { ...b, postSummary: detail.data };
+                        }
+                    } catch (e) {
+                        console.error("Failed to load full post details for bookmark", b.postSummary.id);
+                    }
+                }
+                return b;
+            }));
+
+            setSavedContent(enhancedBookmarks);
         } catch (error) {
             console.error("Lỗi tải bookmark:", error);
         } finally {
@@ -110,7 +128,10 @@ export default function ProfilePage() {
     }, []);
 
     useEffect(() => {
-        if (user?.id) fetchMyPosts();
+        if (user?.id) {
+            fetchMyPosts();
+            fetchBookmarks();
+        }
     }, [user?.id, profile]);
 
     if (loading) return <div className="flex h-[50vh] items-center justify-center"><Loader2 className="animate-spin text-blue-600 w-8 h-8" /></div>;
@@ -198,8 +219,8 @@ export default function ProfilePage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6"><div className="lg:col-span-4">
                     <Tabs defaultValue="posts" className="w-full" onValueChange={(val) => {
-                        if (val === "posts") fetchMyPosts();
-                        if (val === "saved") fetchBookmarks();
+                        if (val === "posts" && myPosts.length === 0) fetchMyPosts();
+                        if (val === "saved" && savedContent.length === 0) fetchBookmarks();
                     }}>
                         <div className="border-b border-gray-200 dark:border-gray-800 mb-6">
                             <TabsList className="bg-transparent h-auto p-0 gap-6">
@@ -213,19 +234,21 @@ export default function ProfilePage() {
                                     value="saved"
                                     className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 bg-transparent px-4 py-3 gap-2 text-base font-medium text-gray-500 hover:text-gray-700 transition-all shadow-none"
                                 >
-                                    <Bookmark className="w-4 h-4" /> Đã lưu ({savedContent.length})
+                                    <Bookmark className="w-4 h-4" /> Đã lưu ({savedTotalCount || savedContent.length})
                                 </TabsTrigger>
                             </TabsList>
                         </div>
 
-                        <TabsContent value="posts" className="space-y-4 focus-visible:ring-0 outline-none">
+                        <TabsContent value="posts" className="space-y-4 focus-visible:ring-0 outline-none w-full min-h-[500px]">
                             {isMe && (
                                 <div className="mb-6">
                                     <CreatePostTrigger onPostCreated={fetchMyPosts} />
                                 </div>
                             )}
                             {loadingContent ? (
-                                <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-400" /></div>
+                                <div className="flex items-center justify-center w-full h-[300px]">
+                                    <Loader2 className="animate-spin text-blue-600 w-8 h-8" />
+                                </div>
                             ) : myPosts.length > 0 ? (
                                 myPosts.map((post) => (
                                     <PostCard 
@@ -242,9 +265,11 @@ export default function ProfilePage() {
                             )}
                         </TabsContent>
 
-                        <TabsContent value="saved" className="space-y-4 focus-visible:ring-0 outline-none">
+                        <TabsContent value="saved" className="space-y-4 focus-visible:ring-0 outline-none w-full min-h-[500px]">
                             {loadingContent ? (
-                                <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-400" /></div>
+                                <div className="flex items-center justify-center w-full h-[300px]">
+                                    <Loader2 className="animate-spin text-blue-600 w-8 h-8" />
+                                </div>
                             ) : savedContent.length > 0 ? (
                                 savedContent.map((bookmark) => {
                                     if (bookmark.postSummary) {
