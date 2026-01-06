@@ -10,6 +10,7 @@ export interface QuestionQuery {
     page?: number
     size?: number
     sort?: string
+    query?: string
 }
 
 const BASE_PATH = "/questions"
@@ -20,14 +21,24 @@ function unwrap<T>(response: ApiResponse<T>) {
 
 export const questionService = {
     async list(params: QuestionQuery = {}) {
+        const url = BASE_PATH;
+        const searchParams: any = {
+            page: params.page,
+            size: params.size,
+            sort: params.sort,
+        };
+
+        if (params.query) {
+            searchParams.query = params.query;
+            searchParams.keyword = params.query;
+            searchParams.search = params.query;
+            searchParams.title = params.query;
+        }
+
         const response = await apiService.get<
             ApiResponse<PageResponse<QuestionSummary>>
-        >(BASE_PATH, {
-            params: {
-                page: params.page,
-                size: params.size,
-                sort: params.sort,
-            },
+        >(url, {
+            params: searchParams,
         })
         return unwrap(response.data)
     },

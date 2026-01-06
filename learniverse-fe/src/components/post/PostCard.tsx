@@ -106,9 +106,13 @@ export function PostCard({ post, onDelete }: PostCardProps) {
       } else {
         window.location.reload()
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Lỗi xóa bài viết:", error)
-      toast.error("Không thể xóa bài viết")
+      if (error.response?.status === 500) {
+        toast.error("Lỗi máy chủ khi xóa bài viết. Vui lòng báo cáo với admin.")
+      } else {
+        toast.error("Không thể xóa bài viết")
+      }
     }
   }
 
@@ -179,8 +183,8 @@ export function PostCard({ post, onDelete }: PostCardProps) {
       <CardHeader className="p-4 pb-1 space-y-3">
         <div className="flex items-center gap-3">
           <Avatar className="h-10 w-10">
-            <AvatarImage src={author.avatarUrl} />
-            <AvatarFallback>{author.username.charAt(0)}</AvatarFallback>
+            <AvatarImage src={author.avatarUrl || (author as any).avatar} />
+            <AvatarFallback>{author.username?.charAt(0)}</AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
             <p className="font-semibold text-sm leading-none truncate">
@@ -361,18 +365,18 @@ export function PostCard({ post, onDelete }: PostCardProps) {
         )}
         {showComments && (
           <div className="w-full animate-in slide-in-from-top-2 duration-200">
-            <CommentSection 
-              postId={post.id} 
+            <CommentSection
+              postId={post.id}
               commentableType={post.contentType}
-              onCommentAdded={() => setCommentCount(prev => prev + 1)} 
+              onCommentAdded={() => setCommentCount(prev => prev + 1)}
             />
           </div>
         )}
       </CardFooter>
 
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <CreatePostModal 
-          setOpen={setIsEditModalOpen} 
+        <CreatePostModal
+          setOpen={setIsEditModalOpen}
           onSuccess={() => {
             // Có thể thêm logic reload post hoặc update UI ở đây
             window.location.reload(); // Tạm thời reload để thấy thay đổi
