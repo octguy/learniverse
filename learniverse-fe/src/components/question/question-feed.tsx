@@ -225,108 +225,106 @@ export function QuestionFeed() {
                     </div>
                 </div>
 
-                {/* Row 2: Tag filter + Sort options */}
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    {/* Tag filter dropdown - multiple selection */}
-                    <div className="flex items-center gap-2">
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="sm" className="gap-1">
-                                    Môn học {selectedTags.length > 0 && `(${selectedTags.length})`}
-                                    <ChevronDown className="size-3" />
+                {/* Row 2: Sort options */}
+                <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Sắp xếp:</span>
+                    <div className="inline-flex rounded-md border bg-muted/40 p-1">
+                        {SORT_OPTIONS.map((option) => {
+                            const isActive = option.id === activeSort.id
+                            return (
+                                <Button
+                                    key={option.id}
+                                    variant={isActive ? "default" : "ghost"}
+                                    size="sm"
+                                    className="rounded-md text-xs"
+                                    onClick={() => {
+                                        setActiveSort(option)
+                                        setPageIndex(0)
+                                    }}
+                                >
+                                    {option.label}
                                 </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="start" className="max-h-64 overflow-y-auto">
-                                <DropdownMenuItem
+                            )
+                        })}
+                    </div>
+                </div>
+
+                {/* Row 3: Tag filter */}
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Môn học:</span>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm" className="gap-1">
+                                {selectedTags.length > 0 ? `Đã chọn (${selectedTags.length})` : "Tất cả"}
+                                <ChevronDown className="size-3" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="max-h-64 overflow-y-auto">
+                            <DropdownMenuItem
+                                onClick={() => {
+                                    setSelectedTags([])
+                                    setPageIndex(0)
+                                }}
+                                className={selectedTags.length === 0 ? "bg-accent" : ""}
+                            >
+                                Tất cả môn học
+                            </DropdownMenuItem>
+                            {tags.map((tag) => {
+                                const isSelected = selectedTags.some(t => t.id === tag.id)
+                                return (
+                                    <DropdownMenuItem
+                                        key={tag.id}
+                                        onClick={(e) => {
+                                            e.preventDefault()
+                                            if (isSelected) {
+                                                setSelectedTags(selectedTags.filter(t => t.id !== tag.id))
+                                            } else {
+                                                setSelectedTags([...selectedTags, tag])
+                                            }
+                                            setPageIndex(0)
+                                        }}
+                                        className={isSelected ? "bg-accent" : ""}
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            {isSelected && <span className="text-primary">✓</span>}
+                                            {tag.name}
+                                        </span>
+                                    </DropdownMenuItem>
+                                )
+                            })}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    {/* Selected tags badges */}
+                    {selectedTags.length > 0 && (
+                        <>
+                            {selectedTags.map(tag => (
+                                <Badge key={tag.id} variant="secondary" className="gap-1 text-xs">
+                                    {tag.name}
+                                    <button
+                                        onClick={() => {
+                                            setSelectedTags(selectedTags.filter(t => t.id !== tag.id))
+                                            setPageIndex(0)
+                                        }}
+                                        className="ml-0.5 rounded-full hover:bg-muted-foreground/20"
+                                    >
+                                        <X className="size-3" />
+                                    </button>
+                                </Badge>
+                            ))}
+                            {selectedTags.length > 1 && (
+                                <button
                                     onClick={() => {
                                         setSelectedTags([])
                                         setPageIndex(0)
                                     }}
-                                    className={selectedTags.length === 0 ? "bg-accent" : ""}
+                                    className="text-xs text-muted-foreground hover:text-foreground"
                                 >
-                                    Tất cả môn học
-                                </DropdownMenuItem>
-                                {tags.map((tag) => {
-                                    const isSelected = selectedTags.some(t => t.id === tag.id)
-                                    return (
-                                        <DropdownMenuItem
-                                            key={tag.id}
-                                            onClick={(e) => {
-                                                e.preventDefault()
-                                                if (isSelected) {
-                                                    setSelectedTags(selectedTags.filter(t => t.id !== tag.id))
-                                                } else {
-                                                    setSelectedTags([...selectedTags, tag])
-                                                }
-                                                setPageIndex(0)
-                                            }}
-                                            className={isSelected ? "bg-accent" : ""}
-                                        >
-                                            <span className="flex items-center gap-2">
-                                                {isSelected && <span className="text-primary">✓</span>}
-                                                {tag.name}
-                                            </span>
-                                        </DropdownMenuItem>
-                                    )
-                                })}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-
-                        {/* Selected tags badges */}
-                        {selectedTags.length > 0 && (
-                            <div className="flex flex-wrap items-center gap-1">
-                                {selectedTags.map(tag => (
-                                    <Badge key={tag.id} variant="secondary" className="gap-1 text-xs">
-                                        {tag.name}
-                                        <button
-                                            onClick={() => {
-                                                setSelectedTags(selectedTags.filter(t => t.id !== tag.id))
-                                                setPageIndex(0)
-                                            }}
-                                            className="ml-0.5 rounded-full hover:bg-muted-foreground/20"
-                                        >
-                                            <X className="size-3" />
-                                        </button>
-                                    </Badge>
-                                ))}
-                                {selectedTags.length > 1 && (
-                                    <button
-                                        onClick={() => {
-                                            setSelectedTags([])
-                                            setPageIndex(0)
-                                        }}
-                                        className="text-xs text-muted-foreground hover:text-foreground"
-                                    >
-                                        Xóa tất cả
-                                    </button>
-                                )}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Sort options */}
-                    <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">Sắp xếp:</span>
-                        <div className="inline-flex rounded-md border bg-muted/40 p-1">
-                            {SORT_OPTIONS.map((option) => {
-                                const isActive = option.id === activeSort.id
-                                return (
-                                    <Button
-                                        key={option.id}
-                                        variant={isActive ? "default" : "ghost"}
-                                        size="sm"
-                                        className="rounded-md text-xs"
-                                        onClick={() => {
-                                            setActiveSort(option)
-                                            setPageIndex(0)
-                                        }}
-                                    >
-                                        {option.label}
-                                    </Button>
-                                )
-                            })}
-                        </div>
-                    </div>
+                                    Xóa tất cả
+                                </button>
+                            )}
+                        </>
+                    )}
                 </div>
             </div>
 
