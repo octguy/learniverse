@@ -17,18 +17,19 @@ export function NotificationItem({ notification, onClick }: NotificationItemProp
         <div
             className={cn(
                 'flex cursor-pointer items-start gap-3 p-3 transition-colors hover:bg-accent',
-                !notification.read && 'bg-blue-50 dark:bg-blue-900/20'
+                !notification.isRead && 'bg-blue-50 dark:bg-blue-900/20'
             )}
             onClick={() => onClick?.(notification.id)}
         >
             <Avatar className="h-9 w-9">
-                <AvatarImage src={notification.avatarUrl} alt="Avatar" />
+                <AvatarImage src={notification.senderAvatarUrl || undefined} alt="Avatar" />
                 <AvatarFallback>
-                    {notification.text.charAt(0).toUpperCase()}
+                    {notification.senderName?.charAt(0).toUpperCase() || "U"}
                 </AvatarFallback>
             </Avatar>
             <div className="flex-1 space-y-1">
-                <p className="text-sm leading-snug" dangerouslySetInnerHTML={{ __html: notification.text }} />
+                <p className="text-sm font-semibold">{notification.senderName}</p>
+                <p className="text-sm leading-snug" dangerouslySetInnerHTML={{ __html: notification.content }} />
                 <p className="text-xs text-muted-foreground">
                     {formatDistanceToNow(new Date(notification.createdAt), {
                         locale: vi,
@@ -37,7 +38,7 @@ export function NotificationItem({ notification, onClick }: NotificationItemProp
                 </p>
             </div>
 
-            {!notification.read && (
+            {!notification.isRead && (
                 <div className="h-2.5 w-2.5 self-center rounded-full bg-blue-500" />
             )}
         </div>

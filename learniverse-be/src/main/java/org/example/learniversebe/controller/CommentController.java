@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.example.learniversebe.dto.request.CreateCommentRequest;
 import org.example.learniversebe.dto.request.UpdateCommentRequest;
+import org.example.learniversebe.enums.CommentableType;
 import org.example.learniversebe.model.ApiResponse;
 import org.example.learniversebe.dto.response.CommentResponse;
 import org.example.learniversebe.dto.response.PageResponse;
@@ -43,8 +44,8 @@ public class CommentController {
     @GetMapping
     @Operation(summary = "Get comments for an entity (Post, Answer)", description = "Retrieves paginated top-level comments for a given entity.")
     public ResponseEntity<ApiResponse<PageResponse<CommentResponse>>> getCommentsFor(
-            @RequestParam ReactableType type, // CONTENT or ANSWER
-            @RequestParam UUID id, // ID của Content hoặc Answer
+            @RequestParam ReactableType type,
+            @RequestParam UUID id,
             @ParameterObject @PageableDefault(sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.ASC) Pageable pageable) {
         PageResponse<CommentResponse> commentPage = commentService.getCommentsFor(type, id, pageable);
         ApiResponse<PageResponse<CommentResponse>> response = new ApiResponse<>(HttpStatus.OK, "Comments retrieved successfully", commentPage, null);
@@ -68,7 +69,6 @@ public class CommentController {
         ApiResponse<CommentResponse> response = new ApiResponse<>(HttpStatus.OK, "Comment retrieved successfully", comment, null);
         return ResponseEntity.ok(response);
     }
-
 
     @PutMapping("/{commentId}")
     @PreAuthorize("hasRole('USER')")

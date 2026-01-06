@@ -4,7 +4,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.example.learniversebe.dto.request.BookmarkRequest;
-import org.example.learniversebe.dto.request.CreateReportRequest;
 import org.example.learniversebe.dto.request.ReactionRequest;
 import org.example.learniversebe.dto.request.VoteRequest;
 import org.example.learniversebe.model.ApiResponse;

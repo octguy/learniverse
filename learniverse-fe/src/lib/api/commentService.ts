@@ -6,9 +6,10 @@ const BASE_URL = "/comments";
 
 export const commentService = {
   getComments: async (type: "POST" | "QUESTION" | "ANSWER", id: string, page = 0, size = 10) => {
+    const backendType = (type === "POST" || type === "QUESTION") ? "CONTENT" : type;
     const response = await apiService.get<ApiResponse<PageResponse<Comment>>>(BASE_URL, {
       params: {
-        type,
+        type: backendType,
         id,
         page,
         size,
@@ -35,7 +36,13 @@ export const commentService = {
     body: string;
     parentId?: string;
   }) => {
-    const response = await apiService.post<ApiResponse<Comment>>(BASE_URL, payload);
+    const backendPayload = {
+      ...payload,
+      commentableType: (payload.commentableType === "POST" || payload.commentableType === "QUESTION")
+        ? "CONTENT"
+        : payload.commentableType
+    };
+    const response = await apiService.post<ApiResponse<Comment>>(BASE_URL, backendPayload);
     return response.data.data;
   }
 };

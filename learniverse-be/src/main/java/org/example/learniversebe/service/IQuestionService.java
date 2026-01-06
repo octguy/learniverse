@@ -5,7 +5,9 @@ import org.example.learniversebe.dto.request.UpdateQuestionRequest;
 import org.example.learniversebe.dto.response.PageResponse;
 import org.example.learniversebe.dto.response.QuestionResponse;
 import org.example.learniversebe.dto.response.QuestionSummaryResponse;
+import org.example.learniversebe.enums.ContentStatus;
 import org.springframework.data.domain.Pageable;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -82,6 +84,9 @@ public interface IQuestionService {
      * @throws org.example.learniversebe.exception.ResourceNotFoundException if the question is not found.
      */
     QuestionResponse getQuestionBySlug(String slug, Pageable answerPageable);
+
+    @Transactional(readOnly = true)
+    PageResponse<QuestionSummaryResponse> getMyQuestions(ContentStatus status, Pageable pageable);
 
     /**
      * Updates an existing question identified by its ID.

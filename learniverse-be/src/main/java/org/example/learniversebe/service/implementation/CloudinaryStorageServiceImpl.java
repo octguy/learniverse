@@ -32,23 +32,57 @@ public class CloudinaryStorageServiceImpl implements IStorageService {
 
         String contentType = file.getContentType();
         String resourceType = "auto";
+        String publicId = UUID.randomUUID().toString();
 
-        if (contentType != null && !contentType.startsWith("image/")) {
-            resourceType = "raw";
-        } else {
+
+        if (contentType != null && contentType.startsWith("image/")) {
             resourceType = "image";
+            String extension = getFileExtension(file.getOriginalFilename());
+            if (!extension.isEmpty()) {
+                publicId = publicId + "." + extension;
+            }
+        } else if (PDF_TYPE.equals(contentType)) {
+            resourceType = "raw";
+            // CRITICAL: PDF phải có extension để mở được
+            publicId = publicId + ".pdf";
+        } else {
+            resourceType = "raw";
+            // Các file khác cũng nên có extension
+            String extension = getFileExtension(file.getOriginalFilename());
+            if (!extension.isEmpty()) {
+                publicId = publicId + "." + extension;
+            }
         }
 
         Map uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.asMap(
                 "resource_type", resourceType,
                 "folder", "learniverse/posts",
-                "public_id", UUID.randomUUID().toString()
+                "public_id", publicId
         ));
 
         return Map.of(
                 "url", (String) uploadResult.get("secure_url"),
                 "key", (String) uploadResult.get("public_id")
         );
+    }
+
+    /**
+     * Extract file extension từ filename
+     */
+    private String getFileExtension(String filename) {
+        if (filename == null || filename.isEmpty()) {
+            return "";
+        }
+        int lastDotIndex = filename.lastIndexOf('.');
+        if (lastDotIndex > 0 && lastDotIndex < filename.length() - 1) {
+            String ext = filename.substring(lastDotIndex + 1).toLowerCase();
+            // Validate extension
+            List<String> allowedExtensions = Arrays.asList("pdf", "jpg", "jpeg", "png", "gif", "webp");
+            if (allowedExtensions.contains(ext)) {
+                return ext;
+            }
+        }
+        return "";
     }
 
     private void validateFile(MultipartFile file) {

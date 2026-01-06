@@ -71,6 +71,9 @@ public class PostResponse {
     @Schema(description = "Danh sách file đính kèm")
     private Set<AttachmentResponse> attachments;
 
+    @Schema(description = "Bài đăng gốc")
+    private PostSummaryResponse originalPost;
+
     // Trạng thái của người dùng hiện tại đối với post này
     @Schema(description = "Đã được người dùng lưu lại hay chưa")
     private boolean bookmarkedByCurrentUser;

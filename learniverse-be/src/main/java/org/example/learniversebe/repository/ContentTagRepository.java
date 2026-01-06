@@ -27,4 +27,9 @@ public interface ContentTagRepository extends JpaRepository<ContentTag, ContentT
 
     // Đếm số lượng bài viết cho một tag (ví dụ)
     long countByTagId(UUID tagId);
+
+    // Soft delete all ContentTag records by tag ID
+    @Modifying
+    @Query("UPDATE ContentTag ct SET ct.deletedAt = CURRENT_TIMESTAMP WHERE ct.contentTagId.tagId = :tagId AND ct.deletedAt IS NULL")
+    void softDeleteByTagId(@Param("tagId") UUID tagId);
 }

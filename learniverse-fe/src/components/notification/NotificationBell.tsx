@@ -12,35 +12,64 @@ import {
 import { NotificationList } from './NotificationList';
 import type { Notification } from '@/types/notification';
 import Link from 'next/link';
-import { mockNotifications } from '@/lib/mockData'; // <-- ĐÃ IMPORT TỪ ĐÂY
+import { notificationService } from '@/lib/api/notificationService';
+import { useNotification } from '@/context/NotificationContext';
 
 export function NotificationBell() {
-    // mock data
-    const [notifications, setNotifications] = React.useState(mockNotifications);
+    const [notifications, setNotifications] = React.useState<Notification[]>([]);
+    const { unreadNotificationsCount, refreshNotifications } = useNotification();
+    const [isOpen, setIsOpen] = React.useState(false);
 
-    const unreadCount = notifications.filter((n) => !n.read).length;
+    React.useEffect(() => {
+        if (isOpen) {
+            loadNotifications();
+        }
+    }, [isOpen]);
 
-    const handleMarkAsRead = (id: string) => {
-        setNotifications((prev) =>
-            prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-        );
+    const loadNotifications = async () => {
+        try {
+            const data = await notificationService.getNotifications(0, 20);
+            setNotifications(data.content);
+        } catch (error) {
+            console.error("Failed to load notifications", error);
+        }
     };
 
-    const handleMarkAllAsRead = () => {
-        setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    const handleMarkAsRead = async (id: string) => {
+        try {
+            await notificationService.markAsRead(id);
+            setNotifications((prev) =>
+                prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+            );
+            refreshNotifications();
+        } catch (error) {
+            console.error("Failed to mark as read", error);
+        }
+    };
+
+    const handleMarkAllAsRead = async () => {
+        try {
+            await notificationService.markAllAsRead();
+            setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+            refreshNotifications();
+        } catch (error) {
+            console.error("Failed to mark all as read", error);
+        }
     };
 
     return (
-        <Popover>
+        <Popover open={isOpen} onOpenChange={setIsOpen}>
             <PopoverTrigger asChild>
-                <div className="flex flex-col items-center text-gray-600 hover:text-primary relative cursor-pointer">
-                    <Bell className="w-5 h-5" />
+                <div className="flex flex-col items-center text-gray-600 hover:text-primary cursor-pointer">
+                    <div className="relative">
+                        <Bell className="w-5 h-5" />
+                        {unreadNotificationsCount > 0 && (
+                            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center border-2 border-white">
+                                {unreadNotificationsCount > 9 ? "9+" : unreadNotificationsCount}
+                            </span>
+                        )}
+                    </div>
                     <span className="text-xs">Notifications</span>
-                    {unreadCount > 0 && (
-                        <span className="absolute -top-1 right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
-              {unreadCount > 9 ? "9+" : unreadCount}
-            </span>
-                    )}
                 </div>
             </PopoverTrigger>
             <PopoverContent className="w-96 p-0 h-[450px] flex flex-col" align="end">
@@ -51,7 +80,7 @@ export function NotificationBell() {
                         variant="ghost"
                         size="sm"
                         onClick={handleMarkAllAsRead}
-                        disabled={unreadCount === 0}
+                        disabled={unreadNotificationsCount === 0}
                     >
                         <Check className="w-4 h-4 mr-1.5" />
                         Đánh dấu đã đọc

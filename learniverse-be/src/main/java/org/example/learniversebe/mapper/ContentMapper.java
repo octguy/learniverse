@@ -47,6 +47,7 @@ public interface ContentMapper {
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "deletedAt", ignore = true)
+    @Mapping(target = "originalContent", ignore = true)
     Content createPostRequestToContent(CreatePostRequest request);
 
     /**
@@ -75,6 +76,7 @@ public interface ContentMapper {
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "deletedAt", ignore = true)
+    @Mapping(target = "originalContent", ignore = true)
     Content createQuestionRequestToContent(CreateQuestionRequest request);
 
     /**
@@ -85,6 +87,7 @@ public interface ContentMapper {
     @Mapping(source = "contentTags", target = "tags", qualifiedByName = "contentTagsToTagResponses")
     @Mapping(target = "bookmarkedByCurrentUser", ignore = true)
     @Mapping(target = "currentUserReaction", ignore = true)
+    @Mapping(source = "originalContent", target = "originalPost", qualifiedByName = "mapOriginalPost")
     PostResponse contentToPostResponse(Content content);
 
     /**
@@ -95,6 +98,7 @@ public interface ContentMapper {
     @Mapping(source = "body", target = "bodyExcerpt", qualifiedByName = "generateExcerpt")
     @Mapping(target = "bookmarkedByCurrentUser", ignore = true)
     @Mapping(target = "currentUserReaction", ignore = true)
+    @Mapping(source = "originalContent", target = "originalPost", qualifiedByName = "mapOriginalPost")
     PostSummaryResponse contentToPostSummaryResponse(Content content);
 
     /**
@@ -178,5 +182,30 @@ public interface ContentMapper {
         }
         int limit = 150;
         return body.length() > limit ? body.substring(0, limit) + "..." : body;
+    }
+
+    @Named("mapOriginalPost")
+    default PostSummaryResponse mapOriginalPost(Content originalContent) {
+        // Case 1: originalContent là NULL.
+        // Có 2 lý do:
+        // a. Bài viết này không phải là bài Share (cột original_id null).
+        // b. Bài viết gốc ĐÃ BỊ XÓA (Soft delete), và nhờ @NotFound(IGNORE), Hibernate trả về null thay vì ném Exception.
+        if (originalContent == null) {
+            return null;
+        }
+
+        // Case 2: Phòng hờ trường hợp filter không hoạt động (dữ liệu rác vẫn load lên được)
+        if (originalContent.getDeletedAt() != null) {
+            return null;
+        }
+
+        // Case 3: Bài gốc còn tồn tại -> Map bình thường
+        // Cần gọi lại mapper để convert Entity -> DTO
+        PostSummaryResponse response = contentToPostSummaryResponse(originalContent);
+
+        // Đặt originalPost của bài con bằng null để tránh lặp vô tận hoặc dữ liệu quá sâu
+        response.setOriginalPost(null);
+
+        return response;
     }
 }

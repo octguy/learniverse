@@ -6,10 +6,10 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.example.learniversebe.enums.ContentStatus;
 import org.example.learniversebe.enums.ContentType;
-import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.NotFound;
+import org.hibernate.annotations.NotFoundAction;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
-import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -89,6 +89,11 @@ public class Content extends BaseEntity {
     @OneToMany(mappedBy = "content", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private Set<Attachment> attachments = new HashSet<>();
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "original_content_id")
+    @NotFound(action = NotFoundAction.IGNORE)
+    private Content originalContent;
+
     @PrePersist
     protected void onCreate() {
         LocalDateTime now = LocalDateTime.now();
@@ -107,13 +112,13 @@ public class Content extends BaseEntity {
     }
 
     // Helper method để thêm attachment
-    public void addAttachment(Attachment attachment) {
-        attachments.add(attachment);
-        attachment.setContent(this);
-    }
-
-    public void removeAttachment(Attachment attachment) {
-        attachments.remove(attachment);
-        attachment.setContent(null);
-    }
+//    public void addAttachment(Attachment attachment) {
+//        attachments.add(attachment);
+//        attachment.setContent(this);
+//    }
+//
+//    public void removeAttachment(Attachment attachment) {
+//        attachments.remove(attachment);
+//        attachment.setContent(null);
+//    }
 }

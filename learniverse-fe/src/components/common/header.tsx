@@ -6,13 +6,15 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Bell, HomeIcon, Search, MessageCircle, Users, Settings, LogOut, Home, LayoutGrid, BadgeQuestionMark } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useNotification } from '@/context/NotificationContext';
 import { Skeleton } from '@/components/ui/skeleton';
+import { NotificationBell } from '@/components/notification/NotificationBell';
 
-
-const unreadCount = 5;
 
 export function Header() {
   const { user, loading } = useAuth();
+  const { unreadMessagesCount, pendingFriendRequestsCount, unreadNotificationsCount } = useNotification();
+
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-2 sticky top-0 z-50">
       <div className="flex items-center gap-x-20 max-w-7xl mx-auto">
@@ -38,7 +40,7 @@ export function Header() {
             </button>
 
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-2">
+            <Link href="/home" className="flex items-center gap-2">
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-lg">L</span>
               </div>
@@ -65,26 +67,32 @@ export function Header() {
             <span className="text-xs">Home</span>
           </Link>
           <Link href="/friend" className="flex flex-col items-center text-gray-600 hover:text-primary">
-            <Users className="w-5 h-5" />
+            <div className="relative">
+              <Users className="w-5 h-5" />
+              {pendingFriendRequestsCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center border-2 border-white">
+                  {pendingFriendRequestsCount > 9 ? "9+" : pendingFriendRequestsCount}
+                </span>
+              )}
+            </div>
             <span className="text-xs">Network</span>
           </Link>
           <Link href="/questions" className="flex flex-col items-center text-gray-600 hover:text-primary">
             <BadgeQuestionMark className="w-5 h-5" />
             <span className="text-xs">Question</span>
           </Link>
-          <Link href="/chat" className="flex flex-col items-center text-gray-600 hover:text-primary relative">
-            <MessageCircle className="w-5 h-5" />
+          <Link href="/chat" className="flex flex-col items-center text-gray-600 hover:text-primary">
+            <div className="relative">
+              <MessageCircle className="w-5 h-5" />
+              {unreadMessagesCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center border-2 border-white">
+                  {unreadMessagesCount > 9 ? "9+" : unreadMessagesCount}
+                </span>
+              )}
+            </div>
             <span className="text-xs">Chat</span>
-            {unreadCount > 0 && (
-              <span className="absolute -top-1 right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
-                {unreadCount > 9 ? "9+" : unreadCount}
-              </span>
-            )}
           </Link>
-          <Link href="/notifications" className="flex flex-col items-center text-gray-600 hover:text-primary">
-            <Bell className="w-5 h-5" />
-            <span className="text-xs">Notifications</span>
-          </Link>
+          <NotificationBell />
 
           {loading ? (
             <div className="flex flex-col items-center text-gray-600 cursor-wait">

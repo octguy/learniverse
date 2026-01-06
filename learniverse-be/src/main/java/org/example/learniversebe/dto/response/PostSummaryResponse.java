@@ -57,4 +57,7 @@ public class PostSummaryResponse {
 
     @Schema(description = "Reaction của user hiện tại (nếu có)")
     private ReactionType currentUserReaction;
+
+    @Schema(description = "Bài đăng gốc")
+    private PostSummaryResponse originalPost;
 }

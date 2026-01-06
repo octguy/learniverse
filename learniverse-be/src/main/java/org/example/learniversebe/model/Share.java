@@ -6,16 +6,19 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.example.learniversebe.enums.ShareType;
-import org.example.learniversebe.enums.VoteType;
-import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
-import org.hibernate.type.SqlTypes;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name="\"shares\"")
+@Table(
+        name="\"shares\"",
+        uniqueConstraints = {
+                @UniqueConstraint(columnNames = {"shared_by", "content_id", "share_type"})
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -24,6 +27,7 @@ import java.util.UUID;
 @SQLRestriction("deleted_at IS NULL")
 public class Share extends BaseEntity{
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(columnDefinition = "uuid", updatable = false, nullable = false)
     private UUID id;
 
@@ -41,4 +45,18 @@ public class Share extends BaseEntity{
 
     @Column(name = "target_id")
     private UUID targetId;
+
+    @PrePersist
+    protected void onCreate() {
+        LocalDateTime now = LocalDateTime.now();
+        if (this.getCreatedAt() == null) {
+            this.setCreatedAt(now);
+        }
+        this.setUpdatedAt(now);
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.setUpdatedAt(LocalDateTime.now());
+    }
 }

@@ -157,32 +157,52 @@ public class PostServiceImpl implements IPostService {
         return AttachmentType.OTHER;
     }
 
-    @Override
     @Transactional
-    public PostResponse publishPost(UUID postId) {
+    @Override
+    public PostResponse updatePostStatus(UUID postId, ContentStatus newStatus) {
         User currentUser = serviceHelper.getCurrentUser();
 
         Content content = contentRepository.findByIdAndContentType(postId, ContentType.POST)
                 .orElseThrow(() -> new ResourceNotFoundException("Post not found"));
 
         if (!content.getAuthor().getId().equals(currentUser.getId())) {
-            throw new UnauthorizedException("Not authorized to publish this post");
+            throw new UnauthorizedException("Not authorized to update status of this post");
         }
 
-        if (content.getStatus() == ContentStatus.PUBLISHED) {
-            throw new BadRequestException("Post is already published");
+        if (newStatus == ContentStatus.DELETED) {
+            throw new BadRequestException("Use delete API to delete content");
         }
 
-        content.setStatus(ContentStatus.PUBLISHED);
-        content.setPublishedAt(LocalDateTime.now());
+        if (newStatus == ContentStatus.DRAFT) {
+            throw new BadRequestException("Cannot change status of a published post to draft");
+        }
+
+        ContentStatus oldStatus = content.getStatus();
+
+        if (oldStatus == newStatus) {
+            return getPostResponseWithInteraction(content);
+        }
+
+        content.setStatus(newStatus);
+
+        if (newStatus == ContentStatus.PUBLISHED) {
+            if (content.getPublishedAt() == null) {
+                content.setPublishedAt(LocalDateTime.now());
+            } else {
+                content.setPublishedAt(content.getPublishedAt());
+                content.setUpdatedAt(LocalDateTime.now());
+            }
+        }
+
         Content saved = contentRepository.save(content);
         return getPostResponseWithInteraction(saved);
     }
 
     @Override
     public PageResponse<PostSummaryResponse> getNewsfeedPosts(Pageable pageable) {
-        Page<Content> page = contentRepository.findByContentTypeAndStatus(
-                ContentType.POST, ContentStatus.PUBLISHED, pageable);
+        List<ContentType> types = List.of(ContentType.POST, ContentType.SHARED_POST);
+        Page<Content> page = contentRepository.findByContentTypeInAndStatus(
+                types, ContentStatus.PUBLISHED, pageable);
 
         PageResponse<PostSummaryResponse> response = contentMapper.contentPageToPostSummaryPage(page);
 
@@ -207,7 +227,9 @@ public class PostServiceImpl implements IPostService {
         if (!userRepository.existsById(authorId)) {
             throw new ResourceNotFoundException("Author not found with id: " + authorId);
         }
-        Page<Content> postPage = contentRepository.findByAuthorIdAndContentTypeAndStatusOrderByPublishedAtDesc(authorId, ContentType.POST, ContentStatus.PUBLISHED, pageable);
+        List<ContentType> types = List.of(ContentType.POST, ContentType.SHARED_POST);
+        Page<Content> postPage = contentRepository.findByAuthorIdAndContentTypeInAndStatusOrderByPublishedAtDesc(
+                authorId, types, ContentStatus.PUBLISHED, pageable);
         return contentMapper.contentPageToPostSummaryPage(postPage);
     }
 
@@ -225,13 +247,78 @@ public class PostServiceImpl implements IPostService {
     @Override
     @Transactional
     public PostResponse getPostById(UUID postId) {
-        Content content = contentRepository.findByIdAndContentTypeAndStatus(postId, ContentType.POST, ContentStatus.PUBLISHED)
-                .orElseThrow(() -> new ResourceNotFoundException("Post not found with id: " + postId));
+        Content content = contentRepository.findById(postId)
+                .orElseThrow(() -> new ResourceNotFoundException("Post not found"));
+
+        if (content.getContentType() != ContentType.POST && content.getContentType() != ContentType.SHARED_POST) {
+            throw new ResourceNotFoundException("Post not found");
+        }
+
+        User currentUser = serviceHelper.getCurrentUser();
 
         content.setViewCount(content.getViewCount() + 1);
         contentRepository.save(content);
 
+        boolean isAuthor = currentUser != null && content.getAuthor().getId().equals(currentUser.getId());
+        boolean isPublished = content.getStatus() == ContentStatus.PUBLISHED;
+
+        if (!isPublished && !isAuthor) {
+            throw new ResourceNotFoundException("Post not found or not accessible");
+        }
+
+        if (isPublished && !isAuthor) {
+            content.setViewCount(content.getViewCount() + 1);
+            contentRepository.save(content);
+        }
+
         return getPostResponseWithInteraction(content);
+    }
+
+    @Override
+    public PageResponse<PostSummaryResponse> getMyDraftPosts(Pageable pageable) {
+        User currentUser = serviceHelper.getCurrentUser();
+
+        Page<Content> draftPage = contentRepository.findByAuthorIdAndContentTypeAndStatusOrderByUpdatedAtDesc(
+                currentUser.getId(), ContentType.POST, ContentStatus.DRAFT, pageable);
+
+        return contentMapper.contentPageToPostSummaryPage(draftPage);
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public PageResponse<PostSummaryResponse> getMyArchivedPosts(Pageable pageable) {
+        User currentUser = serviceHelper.getCurrentUser();
+
+        Page<Content> archivedPage = contentRepository.findByAuthorIdAndContentTypeAndStatusOrderByUpdatedAtDesc(
+                currentUser.getId(),
+                ContentType.POST,
+                ContentStatus.ARCHIVED,
+                pageable
+        );
+
+        return contentMapper.contentPageToPostSummaryPage(archivedPage);
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public PageResponse<PostSummaryResponse> getMyPosts(ContentStatus status, Pageable pageable) {
+        User currentUser = serviceHelper.getCurrentUser();
+
+        ContentStatus searchStatus = (status != null) ? status : ContentStatus.PUBLISHED;
+
+        List<ContentType> types = List.of(ContentType.POST, ContentType.SHARED_POST);
+
+        Page<Content> postPage;
+
+        if (searchStatus == ContentStatus.DRAFT || searchStatus == ContentStatus.ARCHIVED) {
+            postPage = contentRepository.findByAuthorIdAndContentTypeInAndStatusOrderByUpdatedAtDesc(
+                    currentUser.getId(), types, searchStatus, pageable);
+        } else {
+            postPage = contentRepository.findByAuthorIdAndContentTypeInAndStatusOrderByPublishedAtDesc(
+                    currentUser.getId(), types, searchStatus, pageable);
+        }
+
+        return contentMapper.contentPageToPostSummaryPage(postPage);
     }
 
     @Override
@@ -248,8 +335,9 @@ public class PostServiceImpl implements IPostService {
 
     @Override
     @Transactional
-    public PostResponse updatePost(UUID postId, UpdatePostRequest request) {
+    public PostResponse updatePost(UUID postId, UpdatePostRequest request, List<MultipartFile> files) {
         User currentUser = serviceHelper.getCurrentUser();
+
         Content content = contentRepository.findByIdAndContentType(postId, ContentType.POST)
                 .orElseThrow(() -> new ResourceNotFoundException("Post not found with id: " + postId));
 
@@ -268,7 +356,6 @@ public class PostServiceImpl implements IPostService {
         history.setPreviousTitle(content.getTitle());
         history.setPreviousBody(content.getBody());
         history.setEditReason(request.getEditReason());
-        // history.setEditedAt() sẽ được set bởi @PrePersist
         editHistoryRepository.save(history);
 
         boolean titleChanged = request.getTitle() != null && !request.getTitle().equals(content.getTitle());
@@ -282,6 +369,46 @@ public class PostServiceImpl implements IPostService {
         content.getContentTags().clear();
         associateTags(content, request.getTagIds());
 
+        if (request.getAttachmentsToDelete() != null && !request.getAttachmentsToDelete().isEmpty()) {
+            List<Attachment> attachmentsToDelete = attachmentRepository.findAllById(request.getAttachmentsToDelete());
+
+            attachmentsToDelete.removeIf(att -> !att.getContent().getId().equals(postId));
+
+            // Xóa file trên Cloud
+            // for (Attachment att : attachmentsToDelete) {
+            //      storageService.deleteFile(att.getStorageKey());
+            // }
+
+            attachmentsToDelete.forEach(content.getAttachments()::remove);
+            attachmentRepository.deleteAll(attachmentsToDelete);
+        }
+
+        if (files != null && !files.isEmpty()) {
+            List<Attachment> newAttachments = new ArrayList<>();
+            for (MultipartFile file : files) {
+                try {
+                    Map<String, String> uploadResult = storageService.uploadFile(file);
+
+                    Attachment attachment = new Attachment();
+                    attachment.setContent(content);
+                    attachment.setUploadedBy(currentUser);
+                    attachment.setFileName(file.getOriginalFilename());
+                    attachment.setMimeType(file.getContentType());
+                    attachment.setFileSize(file.getSize());
+                    attachment.setStorageUrl(uploadResult.get("url"));
+                    attachment.setStorageKey(uploadResult.get("key"));
+                    attachment.setFileType(determineAttachmentType(Objects.requireNonNull(file.getContentType())));
+                    attachment.setIsVerified(true);
+
+                    newAttachments.add(attachment);
+                } catch (IOException e) {
+                    throw new BadRequestException("Failed to upload file: " + file.getOriginalFilename());
+                }
+            }
+            attachmentRepository.saveAll(newAttachments);
+            content.getAttachments().addAll(newAttachments);
+        }
+
         Content updatedContent = contentRepository.save(content);
         return getPostById(updatedContent.getId());
     }
@@ -293,22 +420,68 @@ public class PostServiceImpl implements IPostService {
         Content content = contentRepository.findByIdAndContentType(postId, ContentType.POST)
                 .orElseThrow(() -> new ResourceNotFoundException("Post not found with id: " + postId));
 
-        if (!serviceHelper.isCurrentUserAuthor(content.getAuthor().getId()) /* && !serviceHelper.isCurrentUserAdminOrModerator() */ ) {
+        if (!serviceHelper.isCurrentUserAuthor(content.getAuthor().getId())
+            /* && !serviceHelper.isCurrentUserAdminOrModerator() */ ) {
             throw new UnauthorizedException("User is not authorized to delete this post");
         }
 
-        contentRepository.delete(content);
-        contentTagRepository.deleteByContentId(postId);
+        // 1. Soft delete comments (bao gồm cả replies)
         commentRepository.softDeleteByCommentable(ReactableType.CONTENT, postId);
+
+        // 2. Soft delete reactions
         reactionRepository.softDeleteByReactable(ReactableType.CONTENT, postId);
+
+        // 3. Soft delete bookmarks
         bookmarkRepository.softDeleteByContentId(postId);
+
+        // 4. Soft delete shares
         shareRepository.softDeleteByContentId(postId);
 
-        // Xóa mềm Attachments (nếu @OneToMany không có cascade soft delete)
-        // attachmentRepository.softDeleteByContentId(postId);
+        // 5. Soft delete attachments (optional - có thể giữ lại để recover)
+        attachmentRepository.softDeleteByContentId(postId);
 
-        // Lịch sử chỉnh sửa có thể giữ lại
-        // editHistoryRepository.softDeleteByContentId(postId);
+        // 6. Hard delete ContentTags (vì đây là bảng join, không cần soft delete)
+        contentTagRepository.deleteByContentId(postId);
+
+        // 7. Giữ lại edit history để audit (không xóa)
+        // log.debug("Keeping edit history for audit purposes");
+
+        contentRepository.softDeleteById(postId);
+    }
+
+    /**
+     * Restore a soft-deleted post
+     */
+    @Transactional
+    @Override
+    public PostResponse restorePost(UUID postId) {
+        log.info("Restoring soft-deleted post: {}", postId);
+
+        User currentUser = serviceHelper.getCurrentUser();
+
+        // Tìm content kể cả đã deleted
+        Content content = contentRepository.findById(postId)
+                .orElseThrow(() -> new ResourceNotFoundException("Post not found with id: " + postId));
+
+        if (content.getDeletedAt() == null) {
+            throw new BadRequestException("Post is not deleted");
+        }
+
+        if (!serviceHelper.isCurrentUserAuthor(content.getAuthor().getId())) {
+            throw new UnauthorizedException("User is not authorized to restore this post");
+        }
+
+        // Restore content
+        content.setDeletedAt(null);
+        content.setUpdatedAt(LocalDateTime.now());
+        Content restoredContent = contentRepository.save(content);
+
+        log.info("Successfully restored post: {}", postId);
+
+        // Note: Các entities liên quan (comments, reactions, bookmarks) vẫn ở trạng thái soft-deleted
+        // Có thể implement logic restore các entities này nếu cần
+
+        return getPostResponseWithInteraction(restoredContent);
     }
 
     @Override

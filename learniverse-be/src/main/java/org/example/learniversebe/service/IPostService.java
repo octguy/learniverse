@@ -5,7 +5,9 @@ import org.example.learniversebe.dto.request.UpdatePostRequest;
 import org.example.learniversebe.dto.response.PageResponse;
 import org.example.learniversebe.dto.response.PostResponse;
 import org.example.learniversebe.dto.response.PostSummaryResponse;
+import org.example.learniversebe.enums.ContentStatus;
 import org.springframework.data.domain.Pageable;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -28,14 +30,8 @@ public interface IPostService {
      */
     PostResponse createPost(CreatePostRequest request,  List<MultipartFile> files);
 
-    /**
-     * Publish a draft post
-     *
-     * @param postId The UUID of the post to retrieve.
-     * @return
-     * @throws org.example.learniversebe.exception.BadRequestException if post ID is invalid.
-     */
-    PostResponse publishPost(UUID postId);
+    @Transactional
+    PostResponse updatePostStatus(UUID postId, ContentStatus newStatus);
 
     /**
      * Retrieves a paginated list of all published posts suitable for the general newsfeed.
@@ -78,6 +74,14 @@ public interface IPostService {
      */
     PostResponse getPostById(UUID postId);
 
+    PageResponse<PostSummaryResponse> getMyDraftPosts(Pageable pageable);
+
+    @Transactional(readOnly = true)
+    PageResponse<PostSummaryResponse> getMyArchivedPosts(Pageable pageable);
+
+    @Transactional(readOnly = true)
+    PageResponse<PostSummaryResponse> getMyPosts(ContentStatus status, Pageable pageable);
+
     /**
      * Retrieves a single post by its unique slug. Includes detailed information.
      * Increments the view count (implementing throttling logic recommended).
@@ -89,7 +93,6 @@ public interface IPostService {
      */
     PostResponse getPostBySlug(String slug);
 
-
     /**
      * Updates an existing post identified by its ID.
      * Requires authenticated user context.
@@ -99,13 +102,13 @@ public interface IPostService {
      *
      * @param postId  The UUID of the post to update.
      * @param request Data transfer object containing updated details and edit reason.
+     * @param files Attachment
      * @return DTO representing the updated post.
      * @throws org.example.learniversebe.exception.ResourceNotFoundException if the post is not found.
      * @throws org.example.learniversebe.exception.UnauthorizedException if the user is not the author or the edit window has passed.
      * @throws org.example.learniversebe.exception.BadRequestException if tag IDs are invalid.
      */
-    PostResponse updatePost(UUID postId, UpdatePostRequest request);
-
+    PostResponse updatePost(UUID postId, UpdatePostRequest request, List<MultipartFile> files);
     /**
      * Deletes a post identified by its ID (performs a soft delete).
      * Requires authenticated user context. Checks if the user is the author or has moderator/admin privileges.
@@ -116,6 +119,9 @@ public interface IPostService {
      * @throws org.example.learniversebe.exception.UnauthorizedException if the user does not have permission to delete the post.
      */
     void deletePost(UUID postId);
+
+    @Transactional
+    PostResponse restorePost(UUID postId);
 
     /**
      * Performs a search for posts based on a query string using full-text search.

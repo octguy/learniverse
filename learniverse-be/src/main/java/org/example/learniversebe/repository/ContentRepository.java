@@ -6,6 +6,7 @@ import org.example.learniversebe.model.Content;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -17,9 +18,20 @@ import java.util.UUID;
 @Repository
 public interface ContentRepository extends JpaRepository<Content, UUID> {
 
-    Page<Content> findByContentTypeAndStatus(ContentType contentType, ContentStatus contentStatus, Pageable pageable);
+    /**
+     * Find by content types and status (exclude soft deleted)
+     */
+    @Query("SELECT c FROM Content c WHERE c.contentType IN :types " +
+            "AND c.status = :status " +
+            "AND c.deletedAt IS NULL " +
+            "ORDER BY c.publishedAt DESC")
+    Page<Content> findByContentTypeInAndStatus(
+            @Param("types") List<ContentType> types,
+            @Param("status") ContentStatus status,
+            Pageable pageable);
 
     Page<Content> findByContentTypeOrderByCreatedAtDesc(ContentType contentType, Pageable pageable);
+
 
     Page<Content> findByAuthorIdAndContentTypeOrderByCreatedAtDesc(UUID authorId, ContentType contentType, Pageable pageable);
 
@@ -34,21 +46,69 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
             nativeQuery = true)
     Page<Content> searchByQuery(@Param("query") String query, Pageable pageable);
 
-    Optional<Content> findByIdAndContentType(UUID postId, ContentType contentType);
+    /**
+     * Find by ID and content type (exclude soft deleted)
+     */
+    @Query("SELECT c FROM Content c WHERE c.id = :id AND c.contentType = :type AND c.deletedAt IS NULL")
+    Optional<Content> findByIdAndContentType(
+            @Param("id") UUID id,
+            @Param("type") ContentType type);
 
     Optional<Content> findByIdAndContentTypeAndStatus(UUID postId, ContentType contentType, ContentStatus contentStatus);
 
-    Optional<Content> findBySlugAndContentTypeAndStatus(String slug, ContentType contentType, ContentStatus contentStatus);
+    /**
+     * Find by slug, content type and status (exclude soft deleted)
+     */
+    @Query("SELECT c FROM Content c WHERE c.slug = :slug " +
+            "AND c.contentType = :type " +
+            "AND c.status = :status " +
+            "AND c.deletedAt IS NULL")
+    Optional<Content> findBySlugAndContentTypeAndStatus(
+            @Param("slug") String slug,
+            @Param("type") ContentType type,
+            @Param("status") ContentStatus status);
 
-    @Query("SELECT c FROM Content c JOIN c.contentTags ct WHERE c.contentType = 'POST' AND c.status = 'PUBLISHED' AND ct.tag.id = :tagId")
-    Page<Content> findPublishedPostsByTagId(@Param("tagId") UUID tagId, Pageable pageable);
+    /**
+     * Find published posts by tag ID
+     */
+    @Query("SELECT c FROM Content c " +
+            "JOIN c.contentTags ct " +
+            "WHERE ct.tag.id = :tagId " +
+            "AND c.contentType = 'POST' " +
+            "AND c.status = 'PUBLISHED' " +
+            "AND c.deletedAt IS NULL " +
+            "ORDER BY c.publishedAt DESC")
+    Page<Content> findPublishedPostsByTagId(
+            @Param("tagId") UUID tagId,
+            Pageable pageable);
 
-    @Query(value = "SELECT * FROM contents c WHERE c.deleted_at IS NULL AND c.content_type = 'POST' AND c.status = 'PUBLISHED' AND c.search_vector @@ plainto_tsquery('simple', :query)",
-            countQuery = "SELECT count(*) FROM contents c WHERE c.deleted_at IS NULL AND c.content_type = 'POST' AND c.status = 'PUBLISHED' AND c.search_vector @@ plainto_tsquery('simple', :query)",
-            nativeQuery = true)
-    Page<Content> searchPublishedPosts(@Param("query") String query, Pageable pageable);
+    /**
+     * Full-text search for published posts
+     */
+    @Query("SELECT c FROM Content c WHERE " +
+            "(LOWER(c.title) LIKE LOWER(CONCAT('%', :query, '%')) " +
+            "OR LOWER(c.body) LIKE LOWER(CONCAT('%', :query, '%'))) " +
+            "AND c.contentType = 'POST' " +
+            "AND c.status = 'PUBLISHED' " +
+            "AND c.deletedAt IS NULL " +
+            "ORDER BY c.publishedAt DESC")
+    Page<Content> searchPublishedPosts(
+            @Param("query") String query,
+            Pageable pageable);
 
-    Page<Content> findByAuthorIdAndContentTypeAndStatusOrderByPublishedAtDesc(UUID authorId, ContentType contentType, ContentStatus contentStatus, Pageable pageable);
+    /**
+     * Find by author, content types and status (sorted by published date)
+     */
+    @Query("SELECT c FROM Content c WHERE c.author.id = :authorId " +
+            "AND c.contentType IN :types " +
+            "AND c.status = :status " +
+            "AND c.deletedAt IS NULL " +
+            "ORDER BY c.publishedAt DESC")
+    Page<Content> findByAuthorIdAndContentTypeInAndStatusOrderByPublishedAtDesc(
+            @Param("authorId") UUID authorId,
+            @Param("types") List<ContentType> types,
+            @Param("status") ContentStatus status,
+            Pageable pageable);
 
     Page<Content> findByContentTypeAndStatusOrderByPublishedAtDesc(ContentType contentType, ContentStatus contentStatus, Pageable pageable);
 
@@ -61,6 +121,12 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
     Page<Content> searchPublishedQuestions(@Param("query") String query, Pageable pageable);
 
     Page<Content> findByContentType(ContentType contentType, Pageable pageable);
+
+    /**
+     * Check if content exists (exclude soft deleted)
+     */
+    @Query("SELECT COUNT(c) > 0 FROM Content c WHERE c.id = :id AND c.deletedAt IS NULL")
+    boolean existsById(@Param("id") UUID id);
 
     boolean existsByIdAndContentType(UUID questionId, ContentType contentType);
 
@@ -102,4 +168,88 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
             ORDER BY label ASC
             """, nativeQuery = true)
     List<Object[]> findContentComparisonByYear();
+
+    /**
+     * Find by author, content type and status (sorted by updated date)
+     */
+    @Query("SELECT c FROM Content c WHERE c.author.id = :authorId " +
+            "AND c.contentType = :type " +
+            "AND c.status = :status " +
+            "AND c.deletedAt IS NULL " +
+            "ORDER BY c.updatedAt DESC")
+    Page<Content> findByAuthorIdAndContentTypeAndStatusOrderByUpdatedAtDesc(
+            @Param("authorId") UUID authorId,
+            @Param("type") ContentType type,
+            @Param("status") ContentStatus status,
+            Pageable pageable);
+
+    Page<Content> findByContentTypeAndStatus(ContentType contentType, ContentStatus status, Pageable pageable);
+
+    Page<Content> findByAuthorIdAndContentTypeAndStatusOrderByPublishedAtDesc(UUID authorId, ContentType contentType, ContentStatus status, Pageable pageable);
+
+    /**
+     * Find by author, content types and status (sorted by updated date)
+     */
+    @Query("SELECT c FROM Content c WHERE c.author.id = :authorId " +
+            "AND c.contentType IN :types " +
+            "AND c.status = :status " +
+            "AND c.deletedAt IS NULL " +
+            "ORDER BY c.updatedAt DESC")
+    Page<Content> findByAuthorIdAndContentTypeInAndStatusOrderByUpdatedAtDesc(
+            @Param("authorId") UUID authorId,
+            @Param("types") List<ContentType> types,
+            @Param("status") ContentStatus status,
+            Pageable pageable);
+
+    // ==================== SOFT DELETE METHODS ====================
+
+    /**
+     * Soft delete content by ID
+     * Set deleted_at = CURRENT_TIMESTAMP
+     */
+    @Modifying
+    @Query("UPDATE Content c SET c.deletedAt = CURRENT_TIMESTAMP, c.updatedAt = CURRENT_TIMESTAMP " +
+            "WHERE c.id = :contentId AND c.deletedAt IS NULL")
+    int softDeleteById(@Param("contentId") UUID contentId);
+
+    /**
+     * Soft delete all content by author
+     */
+    @Modifying
+    @Query("UPDATE Content c SET c.deletedAt = CURRENT_TIMESTAMP, c.updatedAt = CURRENT_TIMESTAMP " +
+            "WHERE c.author.id = :authorId AND c.deletedAt IS NULL")
+    int softDeleteByAuthorId(@Param("authorId") UUID authorId);
+
+    /**
+     * Find by ID (exclude soft deleted)
+     */
+    @Query("SELECT c FROM Content c WHERE c.id = :id AND c.deletedAt IS NULL")
+    Optional<Content> findById(@Param("id") UUID id);
+
+    @Modifying
+    @Query("UPDATE Content c SET c.deletedAt = CURRENT_TIMESTAMP, c.updatedAt = CURRENT_TIMESTAMP " +
+            "WHERE c.originalContent.id = :originalId AND c.deletedAt IS NULL")
+    void softDeleteSharedPosts(@Param("originalId") UUID originalId);
+
+    // ==================== STATISTICS ====================
+
+    /**
+     * Count content by author and status (exclude soft deleted)
+     */
+    @Query("SELECT COUNT(c) FROM Content c WHERE c.author.id = :authorId " +
+            "AND c.status = :status " +
+            "AND c.deletedAt IS NULL")
+    long countByAuthorIdAndStatus(
+            @Param("authorId") UUID authorId,
+            @Param("status") ContentStatus status);
+
+    /**
+     * Count content by type and status (exclude soft deleted)
+     */
+    @Query("SELECT COUNT(c) FROM Content c WHERE c.contentType = :type " +
+            "AND c.status = :status " +
+            "AND c.deletedAt IS NULL")
+    long countByContentTypeAndStatus(
+            @Param("type") ContentType type,
+            @Param("status") ContentStatus status);
 }
