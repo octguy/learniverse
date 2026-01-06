@@ -26,8 +26,9 @@ public interface CommentRepository extends JpaRepository<Comment, UUID> {
 
     /**
      * Xóa mềm tất cả comments (và replies) của một commentable entity (Content hoặc Answer)
+     * Note: commentableType is stored as String in the database, so callers should pass the enum name
      */
     @Modifying
     @Query("UPDATE Comment c SET c.deletedAt = CURRENT_TIMESTAMP WHERE c.commentableType = :commentableType AND c.commentableId = :commentableId AND c.deletedAt IS NULL")
-    void softDeleteByCommentable(@Param("commentableType") org.example.learniversebe.enums.ReactableType commentableType, @Param("commentableId") UUID commentableId);
+    void softDeleteByCommentable(@Param("commentableType") String commentableType, @Param("commentableId") UUID commentableId);
 }

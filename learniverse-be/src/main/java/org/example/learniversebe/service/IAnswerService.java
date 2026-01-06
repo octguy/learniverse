@@ -22,6 +22,7 @@ public interface IAnswerService {
      * Sends notification to the question author (if different from answer author).
      *
      * @param request Data transfer object containing answer details (body) and question ID.
+     * @param files   Optional list of attachment files.
      * @return DTO representing the newly created answer.
      * @throws org.example.learniversebe.exception.ResourceNotFoundException if the question is not found.
      * @throws org.example.learniversebe.exception.BadRequestException if the target content is not a QUESTION or other validation fails.

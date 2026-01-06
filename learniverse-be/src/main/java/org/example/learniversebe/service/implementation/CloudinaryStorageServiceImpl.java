@@ -51,6 +51,24 @@ public class CloudinaryStorageServiceImpl implements IStorageService {
         );
     }
 
+    @Override
+    public boolean deleteFile(String publicId) throws IOException {
+        try {
+            // Determine resource type based on public_id or try both
+            Map result = cloudinary.uploader().destroy(publicId, ObjectUtils.asMap("resource_type", "image"));
+            String deleteResult = (String) result.get("result");
+            
+            if (!"ok".equals(deleteResult)) {
+                // Try as raw (for PDFs and other files)
+                result = cloudinary.uploader().destroy(publicId, ObjectUtils.asMap("resource_type", "raw"));
+                deleteResult = (String) result.get("result");
+            }
+            return "ok".equals(deleteResult);
+        } catch (Exception e) {
+            throw new IOException("Failed to delete file: " + e.getMessage(), e);
+        }
+    }
+
     private void validateFile(MultipartFile file) {
         String contentType = file.getContentType();
         long size = file.getSize();

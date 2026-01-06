@@ -58,10 +58,57 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
     @Query("SELECT c FROM Content c JOIN c.contentTags ct WHERE c.contentType = 'QUESTION' AND c.status = 'PUBLISHED' AND ct.tag.id = :tagId")
     Page<Content> findPublishedQuestionsByTagId(@Param("tagId") UUID tagId, Pageable pageable);
 
-    @Query(value = "SELECT * FROM contents c WHERE c.deleted_at IS NULL AND c.content_type = 'QUESTION' AND c.status = 'PUBLISHED' AND c.search_vector @@ plainto_tsquery('simple', :query)",
-            countQuery = "SELECT count(*) FROM contents c WHERE c.deleted_at IS NULL AND c.content_type = 'QUESTION' AND c.status = 'PUBLISHED' AND c.search_vector @@ plainto_tsquery('simple', :query)",
-            nativeQuery = true)
+    @Query("SELECT c FROM Content c " +
+            "WHERE c.contentType = 'QUESTION' " +
+            "AND c.status = 'PUBLISHED' " +
+            "AND c.deletedAt IS NULL " +
+            "AND (LOWER(c.title) LIKE LOWER(CONCAT('%', :query, '%')) " +
+            "     OR LOWER(c.body) LIKE LOWER(CONCAT('%', :query, '%')))")
     Page<Content> searchPublishedQuestions(@Param("query") String query, Pageable pageable);
+
+    // Filter: unanswered questions (answerCount = 0)
+    @Query("SELECT c FROM Content c WHERE c.contentType = 'QUESTION' AND c.status = 'PUBLISHED' AND c.answerCount = 0")
+    Page<Content> findUnansweredQuestions(Pageable pageable);
+
+    // Filter: answered questions (answerCount > 0)
+    @Query("SELECT c FROM Content c WHERE c.contentType = 'QUESTION' AND c.status = 'PUBLISHED' AND c.answerCount > 0")
+    Page<Content> findAnsweredQuestions(Pageable pageable);
+
+    // Filter: accepted questions (isAnswered = true means has accepted answer)
+    @Query("SELECT c FROM Content c WHERE c.contentType = 'QUESTION' AND c.status = 'PUBLISHED' AND c.isAnswered = true")
+    Page<Content> findAcceptedQuestions(Pageable pageable);
+
+    // Filter by multiple tags
+    @Query("SELECT DISTINCT c FROM Content c JOIN c.contentTags ct WHERE c.contentType = 'QUESTION' AND c.status = 'PUBLISHED' AND ct.tag.id IN :tagIds")
+    Page<Content> findPublishedQuestionsByTagIds(@Param("tagIds") List<UUID> tagIds, Pageable pageable);
+
+    // Combined search with filter
+    @Query("SELECT c FROM Content c " +
+            "WHERE c.contentType = 'QUESTION' " +
+            "AND c.status = 'PUBLISHED' " +
+            "AND c.deletedAt IS NULL " +
+            "AND c.answerCount = 0 " +
+            "AND (LOWER(c.title) LIKE LOWER(CONCAT('%', :query, '%')) " +
+            "     OR LOWER(c.body) LIKE LOWER(CONCAT('%', :query, '%')))")
+    Page<Content> searchUnansweredQuestions(@Param("query") String query, Pageable pageable);
+
+    @Query("SELECT c FROM Content c " +
+            "WHERE c.contentType = 'QUESTION' " +
+            "AND c.status = 'PUBLISHED' " +
+            "AND c.deletedAt IS NULL " +
+            "AND c.answerCount > 0 " +
+            "AND (LOWER(c.title) LIKE LOWER(CONCAT('%', :query, '%')) " +
+            "     OR LOWER(c.body) LIKE LOWER(CONCAT('%', :query, '%')))")
+    Page<Content> searchAnsweredQuestions(@Param("query") String query, Pageable pageable);
+
+    @Query("SELECT c FROM Content c " +
+            "WHERE c.contentType = 'QUESTION' " +
+            "AND c.status = 'PUBLISHED' " +
+            "AND c.deletedAt IS NULL " +
+            "AND c.isAnswered = true " +
+            "AND (LOWER(c.title) LIKE LOWER(CONCAT('%', :query, '%')) " +
+            "     OR LOWER(c.body) LIKE LOWER(CONCAT('%', :query, '%')))")
+    Page<Content> searchAcceptedQuestions(@Param("query") String query, Pageable pageable);
 
     Page<Content> findByContentType(ContentType contentType, Pageable pageable);
 

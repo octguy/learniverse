@@ -18,6 +18,8 @@ import { vi } from "date-fns/locale"
 import { isAxiosError } from "axios"
 import {
     ArrowLeft,
+    Download,
+    Edit2,
     Eye,
     FileText,
     Loader2,
@@ -48,6 +50,17 @@ import {
     CardTitle,
 } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 interface DetailState {
     status: "loading" | "ready" | "error"
@@ -67,6 +80,7 @@ type MarkdownComponents = Components
 
 const ANSWER_MIN_LENGTH = 10
 const ANSWER_MAX_LENGTH = 5000
+const ANSWER_EDIT_LIMIT_MINUTES = 60 // UC 3.8: Edit allowed within 1 hour
 
 const MarkdownH2 = ({ className, children, ...props }: HeadingProps) => (
     <h2
@@ -211,6 +225,32 @@ function splitAttachments(attachments: QuestionAttachment[]) {
     return { images, documents }
 }
 
+/**
+ * Downloads a file from a cross-origin URL with the correct filename.
+ * Fetches the file as a blob and triggers a download with the proper name.
+ */
+async function downloadFile(url: string, fileName: string) {
+    try {
+        const response = await fetch(url)
+        const blob = await response.blob()
+        const blobUrl = window.URL.createObjectURL(blob)
+        
+        const link = document.createElement("a")
+        link.href = blobUrl
+        link.download = fileName
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        
+        // Cleanup blob URL
+        window.URL.revokeObjectURL(blobUrl)
+    } catch (error) {
+        console.error("Failed to download file:", error)
+        // Fallback: open in new tab
+        window.open(url, "_blank")
+    }
+}
+
 export default function QuestionDetailPage() {
     const params = useParams<{ slug: string }>()
     const router = useRouter()
@@ -231,6 +271,7 @@ export default function QuestionDetailPage() {
     const [isBookmarking, setIsBookmarking] = useState(false)
     const [isReacting, setIsReacting] = useState(false)
     const [isDeleting, setIsDeleting] = useState(false)
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false)
     const [answerVoteLoading, setAnswerVoteLoading] = useState<
         Record<string, boolean>
     >({})
@@ -238,6 +279,12 @@ export default function QuestionDetailPage() {
         {}
     )
     const [voteError, setVoteError] = useState<string | null>(null)
+    // Edit/Delete answer states
+    const [editingAnswerId, setEditingAnswerId] = useState<string | null>(null)
+    const [editAnswerBody, setEditAnswerBody] = useState("")
+    const [isUpdatingAnswer, setIsUpdatingAnswer] = useState(false)
+    const [isDeletingAnswer, setIsDeletingAnswer] = useState<Record<string, boolean>>({})
+    const [showDeleteAnswerDialog, setShowDeleteAnswerDialog] = useState<string | null>(null)
 
     const answerFormRef = useRef<HTMLDivElement | null>(null)
     const answerTextareaRef = useRef<HTMLTextAreaElement | null>(null)
@@ -355,6 +402,96 @@ export default function QuestionDetailPage() {
         }
         setAnswerError(null)
         scrollToAnswerForm(true)
+    }
+
+    // Helper to check if answer is still editable (within 1 hour)
+    const isAnswerEditable = (createdAt: string) => {
+        const created = new Date(createdAt)
+        const now = new Date()
+        const diffMinutes = (now.getTime() - created.getTime()) / (1000 * 60)
+        return diffMinutes <= ANSWER_EDIT_LIMIT_MINUTES
+    }
+
+    const handleStartEditAnswer = (answer: { id: string; body: string; createdAt: string }) => {
+        if (!isAnswerEditable(answer.createdAt)) {
+            setVoteError("Bạn chỉ có thể chỉnh sửa câu trả lời trong vòng 1 giờ sau khi đăng.")
+            return
+        }
+        setEditingAnswerId(answer.id)
+        setEditAnswerBody(answer.body)
+    }
+
+    const handleCancelEditAnswer = () => {
+        setEditingAnswerId(null)
+        setEditAnswerBody("")
+    }
+
+    const handleUpdateAnswer = async (answerId: string) => {
+        if (!user || isUpdatingAnswer) return
+        if (editAnswerBody.trim().length < ANSWER_MIN_LENGTH) {
+            setVoteError(`Câu trả lời phải có ít nhất ${ANSWER_MIN_LENGTH} ký tự.`)
+            return
+        }
+
+        setIsUpdatingAnswer(true)
+        setVoteError(null)
+        try {
+            const updatedAnswer = await answerService.update(answerId, {
+                body: editAnswerBody.trim(),
+            })
+
+            setState((prev) => {
+                if (!prev.question) return prev
+                return {
+                    ...prev,
+                    question: {
+                        ...prev.question,
+                        answers: prev.question.answers.map((a) =>
+                            a.id === answerId ? { ...a, body: updatedAnswer.body, updatedAt: updatedAnswer.updatedAt } : a
+                        ),
+                    },
+                }
+            })
+            setEditingAnswerId(null)
+            setEditAnswerBody("")
+        } catch (error) {
+            const message = isAxiosError(error)
+                ? error.response?.data?.message ?? "Không thể cập nhật câu trả lời."
+                : "Không thể cập nhật câu trả lời."
+            setVoteError(message)
+        } finally {
+            setIsUpdatingAnswer(false)
+        }
+    }
+
+    const handleDeleteAnswer = async (answerId: string) => {
+        if (!user) return
+        setIsDeletingAnswer((prev) => ({ ...prev, [answerId]: true }))
+        try {
+            await answerService.remove(answerId)
+            setState((prev) => {
+                if (!prev.question) return prev
+                return {
+                    ...prev,
+                    question: {
+                        ...prev.question,
+                        answers: prev.question.answers.filter((a) => a.id !== answerId),
+                        answerCount: Math.max(0, (prev.question.answerCount ?? 1) - 1),
+                    },
+                }
+            })
+            setShowDeleteAnswerDialog(null)
+        } catch (error) {
+            const message = isAxiosError(error)
+                ? error.response?.data?.message ?? "Không thể xóa câu trả lời."
+                : "Không thể xóa câu trả lời."
+            setVoteError(message)
+        } finally {
+            setIsDeletingAnswer((prev) => {
+                const { [answerId]: _removed, ...rest } = prev
+                return rest
+            })
+        }
     }
 
     const handleQuestionVote = async (voteType: "UPVOTE" | "DOWNVOTE") => {
@@ -591,12 +728,11 @@ export default function QuestionDetailPage() {
             return
         }
         if (isDeleting) return
-        const confirmed = window.confirm("Xóa câu hỏi này?")
-        if (!confirmed) return
 
         setIsDeleting(true)
         try {
             await questionService.remove(state.question.id)
+            setShowDeleteDialog(false)
             router.push("/questions")
         } finally {
             setIsDeleting(false)
@@ -760,15 +896,47 @@ export default function QuestionDetailPage() {
                             >
                                 Chỉnh sửa
                             </Button>
-                            <Button
-                                variant="destructive"
-                                size="sm"
-                                className="gap-1"
-                                disabled={isDeleting}
-                                onClick={handleDeleteQuestion}
+                            <AlertDialog
+                                open={showDeleteDialog}
+                                onOpenChange={setShowDeleteDialog}
                             >
-                                Xóa
-                            </Button>
+                                <AlertDialogTrigger asChild>
+                                    <Button
+                                        variant="destructive"
+                                        size="sm"
+                                        className="gap-1"
+                                        disabled={isDeleting}
+                                    >
+                                        Xóa
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>
+                                            Xóa câu hỏi này?
+                                        </AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Hành động này sẽ xóa câu hỏi và các tương tác liên quan. Bạn không thể hoàn tác.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel
+                                            disabled={isDeleting}
+                                        >
+                                            Hủy
+                                        </AlertDialogCancel>
+                                        <AlertDialogAction
+                                            onClick={handleDeleteQuestion}
+                                            disabled={isDeleting}
+                                        >
+                                            {isDeleting && (
+                                                <Loader2 className="mr-2 size-4 animate-spin" />
+                                            )}
+                                            Xóa câu hỏi
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
                         </>
                     )}
                 </div>
@@ -966,18 +1134,19 @@ export default function QuestionDetailPage() {
                                 <p className="mb-2 text-sm font-medium text-foreground">
                                     Tài liệu đính kèm
                                 </p>
-                                <div className="flex flex-wrap gap-2">
+                                <div className="flex flex-wrap gap-3">
                                     {attachments.documents.map((attachment) => (
-                                        <a
+                                        <div
                                             key={attachment.id}
-                                            href={attachment.storageUrl}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm text-primary hover:bg-muted"
+                                            className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 cursor-pointer hover:bg-muted/50 transition-colors"
+                                            onClick={() => downloadFile(attachment.storageUrl, attachment.fileName)}
                                         >
-                                            <FileText className="size-4" />
-                                            {attachment.fileName}
-                                        </a>
+                                            <FileText className="size-5 text-primary" />
+                                            <span className="text-sm font-medium text-foreground max-w-[200px] truncate">
+                                                {attachment.fileName}
+                                            </span>
+                                            <Download className="size-4 ml-auto text-primary" />
+                                        </div>
                                     ))}
                                 </div>
                             </div>
@@ -1054,7 +1223,7 @@ export default function QuestionDetailPage() {
                                                 hoặc kinh nghiệm của bạn.
                                             </CardDescription>
                                         </CardHeader>
-                                        <CardContent className="space-y-3 pt-4">
+                                        <CardContent className="space-y-4 pt-4">
                                             <Textarea
                                                 ref={answerTextareaRef}
                                                 value={answerBody}
@@ -1066,20 +1235,18 @@ export default function QuestionDetailPage() {
                                                         )
                                                     )
                                                 }
-                                                placeholder="Trình bày rõ ràng lời giải hoặc hướng dẫn của bạn."
+                                                placeholder="Trình bày rõ ràng lời giải hoặc hướng dẫn của bạn..."
                                                 rows={6}
                                             />
                                             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
                                                 <span>
-                                                    Tối thiểu{" "}
-                                                    {ANSWER_MIN_LENGTH} ký tự.
-                                                    Hiện tại: {answerLength}
+                                                    Tối thiểu {ANSWER_MIN_LENGTH} ký tự. Hiện tại: {answerLength}
                                                 </span>
                                                 <span>
-                                                    {answerLength}/
-                                                    {ANSWER_MAX_LENGTH}
+                                                    {answerLength}/{ANSWER_MAX_LENGTH}
                                                 </span>
                                             </div>
+
                                             {answerError && (
                                                 <p className="text-xs text-destructive">
                                                     {answerError}
@@ -1155,6 +1322,9 @@ export default function QuestionDetailPage() {
                                 const isAccepted =
                                     answer.isAccepted ||
                                     question.acceptedAnswerId === answer.id
+                                const isAnswerAuthor = user?.id === answer.author?.id
+                                const canEditAnswer = isAnswerAuthor && isAnswerEditable(answer.createdAt)
+                                const isEditingThis = editingAnswerId === answer.id
 
                                 return (
                                     <article
@@ -1276,26 +1446,122 @@ export default function QuestionDetailPage() {
                                                             : "Chấp nhận"}
                                                     </Button>
                                                 )}
+                                                {/* Edit/Delete buttons for answer author */}
+                                                {isAnswerAuthor && !isEditingThis && (
+                                                    <>
+                                                        {canEditAnswer && (
+                                                            <Button
+                                                                type="button"
+                                                                size="icon"
+                                                                variant="ghost"
+                                                                className="h-8 w-8"
+                                                                onClick={() => handleStartEditAnswer(answer)}
+                                                                title="Chỉnh sửa câu trả lời"
+                                                            >
+                                                                <Edit2 className="size-4" />
+                                                            </Button>
+                                                        )}
+                                                        <AlertDialog
+                                                            open={showDeleteAnswerDialog === answer.id}
+                                                            onOpenChange={(open) => setShowDeleteAnswerDialog(open ? answer.id : null)}
+                                                        >
+                                                            <AlertDialogTrigger asChild>
+                                                                <Button
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                                    disabled={isDeletingAnswer[answer.id]}
+                                                                >
+                                                                    Xóa
+                                                                </Button>
+                                                            </AlertDialogTrigger>
+                                                            <AlertDialogContent>
+                                                                <AlertDialogHeader>
+                                                                    <AlertDialogTitle>
+                                                                        Xóa câu trả lời này?
+                                                                    </AlertDialogTitle>
+                                                                    <AlertDialogDescription>
+                                                                        Hành động này sẽ xóa câu trả lời của bạn. Bạn không thể hoàn tác.
+                                                                    </AlertDialogDescription>
+                                                                </AlertDialogHeader>
+                                                                <AlertDialogFooter>
+                                                                    <AlertDialogCancel disabled={isDeletingAnswer[answer.id]}>
+                                                                        Hủy
+                                                                    </AlertDialogCancel>
+                                                                    <AlertDialogAction
+                                                                        onClick={() => handleDeleteAnswer(answer.id)}
+                                                                        disabled={isDeletingAnswer[answer.id]}
+                                                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                                                    >
+                                                                        {isDeletingAnswer[answer.id] && (
+                                                                            <Loader2 className="mr-2 size-4 animate-spin" />
+                                                                        )}
+                                                                        Xóa câu trả lời
+                                                                    </AlertDialogAction>
+                                                                </AlertDialogFooter>
+                                                            </AlertDialogContent>
+                                                        </AlertDialog>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
 
-                                        <div className="mt-4 text-sm leading-relaxed text-foreground">
-                                            {answer.body ? (
-                                                <ReactMarkdown
-                                                    remarkPlugins={[remarkGfm]}
-                                                    components={
-                                                        markdownComponents
-                                                    }
-                                                >
-                                                    {answer.body}
-                                                </ReactMarkdown>
-                                            ) : (
-                                                <p className="text-muted-foreground">
-                                                    Câu trả lời này chưa có nội
-                                                    dung hiển thị.
-                                                </p>
-                                            )}
-                                        </div>
+                                        {/* Edit mode or display mode */}
+                                        {isEditingThis ? (
+                                            <div className="mt-4 space-y-3">
+                                                <Textarea
+                                                    value={editAnswerBody}
+                                                    onChange={(e) => setEditAnswerBody(e.target.value.slice(0, ANSWER_MAX_LENGTH))}
+                                                    placeholder="Nhập nội dung câu trả lời..."
+                                                    rows={5}
+                                                />
+                                                <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                                                    <span>Tối thiểu {ANSWER_MIN_LENGTH} ký tự</span>
+                                                    <span>{editAnswerBody.length}/{ANSWER_MAX_LENGTH}</span>
+                                                </div>
+                                                <div className="flex justify-end gap-2">
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={handleCancelEditAnswer}
+                                                        disabled={isUpdatingAnswer}
+                                                    >
+                                                        Hủy
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        onClick={() => handleUpdateAnswer(answer.id)}
+                                                        disabled={isUpdatingAnswer || editAnswerBody.trim().length < ANSWER_MIN_LENGTH}
+                                                    >
+                                                        {isUpdatingAnswer && (
+                                                            <Loader2 className="mr-2 size-3 animate-spin" />
+                                                        )}
+                                                        Lưu thay đổi
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="mt-4 text-sm leading-relaxed text-foreground">
+                                                {answer.body ? (
+                                                    <ReactMarkdown
+                                                        remarkPlugins={[remarkGfm]}
+                                                        components={
+                                                            markdownComponents
+                                                        }
+                                                    >
+                                                        {answer.body}
+                                                    </ReactMarkdown>
+                                                ) : (
+                                                    <p className="text-muted-foreground">
+                                                        Câu trả lời này chưa có nội
+                                                        dung hiển thị.
+                                                    </p>
+                                                )}
+                                            </div>
+                                        )}
                                     </article>
                                 )
                             })}

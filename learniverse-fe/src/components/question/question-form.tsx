@@ -50,7 +50,7 @@ import {
     type TagOption,
 } from "@/components/question/tag-multi-select"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import type { QuestionDetail, QuestionSummary } from "@/types/question"
+import type { QuestionAttachment, QuestionDetail, QuestionSummary } from "@/types/question"
 
 const TITLE_LIMIT = 300
 const MIN_TITLE_LENGTH = 10
@@ -311,6 +311,13 @@ export function QuestionForm({
     const [images, setImages] = useState<File[]>([])
     const [documents, setDocuments] = useState<File[]>([])
     const [attachmentError, setAttachmentError] = useState<string | null>(null)
+    const [editReason, setEditReason] = useState("")
+    // Existing attachments from server (for edit mode - read only)
+    const [existingAttachments, setExistingAttachments] = useState<QuestionAttachment[]>(
+        initialQuestion?.attachments ?? []
+    )
+    // Track which existing attachments are marked for removal on save
+    const [pendingRemovalIds, setPendingRemovalIds] = useState<Set<string>>(new Set())
 
     useEffect(() => {
         let isMounted = true
@@ -370,11 +377,15 @@ export function QuestionForm({
                 description: t.description ?? undefined,
             })) ?? []
         )
+        setExistingAttachments(initialQuestion.attachments ?? [])
+        setPendingRemovalIds(new Set())
+        setEditReason("")
     }, [initialQuestion])
 
     const trimmedTitle = useMemo(() => title.trim(), [title])
     const titleLength = trimmedTitle.length
     const bodyLength = useMemo(() => body.trim().length, [body])
+    const trimmedEditReason = useMemo(() => editReason.trim(), [editReason])
     const canSubmit =
         !isSubmitting &&
         titleLength >= MIN_TITLE_LENGTH &&
@@ -414,7 +425,7 @@ export function QuestionForm({
 
     const previewPublished = useMemo(
         () =>
-            new Date(previewQuestion.publishedAt).toLocaleString("vi-VN", {
+            new Date(previewQuestion.publishedAt ?? new Date()).toLocaleString("vi-VN", {
                 hour12: false,
             }),
         [previewQuestion.publishedAt]
@@ -628,18 +639,36 @@ export function QuestionForm({
         setStatusMessage(null)
 
         try {
-            const payload = {
-                title: trimmedTitle,
-                body: body.trim(),
-                tagIds: selectedTags.map((tag) => tag.id),
-            }
-
             if (mode === "edit" && initialQuestion?.id) {
+                if (!trimmedEditReason) {
+                    setStatusMessage({
+                        type: "error",
+                        message: "Vui lòng nhập lý do chỉnh sửa trước khi lưu.",
+                    })
+                    setIsSubmitting(false)
+                    return
+                }
+
+                const updatePayload = {
+                    title: trimmedTitle,
+                    body: body.trim(),
+                    tagIds: selectedTags.map((tag) => tag.id),
+                    editReason: trimmedEditReason,
+                    removeMediaIds: Array.from(pendingRemovalIds),
+                }
+                
+                // Combine new images and documents into files array
+                const newFiles = [...images, ...documents]
+                
                 const updated = await questionService.update(
                     initialQuestion.id,
-                    payload
+                    updatePayload,
+                    newFiles.length > 0 ? newFiles : undefined
                 )
                 const slug = updated?.slug ?? initialQuestion.slug
+                setPendingRemovalIds(new Set())
+                setImages([])
+                setDocuments([])
                 if (slug) {
                     if (onSuccess) onSuccess(slug)
                     else router.push(`/questions/${slug}`)
@@ -647,7 +676,20 @@ export function QuestionForm({
                 return
             }
 
-            const createdQuestion = await questionService.create(payload)
+            // Create mode: prepare payload with files
+            const createPayload = {
+                title: trimmedTitle,
+                body: body.trim(),
+                tagIds: selectedTags.map((tag) => tag.id),
+                status: "PUBLISHED" as const,
+            }
+            
+            // Combine images and documents into files array
+            const allFiles = [...images, ...documents]
+            const createdQuestion = await questionService.create(
+                createPayload,
+                allFiles.length > 0 ? allFiles : undefined
+            )
             const slug = createdQuestion?.slug ?? null
             setTitle("")
             setBody("")
@@ -684,53 +726,130 @@ export function QuestionForm({
         setImages([])
         setDocuments([])
         setAttachmentError(null)
+        setEditReason("")
+        setPendingRemovalIds(new Set())
     }
 
-    const renderAttachmentBadges = () => (
-        <div className="flex flex-wrap gap-2">
-            {images.map((file, index) => (
-                <Badge
-                    key={`img-${file.name}-${index}`}
-                    variant="secondary"
-                    className="flex items-center gap-2 bg-emerald-50 text-emerald-700"
-                >
-                    <ImageIcon className="size-3" />
-                    <span className="text-xs font-medium">{file.name}</span>
-                    <button
-                        type="button"
-                        aria-label={`Xóa ảnh ${file.name}`}
-                        onClick={() => removeAttachment("image", index)}
-                        className="ml-1 text-xs text-emerald-700 hover:text-emerald-900"
+    const handleToggleRemoveExistingAttachment = (attachmentId: string) => {
+        setAttachmentError(null)
+        setPendingRemovalIds((prev) => {
+            const next = new Set(prev)
+            if (next.has(attachmentId)) {
+                next.delete(attachmentId)
+            } else {
+                next.add(attachmentId)
+            }
+            return next
+        })
+    }
+
+    const renderAttachmentBadges = () => {
+        const existingImages = existingAttachments.filter(a => a.fileType === "IMAGE")
+        const existingDocs = existingAttachments.filter(a => a.fileType !== "IMAGE")
+        const hasAnyAttachment = images.length > 0 || documents.length > 0 || existingAttachments.length > 0
+        
+        return (
+            <div className="flex flex-wrap gap-2">
+                {/* Display existing attachments from server (can be deleted in edit mode) */}
+                {existingImages.map((attachment) => (
+                    <Badge
+                        key={`existing-img-${attachment.id}`}
+                        variant="secondary"
+                        className={cn(
+                            "flex items-center gap-2 border border-emerald-200",
+                            pendingRemovalIds.has(attachment.id)
+                                ? "bg-emerald-50 text-emerald-500 line-through"
+                                : "bg-emerald-100 text-emerald-800"
+                        )}
                     >
-                        ×
-                    </button>
-                </Badge>
-            ))}
-            {documents.map((file, index) => (
-                <Badge
-                    key={`doc-${file.name}-${index}`}
-                    variant="secondary"
-                    className="flex items-center gap-2 bg-violet-50 text-violet-700"
-                >
-                    <FileText className="size-3" />
-                    <span className="text-xs font-medium">{file.name}</span>
-                    <button
-                        type="button"
-                        aria-label={`Xóa tài liệu ${file.name}`}
-                        onClick={() => removeAttachment("document", index)}
-                        className="ml-1 text-xs text-violet-700 hover:text-violet-900"
+                        <ImageIcon className="size-3" />
+                        <span className="text-xs font-medium">{attachment.fileName}</span>
+                        {mode === "edit" && (
+                            <button
+                                type="button"
+                                aria-label={`Đánh dấu xóa ảnh ${attachment.fileName}`}
+                                onClick={() => handleToggleRemoveExistingAttachment(attachment.id)}
+                                className="ml-1 text-xs text-emerald-700 hover:text-emerald-900"
+                            >
+                                {pendingRemovalIds.has(attachment.id)
+                                    ? "Hoàn tác"
+                                    : "Xóa khi lưu"}
+                            </button>
+                        )}
+                    </Badge>
+                ))}
+                {existingDocs.map((attachment) => (
+                    <Badge
+                        key={`existing-doc-${attachment.id}`}
+                        variant="secondary"
+                        className={cn(
+                            "flex items-center gap-2 border border-violet-200",
+                            pendingRemovalIds.has(attachment.id)
+                                ? "bg-violet-50 text-violet-500 line-through"
+                                : "bg-violet-100 text-violet-800"
+                        )}
                     >
-                        ×
-                    </button>
-                </Badge>
-            ))}
-            {images.length === 0 && documents.length === 0 && (
-                <p className="text-xs text-muted-foreground">
-                    Chưa có tệp nào được đính kèm.
-                </p>
-            )}
-        </div>
-    )
+                        <FileText className="size-3" />
+                        <span className="text-xs font-medium">{attachment.fileName}</span>
+                        {mode === "edit" && (
+                            <button
+                                type="button"
+                                aria-label={`Đánh dấu xóa tài liệu ${attachment.fileName}`}
+                                onClick={() => handleToggleRemoveExistingAttachment(attachment.id)}
+                                className="ml-1 text-xs text-violet-700 hover:text-violet-900"
+                            >
+                                {pendingRemovalIds.has(attachment.id)
+                                    ? "Hoàn tác"
+                                    : "Xóa khi lưu"}
+                            </button>
+                        )}
+                    </Badge>
+                ))}
+                {/* New files being added */}
+                {images.map((file, index) => (
+                    <Badge
+                        key={`img-${file.name}-${index}`}
+                        variant="secondary"
+                        className="flex items-center gap-2 bg-emerald-50 text-emerald-700"
+                    >
+                        <ImageIcon className="size-3" />
+                        <span className="text-xs font-medium">{file.name}</span>
+                        <button
+                            type="button"
+                            aria-label={`Xóa ảnh ${file.name}`}
+                            onClick={() => removeAttachment("image", index)}
+                            className="ml-1 text-xs text-emerald-700 hover:text-emerald-900"
+                        >
+                            ×
+                        </button>
+                    </Badge>
+                ))}
+                {documents.map((file, index) => (
+                    <Badge
+                        key={`doc-${file.name}-${index}`}
+                        variant="secondary"
+                        className="flex items-center gap-2 bg-violet-50 text-violet-700"
+                    >
+                        <FileText className="size-3" />
+                        <span className="text-xs font-medium">{file.name}</span>
+                        <button
+                            type="button"
+                            aria-label={`Xóa tài liệu ${file.name}`}
+                            onClick={() => removeAttachment("document", index)}
+                            className="ml-1 text-xs text-violet-700 hover:text-violet-900"
+                        >
+                            ×
+                        </button>
+                    </Badge>
+                ))}
+                {!hasAnyAttachment && (
+                    <p className="text-xs text-muted-foreground">
+                        Chưa có tệp nào được đính kèm.
+                    </p>
+                )}
+            </div>
+        )
+    }
 
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -1071,6 +1190,39 @@ export function QuestionForm({
                                         </p>
                                     )}
                                 </div>
+
+                                {mode === "edit" && (
+                                    <div className="space-y-2">
+                                        <Label
+                                            htmlFor="edit-reason"
+                                            className="text-sm font-medium"
+                                        >
+                                            Lý do chỉnh sửa
+                                        </Label>
+                                        <Textarea
+                                            id="edit-reason"
+                                            value={editReason}
+                                            onChange={(event) =>
+                                                setEditReason(
+                                                    event.target.value.slice(
+                                                        0,
+                                                        300
+                                                    )
+                                                )
+                                            }
+                                            placeholder="Mô tả ngắn gọn lý do cập nhật (bắt buộc)."
+                                            rows={3}
+                                        />
+                                        <p className="text-xs text-muted-foreground">
+                                            Lý do sẽ được lưu vào lịch sử chỉnh sửa để mọi người biết thay đổi gì.
+                                        </p>
+                                        {!trimmedEditReason && (
+                                            <p className="text-xs text-destructive">
+                                                Vui lòng nhập lý do trước khi lưu.
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
 
                                 {bodyLength < MIN_BODY_LENGTH && (
                                     <p className="text-xs text-destructive">

@@ -6,5 +6,11 @@ import java.util.Map;
 
 public interface IStorageService {
     Map<String, String> uploadFile(MultipartFile file) throws IOException;
-    //deleteFile(String url) (Nếu cần)
+    
+    /**
+     * Delete a file from storage by its public ID/key
+     * @param publicId The public ID or storage key of the file
+     * @return true if deletion was successful
+     */
+    boolean deleteFile(String publicId) throws IOException;
 }

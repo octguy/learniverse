@@ -426,7 +426,7 @@ public class PostServiceImpl implements IPostService {
 
         contentRepository.delete(content);
         contentTagRepository.deleteByContentId(postId);
-        commentRepository.softDeleteByCommentable(ReactableType.CONTENT, postId);
+        commentRepository.softDeleteByCommentable(CommentableType.CONTENT.name(), postId);
         reactionRepository.softDeleteByReactable(ReactableType.CONTENT, postId);
         bookmarkRepository.softDeleteByContentId(postId);
         shareRepository.softDeleteByContentId(postId);
