@@ -64,7 +64,7 @@ export function QuestionFeed() {
     const [pageIndex, setPageIndex] = useState(0)
     const [refreshKey, setRefreshKey] = useState(0)
     const [tags, setTags] = useState<Tag[]>([])
-    const [selectedTag, setSelectedTag] = useState<Tag | null>(null)
+    const [selectedTags, setSelectedTags] = useState<Tag[]>([])
     const [state, setState] = useState<FeedState>({
         items: [],
         page: null,
@@ -103,7 +103,7 @@ export function QuestionFeed() {
                     size: PAGE_SIZE,
                     sort: activeSort.sort,
                     answerFilter: activeFilter === "all" ? undefined : activeFilter,
-                    tagIds: selectedTag ? [selectedTag.id] : undefined,
+                    tagIds: selectedTags.length > 0 ? selectedTags.map(t => t.id) : undefined,
                     query: debouncedSearch.trim() || undefined,
                 })
 
@@ -147,7 +147,7 @@ export function QuestionFeed() {
         return () => {
             cancelled = true
         }
-    }, [activeSort, activeFilter, selectedTag, pageIndex, refreshKey, debouncedSearch])
+    }, [activeSort, activeFilter, selectedTags, pageIndex, refreshKey, debouncedSearch])
 
     // No longer need client-side filtering - use state.items directly
     const visibleItems = state.items
@@ -201,75 +201,20 @@ export function QuestionFeed() {
             )}
 
             {/* Filter and Sort Controls - UC3.2 */}
-            <div className="flex flex-wrap items-center justify-between gap-3">
-                {/* Filter tabs */}
-                <div className="inline-flex rounded-md border bg-muted/40 p-1">
-                    {FILTER_OPTIONS.map((option) => {
-                        const isActive = option.id === activeFilter
-                        return (
-                            <Button
-                                key={option.id}
-                                variant={isActive ? "default" : "ghost"}
-                                size="sm"
-                                className="rounded-md"
-                                onClick={() => {
-                                    setActiveFilter(option.id)
-                                    setPageIndex(0)
-                                }}
-                            >
-                                {option.label}
-                            </Button>
-                        )
-                    })}
-                </div>
-
-                {/* Tag filter dropdown */}
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm" className="gap-1">
-                            {selectedTag ? selectedTag.name : "Môn học"}
-                            <ChevronDown className="size-3" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="max-h-64 overflow-y-auto">
-                        <DropdownMenuItem
-                            onClick={() => {
-                                setSelectedTag(null)
-                                setPageIndex(0)
-                            }}
-                            className={!selectedTag ? "bg-accent" : ""}
-                        >
-                            Tất cả môn học
-                        </DropdownMenuItem>
-                        {tags.map((tag) => (
-                            <DropdownMenuItem
-                                key={tag.id}
-                                onClick={() => {
-                                    setSelectedTag(tag)
-                                    setPageIndex(0)
-                                }}
-                                className={selectedTag?.id === tag.id ? "bg-accent" : ""}
-                            >
-                                {tag.name}
-                            </DropdownMenuItem>
-                        ))}
-                    </DropdownMenuContent>
-                </DropdownMenu>
-
-                {/* Sort options */}
-                <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">Sắp xếp:</span>
+            <div className="space-y-3">
+                {/* Row 1: Answer filter tabs */}
+                <div className="flex flex-wrap items-center gap-3">
                     <div className="inline-flex rounded-md border bg-muted/40 p-1">
-                        {SORT_OPTIONS.map((option) => {
-                            const isActive = option.id === activeSort.id
+                        {FILTER_OPTIONS.map((option) => {
+                            const isActive = option.id === activeFilter
                             return (
                                 <Button
                                     key={option.id}
                                     variant={isActive ? "default" : "ghost"}
                                     size="sm"
-                                    className="rounded-md text-xs"
+                                    className="rounded-md"
                                     onClick={() => {
-                                        setActiveSort(option)
+                                        setActiveFilter(option.id)
                                         setPageIndex(0)
                                     }}
                                 >
@@ -279,26 +224,111 @@ export function QuestionFeed() {
                         })}
                     </div>
                 </div>
-            </div>
 
-            {/* Active filters indicator */}
-            {selectedTag && (
-                <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">Đang lọc theo:</span>
-                    <Badge variant="secondary" className="gap-1">
-                        {selectedTag.name}
-                        <button
-                            onClick={() => {
-                                setSelectedTag(null)
-                                setPageIndex(0)
-                            }}
-                            className="ml-1 rounded-full hover:bg-muted-foreground/20"
-                        >
-                            <X className="size-3" />
-                        </button>
-                    </Badge>
+                {/* Row 2: Tag filter + Sort options */}
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    {/* Tag filter dropdown - multiple selection */}
+                    <div className="flex items-center gap-2">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm" className="gap-1">
+                                    Môn học {selectedTags.length > 0 && `(${selectedTags.length})`}
+                                    <ChevronDown className="size-3" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" className="max-h-64 overflow-y-auto">
+                                <DropdownMenuItem
+                                    onClick={() => {
+                                        setSelectedTags([])
+                                        setPageIndex(0)
+                                    }}
+                                    className={selectedTags.length === 0 ? "bg-accent" : ""}
+                                >
+                                    Tất cả môn học
+                                </DropdownMenuItem>
+                                {tags.map((tag) => {
+                                    const isSelected = selectedTags.some(t => t.id === tag.id)
+                                    return (
+                                        <DropdownMenuItem
+                                            key={tag.id}
+                                            onClick={(e) => {
+                                                e.preventDefault()
+                                                if (isSelected) {
+                                                    setSelectedTags(selectedTags.filter(t => t.id !== tag.id))
+                                                } else {
+                                                    setSelectedTags([...selectedTags, tag])
+                                                }
+                                                setPageIndex(0)
+                                            }}
+                                            className={isSelected ? "bg-accent" : ""}
+                                        >
+                                            <span className="flex items-center gap-2">
+                                                {isSelected && <span className="text-primary">✓</span>}
+                                                {tag.name}
+                                            </span>
+                                        </DropdownMenuItem>
+                                    )
+                                })}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+
+                        {/* Selected tags badges */}
+                        {selectedTags.length > 0 && (
+                            <div className="flex flex-wrap items-center gap-1">
+                                {selectedTags.map(tag => (
+                                    <Badge key={tag.id} variant="secondary" className="gap-1 text-xs">
+                                        {tag.name}
+                                        <button
+                                            onClick={() => {
+                                                setSelectedTags(selectedTags.filter(t => t.id !== tag.id))
+                                                setPageIndex(0)
+                                            }}
+                                            className="ml-0.5 rounded-full hover:bg-muted-foreground/20"
+                                        >
+                                            <X className="size-3" />
+                                        </button>
+                                    </Badge>
+                                ))}
+                                {selectedTags.length > 1 && (
+                                    <button
+                                        onClick={() => {
+                                            setSelectedTags([])
+                                            setPageIndex(0)
+                                        }}
+                                        className="text-xs text-muted-foreground hover:text-foreground"
+                                    >
+                                        Xóa tất cả
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Sort options */}
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">Sắp xếp:</span>
+                        <div className="inline-flex rounded-md border bg-muted/40 p-1">
+                            {SORT_OPTIONS.map((option) => {
+                                const isActive = option.id === activeSort.id
+                                return (
+                                    <Button
+                                        key={option.id}
+                                        variant={isActive ? "default" : "ghost"}
+                                        size="sm"
+                                        className="rounded-md text-xs"
+                                        onClick={() => {
+                                            setActiveSort(option)
+                                            setPageIndex(0)
+                                        }}
+                                    >
+                                        {option.label}
+                                    </Button>
+                                )
+                            })}
+                        </div>
+                    </div>
                 </div>
-            )}
+            </div>
 
             {showErrorBanner && (
                 <Alert variant="destructive">

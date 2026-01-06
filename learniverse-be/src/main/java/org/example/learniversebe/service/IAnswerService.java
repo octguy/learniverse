@@ -5,9 +5,7 @@ import org.example.learniversebe.dto.request.UpdateAnswerRequest;
 import org.example.learniversebe.dto.response.AnswerResponse;
 import org.example.learniversebe.dto.response.PageResponse;
 import org.springframework.data.domain.Pageable;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -22,12 +20,11 @@ public interface IAnswerService {
      * Sends notification to the question author (if different from answer author).
      *
      * @param request Data transfer object containing answer details (body) and question ID.
-     * @param files   Optional list of attachment files.
      * @return DTO representing the newly created answer.
      * @throws org.example.learniversebe.exception.ResourceNotFoundException if the question is not found.
      * @throws org.example.learniversebe.exception.BadRequestException if the target content is not a QUESTION or other validation fails.
      */
-    AnswerResponse addAnswer(CreateAnswerRequest request, List<MultipartFile> files);
+    AnswerResponse addAnswer(CreateAnswerRequest request);
 
     /**
      * Retrieves a paginated list of answers for a specific question.

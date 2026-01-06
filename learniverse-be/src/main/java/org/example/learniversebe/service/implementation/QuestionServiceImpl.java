@@ -300,6 +300,13 @@ public class QuestionServiceImpl implements IQuestionService {
         // Lấy danh sách câu trả lời phân trang
         Page<Answer> answerPage = answerRepository.findByQuestionIdOrderByIsAcceptedDescVoteScoreDescCreatedAtAsc(content.getId(), answerPageable);
         PageResponse<AnswerResponse> answerPageResponse = answerMapper.answerPageToAnswerPageResponse(answerPage);
+        
+        // Set interaction status for each answer
+        UUID currentUserId = serviceHelper.getCurrentUserId();
+        if (currentUserId != null && answerPageResponse.getContent() != null) {
+            answerPageResponse.getContent().forEach(answerDto -> setAnswerInteractionStatus(answerDto, currentUserId));
+        }
+        
         response.setAnswers(answerPageResponse.getContent());
 
         return response;
@@ -640,6 +647,21 @@ public class QuestionServiceImpl implements IQuestionService {
             response.setCurrentUserVote(null);
             response.setCurrentUserReaction(null);
         }
+    }
+
+    /**
+     * Helper to set user-specific interaction status on an AnswerResponse DTO.
+     */
+    private void setAnswerInteractionStatus(AnswerResponse answerDto, UUID currentUserId) {
+        if (currentUserId == null) return;
+
+        Optional<Vote> voteOpt = voteRepository.findByUserIdAndVotableTypeAndVotableId(
+                currentUserId, VotableType.ANSWER, answerDto.getId());
+        answerDto.setCurrentUserVote(voteOpt.map(Vote::getVoteType).orElse(null));
+
+        Optional<Reaction> reactionOpt = reactionRepository.findByUserIdAndReactableTypeAndReactableId(
+                currentUserId, ReactableType.ANSWER, answerDto.getId());
+        answerDto.setCurrentUserReaction(reactionOpt.map(Reaction::getReactionType).orElse(null));
     }
 
     @Override

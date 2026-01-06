@@ -1104,13 +1104,29 @@ export default function QuestionDetailPage() {
                     </Alert>
                 ) : null}
 
+                <div className="mt-8 space-y-6">
+                    {question.body ? (
+                        <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={markdownComponents}
+                        >
+                            {question.body}
+                        </ReactMarkdown>
+                    ) : question.excerpt ? (
+                        <p className="text-sm text-muted-foreground">
+                            {question.excerpt}
+                        </p>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">
+                            Nội dung chi tiết đang được cập nhật.
+                        </p>
+                    )}
+                </div>
+
                 {question.attachments?.length ? (
                     <div className="mt-8 space-y-4">
                         {attachments.images.length > 0 && (
                             <div>
-                                <p className="mb-2 text-sm font-medium text-foreground">
-                                    Hình ảnh đính kèm
-                                </p>
                                 <div className="grid gap-3 sm:grid-cols-2">
                                     {attachments.images.map((attachment) => (
                                         <div
@@ -1121,7 +1137,7 @@ export default function QuestionDetailPage() {
                                             <img
                                                 src={attachment.storageUrl}
                                                 alt={attachment.fileName}
-                                                className="h-52 w-full object-cover"
+                                                className="h-52 w-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
                                             />
                                         </div>
                                     ))}
@@ -1145,7 +1161,7 @@ export default function QuestionDetailPage() {
                                             <span className="text-sm font-medium text-foreground max-w-[200px] truncate">
                                                 {attachment.fileName}
                                             </span>
-                                            <Download className="size-4 ml-auto text-primary" />
+                                            <Download className="size-4 ml-auto text-muted-foreground" />
                                         </div>
                                     ))}
                                 </div>
@@ -1153,25 +1169,6 @@ export default function QuestionDetailPage() {
                         )}
                     </div>
                 ) : null}
-
-                <div className="mt-8 space-y-6">
-                    {question.body ? (
-                        <ReactMarkdown
-                            remarkPlugins={[remarkGfm]}
-                            components={markdownComponents}
-                        >
-                            {question.body}
-                        </ReactMarkdown>
-                    ) : question.excerpt ? (
-                        <p className="text-sm text-muted-foreground">
-                            {question.excerpt}
-                        </p>
-                    ) : (
-                        <p className="text-sm text-muted-foreground">
-                            Nội dung chi tiết đang được cập nhật.
-                        </p>
-                    )}
-                </div>
 
                 <section className="mt-10 space-y-6 border-t pt-6">
                     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1492,7 +1489,6 @@ export default function QuestionDetailPage() {
                                                                     <AlertDialogAction
                                                                         onClick={() => handleDeleteAnswer(answer.id)}
                                                                         disabled={isDeletingAnswer[answer.id]}
-                                                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                                                     >
                                                                         {isDeletingAnswer[answer.id] && (
                                                                             <Loader2 className="mr-2 size-4 animate-spin" />

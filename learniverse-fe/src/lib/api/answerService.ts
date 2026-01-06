@@ -19,33 +19,13 @@ function unwrap<T>(response: ApiResponse<T>) {
 
 export const answerService = {
     /**
-     * Create a new answer (with optional file attachments)
-     * Backend expects: multipart/form-data with @RequestPart("answer") + @RequestPart("files")
+     * Create a new answer for a question
+     * Backend accepts: JSON body with questionId and body
      */
-    async create(payload: CreateAnswerPayload, files?: File[]) {
-        const formData = new FormData()
-
-        // Append the answer JSON as a Blob with application/json type
-        const answerBlob = new Blob([JSON.stringify(payload)], {
-            type: "application/json",
-        })
-        formData.append("answer", answerBlob)
-
-        // Append files if provided
-        if (files && files.length > 0) {
-            files.forEach((file) => {
-                formData.append("files", file)
-            })
-        }
-
+    async create(payload: CreateAnswerPayload) {
         const response = await apiService.post<ApiResponse<QuestionAnswer>>(
             BASE_PATH,
-            formData,
-            {
-                headers: {
-                    "Content-Type": "multipart/form-data",
-                },
-            }
+            payload
         )
         return unwrap(response.data)
     },

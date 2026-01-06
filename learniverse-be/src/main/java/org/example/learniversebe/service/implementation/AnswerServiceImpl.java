@@ -23,10 +23,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -66,8 +64,7 @@ public class AnswerServiceImpl implements IAnswerService {
 
     @Override
     @Transactional
-    public AnswerResponse addAnswer(CreateAnswerRequest request, List<MultipartFile> files) {
-        // Note: files parameter is accepted but ignored - answers don't support attachments per UC requirements
+    public AnswerResponse addAnswer(CreateAnswerRequest request) {
         log.info("Adding answer to question ID: {}", request.getQuestionId());
         User author = serviceHelper.getCurrentUser();
         Content question = contentRepository.findById(request.getQuestionId())
