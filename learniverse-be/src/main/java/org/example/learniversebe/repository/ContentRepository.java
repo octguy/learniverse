@@ -21,7 +21,10 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
     /**
      * Find by content types and status (exclude soft deleted)
      */
-    @Query("SELECT c FROM Content c WHERE c.contentType IN :types " +
+    @Query("SELECT DISTINCT c FROM Content c " +
+            "LEFT JOIN FETCH c.author a " +
+            "LEFT JOIN FETCH a.userProfile " +
+            "WHERE c.contentType IN :types " +
             "AND c.status = :status " +
             "AND c.deletedAt IS NULL " +
             "ORDER BY c.publishedAt DESC")
@@ -29,22 +32,6 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
             @Param("types") List<ContentType> types,
             @Param("status") ContentStatus status,
             Pageable pageable);
-
-    Page<Content> findByContentTypeOrderByCreatedAtDesc(ContentType contentType, Pageable pageable);
-
-
-    Page<Content> findByAuthorIdAndContentTypeOrderByCreatedAtDesc(UUID authorId, ContentType contentType, Pageable pageable);
-
-    Optional<Content> findBySlug(String slug);
-
-    @Query("SELECT c FROM Content c JOIN FETCH c.author WHERE c.id = :id")
-    Optional<Content> findByIdWithAuthor(@Param("id") UUID id);
-
-    // Query để tìm kiếm (sử dụng function của PostgreSQL)
-    @Query(value = "SELECT * FROM contents c WHERE c.deleted_at IS NULL AND c.search_vector @@ plainto_tsquery('simple', :query)",
-            countQuery = "SELECT count(*) FROM contents c WHERE c.deleted_at IS NULL AND c.search_vector @@ plainto_tsquery('simple', :query)",
-            nativeQuery = true)
-    Page<Content> searchByQuery(@Param("query") String query, Pageable pageable);
 
     /**
      * Find by ID and content type (exclude soft deleted)
@@ -71,7 +58,9 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
     /**
      * Find published posts by tag ID
      */
-    @Query("SELECT c FROM Content c " +
+    @Query("SELECT DISTINCT c FROM Content c " +
+            "LEFT JOIN FETCH c.author a " +
+            "LEFT JOIN FETCH a.userProfile " +
             "JOIN c.contentTags ct " +
             "WHERE ct.tag.id = :tagId " +
             "AND c.contentType = 'POST' " +
@@ -85,8 +74,10 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
     /**
      * Full-text search for published posts
      */
-    @Query("SELECT c FROM Content c WHERE " +
-            "(LOWER(c.title) LIKE LOWER(CONCAT('%', :query, '%')) " +
+    @Query("SELECT DISTINCT c FROM Content c " +
+            "LEFT JOIN FETCH c.author a " +
+            "LEFT JOIN FETCH a.userProfile " +
+            "WHERE (LOWER(c.title) LIKE LOWER(CONCAT('%', :query, '%')) " +
             "OR LOWER(c.body) LIKE LOWER(CONCAT('%', :query, '%'))) " +
             "AND c.contentType = 'POST' " +
             "AND c.status = 'PUBLISHED' " +
@@ -99,7 +90,10 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
     /**
      * Find by author, content types and status (sorted by published date)
      */
-    @Query("SELECT c FROM Content c WHERE c.author.id = :authorId " +
+    @Query("SELECT DISTINCT c FROM Content c " +
+            "LEFT JOIN FETCH c.author a " +
+            "LEFT JOIN FETCH a.userProfile " +
+            "WHERE c.author.id = :authorId " +
             "AND c.contentType IN :types " +
             "AND c.status = :status " +
             "AND c.deletedAt IS NULL " +
@@ -110,7 +104,6 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
             @Param("status") ContentStatus status,
             Pageable pageable);
 
-    Page<Content> findByContentTypeAndStatusOrderByPublishedAtDesc(ContentType contentType, ContentStatus contentStatus, Pageable pageable);
 
     @Query("SELECT c FROM Content c JOIN c.contentTags ct WHERE c.contentType = 'QUESTION' AND c.status = 'PUBLISHED' AND ct.tag.id = :tagId")
     Page<Content> findPublishedQuestionsByTagId(@Param("tagId") UUID tagId, Pageable pageable);
@@ -167,6 +160,7 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
             "     OR LOWER(c.body) LIKE LOWER(CONCAT('%', :query, '%')))")
     Page<Content> searchAcceptedQuestions(@Param("query") String query, Pageable pageable);
 
+    // I know there's already findByContentType method but spare me the lecture ahhh
     Page<Content> findByContentType(ContentType contentType, Pageable pageable);
 
     /**
@@ -179,7 +173,6 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
 
     long countByContentType(ContentType contentType);
 
-    // Dashboard queries - Content comparison by period
     @Query(value = """
             SELECT 
                 TO_CHAR(created_at, 'YYYY-MM-DD') as label,
@@ -219,7 +212,10 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
     /**
      * Find by author, content type and status (sorted by updated date)
      */
-    @Query("SELECT c FROM Content c WHERE c.author.id = :authorId " +
+    @Query("SELECT DISTINCT c FROM Content c " +
+            "LEFT JOIN FETCH c.author a " +
+            "LEFT JOIN FETCH a.userProfile " +
+            "WHERE c.author.id = :authorId " +
             "AND c.contentType = :type " +
             "AND c.status = :status " +
             "AND c.deletedAt IS NULL " +
@@ -237,7 +233,14 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
     /**
      * Find by author, content types and status (sorted by updated date)
      */
-    @Query("SELECT c FROM Content c WHERE c.author.id = :authorId " +
+    /**
+     * Find by author, content types and status (sorted by updated date)
+     * JOIN FETCH userProfile to avoid N+1 query
+     */
+    @Query("SELECT DISTINCT c FROM Content c " +
+            "LEFT JOIN FETCH c.author a " +
+            "LEFT JOIN FETCH a.userProfile " +
+            "WHERE c.author.id = :authorId " +
             "AND c.contentType IN :types " +
             "AND c.status = :status " +
             "AND c.deletedAt IS NULL " +
