@@ -74,16 +74,35 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         refreshAuth();
     }, [refreshAuth]);
 
+    useEffect(() => {
+        if (!accessToken) return;
+
+        const decoded = parseJwt(accessToken);
+        if (!decoded || !decoded.exp) return;
+
+        const expTime = decoded.exp * 1000;
+        const currentTime = Date.now();
+        const timeUntilExpire = expTime - currentTime;
+        
+        const bufferTime = 2 * 60 * 1000; 
+        const delay = timeUntilExpire - bufferTime;
+
+        const timeoutId = setTimeout(() => {
+            console.log("Auto refreshing token...");
+            refreshAuth();
+        }, Math.max(0, delay));
+
+        return () => clearTimeout(timeoutId);
+    }, [accessToken, refreshAuth]);
+
 
     const login = async (data: AuthResponse) => {
         const { id, username, email, accessToken, refreshToken, isOnboarded } = data;
         let { role, roles } = data;
 
-        // Set token immediately so apiService can use it
         localStorage.setItem('accessToken', accessToken);
         localStorage.setItem('refreshToken', refreshToken);
 
-        // Try to extract roles from token if not provided
         if ((!role && !roles) && accessToken) {
             const decoded = parseJwt(accessToken);
             if (decoded) {
@@ -100,14 +119,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
         let avatarUrl: string | undefined;
         try {
-            // Fetch full profile to get role if backend provides it there
             const profile = await userProfileService.getMyProfile();
             avatarUrl = profile.avatarUrl;
             
-            // If profile has role, use it (priority over token/login response)
             if (profile.role) {
                 role = profile.role;
-                // If roles array is missing but we have a single role, create the array
                 if (!profile.roles || profile.roles.length === 0) {
                     roles = [profile.role];
                 } else {
