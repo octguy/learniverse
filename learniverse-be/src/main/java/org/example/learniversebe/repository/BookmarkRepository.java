@@ -15,41 +15,74 @@ import java.util.UUID;
 @Repository
 public interface BookmarkRepository extends JpaRepository<Bookmark, UUID> {
 
-    /** Tìm bookmark của user cho một content cụ thể
-     * @param userId Id người dùng
-     * @param contentId Id content
-     * @return Bookmark
+    /**
+     * Tìm bookmark của user cho content, CHỈ những bookmark active (chưa bị xóa)
      */
-    Optional<Bookmark> findByUserIdAndContentId(UUID userId, UUID contentId);
+    @Query("SELECT b FROM Bookmark b WHERE b.user.id = :userId AND b.content.id = :contentId AND b.deletedAt IS NULL")
+    Optional<Bookmark> findByUserIdAndContentId(
+            @Param("userId") UUID userId,
+            @Param("contentId") UUID contentId);
 
-    /** Tìm bookmark kể cả đã xóa mềm (để xử lý restore)
+    /**
+     * Tìm bookmark của user cho content, BAO GỒM CẢ đã soft delete
+     * QUAN TRỌNG: Method này để xử lý trường hợp restore bookmark
      */
     @Query("SELECT b FROM Bookmark b WHERE b.user.id = :userId AND b.content.id = :contentId")
     Optional<Bookmark> findByUserIdAndContentIdIncludingDeleted(
             @Param("userId") UUID userId,
             @Param("contentId") UUID contentId);
 
-    @Query("SELECT b FROM Bookmark b JOIN FETCH b.content c LEFT JOIN FETCH c.author WHERE b.user.id = :userId AND b.deletedAt IS NULL ORDER BY b.createdAt DESC")
-    Page<Bookmark> findByUserIdOrderByCreatedAtDesc(@Param("userId") UUID userId, Pageable pageable);
+    /**
+     * Kiểm tra xem user đã bookmark content chưa (chỉ active bookmarks)
+     */
+    @Query("SELECT COUNT(b) > 0 FROM Bookmark b WHERE b.user.id = :userId AND b.content.id = :contentId AND b.deletedAt IS NULL")
+    boolean existsByUserIdAndContentId(
+            @Param("userId") UUID userId,
+            @Param("contentId") UUID contentId);
 
-    // Đếm số bookmark của user
-    long countByUserId(UUID userId);
+    /**
+     * Lấy tất cả bookmarks của user (chỉ active)
+     */
+    @Query("SELECT b FROM Bookmark b WHERE b.user.id = :userId AND b.deletedAt IS NULL ORDER BY b.createdAt DESC")
+    Page<Bookmark> findByUserIdOrderByCreatedAtDesc(
+            @Param("userId") UUID userId,
+            Pageable pageable);
 
-    // Đếm số lượt bookmark cho một content
-    long countByContentId(UUID contentId);
-
-    boolean existsByUserIdAndContentId(UUID currentUserId, UUID contentId);
-
-    @Query("SELECT b FROM Bookmark b JOIN FETCH b.content c LEFT JOIN FETCH c.author WHERE b.user.id = :userId AND LOWER(b.collectionName) = LOWER(:collectionName) ORDER BY b.createdAt DESC")
+    /**
+     * Lấy bookmarks của user theo collection name (chỉ active)
+     */
+    @Query("SELECT b FROM Bookmark b WHERE b.user.id = :userId " +
+            "AND LOWER(b.collectionName) = LOWER(:collectionName) " +
+            "AND b.deletedAt IS NULL " +
+            "ORDER BY b.createdAt DESC")
     Page<Bookmark> findByUserIdAndCollectionNameIgnoreCaseOrderByCreatedAtDesc(
             @Param("userId") UUID userId,
             @Param("collectionName") String collectionName,
-            Pageable pageable
-    );
+            Pageable pageable);
+
     /**
-     * Xóa mềm tất cả bookmarks của một content
+     * Đếm số bookmark cho một content (chỉ active)
+     */
+    @Query("SELECT COUNT(b) FROM Bookmark b WHERE b.content.id = :contentId AND b.deletedAt IS NULL")
+    long countByContentId(@Param("contentId") UUID contentId);
+
+    /**
+     * Lấy tất cả collection names của user (distinct, chỉ active)
+     */
+    @Query("SELECT DISTINCT b.collectionName FROM Bookmark b " +
+            "WHERE b.user.id = :userId " +
+            "AND b.collectionName IS NOT NULL " +
+            "AND b.deletedAt IS NULL " +
+            "ORDER BY b.collectionName")
+    Page<String> findDistinctCollectionNamesByUserId(
+            @Param("userId") UUID userId,
+            Pageable pageable);
+
+    /**
+     * Soft delete all bookmarks for a content
      */
     @Modifying
-    @Query("UPDATE Bookmark b SET b.deletedAt = CURRENT_TIMESTAMP WHERE b.content.id = :contentId AND b.deletedAt IS NULL")
-    void softDeleteByContentId(@Param("contentId") UUID contentId);
+    @Query("UPDATE Bookmark b SET b.deletedAt = CURRENT_TIMESTAMP " +
+            "WHERE b.content.id = :contentId AND b.deletedAt IS NULL")
+    int softDeleteByContentId(@Param("contentId") UUID contentId);
 }

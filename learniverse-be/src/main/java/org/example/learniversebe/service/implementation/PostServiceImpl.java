@@ -420,22 +420,68 @@ public class PostServiceImpl implements IPostService {
         Content content = contentRepository.findByIdAndContentType(postId, ContentType.POST)
                 .orElseThrow(() -> new ResourceNotFoundException("Post not found with id: " + postId));
 
-        if (!serviceHelper.isCurrentUserAuthor(content.getAuthor().getId()) /* && !serviceHelper.isCurrentUserAdminOrModerator() */ ) {
+        if (!serviceHelper.isCurrentUserAuthor(content.getAuthor().getId())
+            /* && !serviceHelper.isCurrentUserAdminOrModerator() */ ) {
             throw new UnauthorizedException("User is not authorized to delete this post");
         }
 
-        contentRepository.delete(content);
-        contentTagRepository.deleteByContentId(postId);
-        commentRepository.softDeleteByCommentable(CommentableType.CONTENT.name(), postId);
+        // 1. Soft delete comments (bao gồm cả replies)
+        commentRepository.softDeleteByCommentable(ReactableType.CONTENT, postId);
+
+        // 2. Soft delete reactions
         reactionRepository.softDeleteByReactable(ReactableType.CONTENT, postId);
+
+        // 3. Soft delete bookmarks
         bookmarkRepository.softDeleteByContentId(postId);
+
+        // 4. Soft delete shares
         shareRepository.softDeleteByContentId(postId);
 
-        // Xóa mềm Attachments (nếu @OneToMany không có cascade soft delete)
-        // attachmentRepository.softDeleteByContentId(postId);
+        // 5. Soft delete attachments (optional - có thể giữ lại để recover)
+        attachmentRepository.softDeleteByContentId(postId);
 
-        // Lịch sử chỉnh sửa có thể giữ lại
-        // editHistoryRepository.softDeleteByContentId(postId);
+        // 6. Hard delete ContentTags (vì đây là bảng join, không cần soft delete)
+        contentTagRepository.deleteByContentId(postId);
+
+        // 7. Giữ lại edit history để audit (không xóa)
+        // log.debug("Keeping edit history for audit purposes");
+
+        contentRepository.softDeleteById(postId);
+    }
+
+    /**
+     * Restore a soft-deleted post
+     */
+    @Transactional
+    @Override
+    public PostResponse restorePost(UUID postId) {
+        log.info("Restoring soft-deleted post: {}", postId);
+
+        User currentUser = serviceHelper.getCurrentUser();
+
+        // Tìm content kể cả đã deleted
+        Content content = contentRepository.findById(postId)
+                .orElseThrow(() -> new ResourceNotFoundException("Post not found with id: " + postId));
+
+        if (content.getDeletedAt() == null) {
+            throw new BadRequestException("Post is not deleted");
+        }
+
+        if (!serviceHelper.isCurrentUserAuthor(content.getAuthor().getId())) {
+            throw new UnauthorizedException("User is not authorized to restore this post");
+        }
+
+        // Restore content
+        content.setDeletedAt(null);
+        content.setUpdatedAt(LocalDateTime.now());
+        Content restoredContent = contentRepository.save(content);
+
+        log.info("Successfully restored post: {}", postId);
+
+        // Note: Các entities liên quan (comments, reactions, bookmarks) vẫn ở trạng thái soft-deleted
+        // Có thể implement logic restore các entities này nếu cần
+
+        return getPostResponseWithInteraction(restoredContent);
     }
 
     @Override

@@ -6,6 +6,7 @@ import org.example.learniversebe.dto.request.UpdateCommentRequest;
 import org.example.learniversebe.dto.response.CommentResponse;
 import org.example.learniversebe.dto.response.PageResponse;
 import org.example.learniversebe.enums.ReactableType;
+import org.example.learniversebe.enums.ReactionType;
 import org.example.learniversebe.exception.BadRequestException;
 import org.example.learniversebe.exception.ResourceNotFoundException;
 import org.example.learniversebe.exception.UnauthorizedException;
@@ -13,21 +14,15 @@ import org.example.learniversebe.mapper.CommentMapper;
 import org.example.learniversebe.model.*;
 import org.example.learniversebe.repository.*;
 import org.example.learniversebe.service.ICommentService;
-import org.example.learniversebe.service.IInteractionService;
-import org.example.learniversebe.service.INotificationService;
 import org.example.learniversebe.util.ServiceHelper;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -41,7 +36,8 @@ public class CommentServiceImpl implements ICommentService {
     private final MentionRepository mentionRepository; // Để lưu mentions
     private final CommentMapper commentMapper;
     private final ServiceHelper serviceHelper;
-    private final IInteractionService interactionService; // Inject InteractionService
+    private final ReactionRepository reactionRepository;
+//    private final IInteractionService interactionService; // Inject InteractionService
     // private final INotificationService notificationService;
 
     @Value("${app.comment.edit.limit-minutes:15}") // Giới hạn sửa comment, ví dụ 15 phút
@@ -57,7 +53,9 @@ public class CommentServiceImpl implements ICommentService {
                               MentionRepository mentionRepository, // Inject
                               CommentMapper commentMapper,
                               ServiceHelper serviceHelper,
-                              @Lazy IInteractionService interactionService
+//                              @Lazy IInteractionService interactionService,
+                              ReactionRepository reactionRepository
+
             /*, INotificationService notificationService */) {
         this.commentRepository = commentRepository;
         this.contentRepository = contentRepository;
@@ -66,8 +64,10 @@ public class CommentServiceImpl implements ICommentService {
         this.mentionRepository = mentionRepository;
         this.commentMapper = commentMapper;
         this.serviceHelper = serviceHelper;
-        this.interactionService = interactionService;
+
+//        this.interactionService = interactionService;
         // this.notificationService = notificationService;
+        this.reactionRepository = reactionRepository;
     }
 
     @Override
@@ -76,7 +76,7 @@ public class CommentServiceImpl implements ICommentService {
         log.info("Adding comment to {} with ID: {}", request.getCommentableType(), request.getCommentableId());
         User author = serviceHelper.getCurrentUser();
         Comment parentComment = null;
-        int depth = 0;
+        int depth;
 
         // 1. Xác thực Commentable Entity và Parent Comment (nếu có)
         validateCommentableEntity(request.getCommentableType(), request.getCommentableId());
@@ -90,7 +90,7 @@ public class CommentServiceImpl implements ICommentService {
             }
             // Đảm bảo parent comment thuộc cùng commentable entity (tùy chọn)
             if (!parentComment.getCommentableId().equals(request.getCommentableId()) ||
-                    !parentComment.getCommentableType().equals(request.getCommentableType().name())) {
+                    !parentComment.getCommentableType().equals(request.getCommentableType())) {
                 throw new BadRequestException("Parent comment does not belong to the same entity.");
             }
         }
@@ -127,20 +127,48 @@ public class CommentServiceImpl implements ICommentService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<CommentResponse> getCommentsFor(ReactableType commentableType, UUID commentableId, Pageable pageable) {
-        validateCommentableEntity(commentableType, commentableId); // Đảm bảo entity tồn tại
+    public PageResponse<CommentResponse> getCommentsFor(ReactableType type, UUID id, Pageable pageable) {
+        // 1. Tìm comment theo Type và ID (Generic)
+        Page<Comment> commentPage = commentRepository.findByCommentableTypeAndCommentableId(type, id, pageable);
 
-        Page<Comment> commentPage = commentRepository.findByCommentableTypeAndCommentableIdAndParentIsNullOrderByCreatedAtAsc(
-                commentableType.name(), commentableId, pageable);
+        // 2. Map sang DTO
+        PageResponse<CommentResponse> response = commentMapper.commentPageToCommentPageResponse(commentPage);
+        List<CommentResponse> commentDTOs = response.getContent();
 
-        PageResponse<CommentResponse> responsePage = commentMapper.commentPageToCommentPageResponse(commentPage);
-
-        // Lấy trạng thái tương tác cho từng comment
-        UUID currentUserId = serviceHelper.getCurrentUserId();
-        if (currentUserId != null && responsePage != null && responsePage.getContent() != null) {
-            responsePage.getContent().forEach(commentDto -> setInteractionStatusForCurrentUser(commentDto, currentUserId));
+        if (commentDTOs.isEmpty()) {
+            return response;
         }
-        return responsePage;
+
+        // 3. Xử lý Reaction (N+1 Optimization)
+        UUID currentUserId = serviceHelper.getCurrentUserId();
+
+        if (currentUserId != null) {
+            List<UUID> commentIds = commentDTOs.stream()
+                    .map(CommentResponse::getId)
+                    .toList();
+
+            // Query 1 lần lấy reaction cho toàn bộ comment trong trang này
+            List<Reaction> reactions = reactionRepository.findByUserIdAndReactableTypeAndReactableIdIn(
+                    currentUserId,
+                    ReactableType.COMMENT,
+                    commentIds
+            );
+
+            Map<UUID, ReactionType> reactionMap = reactions.stream()
+                    .collect(Collectors.toMap(
+                            Reaction::getReactableId,
+                            Reaction::getReactionType,
+                            (existing, replacement) -> existing
+                    ));
+
+            for (CommentResponse dto : commentDTOs) {
+                if (reactionMap.containsKey(dto.getId())) {
+                    dto.setCurrentUserReaction(reactionMap.get(dto.getId()));
+                }
+            }
+        }
+
+        return response;
     }
 
     @Override
@@ -213,29 +241,25 @@ public class CommentServiceImpl implements ICommentService {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Comment not found with id: " + commentId));
 
-        // Kiểm tra quyền (tác giả hoặc admin/mod)
-        if (!comment.getAuthor().getId().equals(currentUser.getId()) /* && !currentUser.isAdminOrModerator() */) {
+        if (!comment.getAuthor().getId().equals(currentUser.getId())) {
             throw new UnauthorizedException("User is not authorized to delete this comment");
         }
 
-        // Giảm count trên parent entity hoặc parent comment
-        updateCommentableCommentCount(ReactableType.valueOf(comment.getCommentableType()), comment.getCommentableId(), -1);
+        int totalDeletedCount = 1;
+
+        totalDeletedCount += deleteRepliesRecursively(comment);
+
+        updateCommentableCommentCount(comment.getCommentableType(), comment.getCommentableId(), -totalDeletedCount);
+
         if (comment.getParent() != null) {
             Comment parent = comment.getParent();
             parent.setReplyCount(Math.max(0, parent.getReplyCount() - 1));
             commentRepository.save(parent);
         }
 
-        // Xóa mềm comment (và các replies nếu cần - logic phức tạp hơn)
-        // Hiện tại chỉ xóa mềm comment này
         commentRepository.delete(comment);
-
-        // TODO: Xóa mềm các Mention, Reaction liên quan
-        mentionRepository.softDeleteByCommentId(commentId); // Cần thêm method này vào Repo
-        // reactionRepository.softDeleteByReactable(ReactableType.COMMENT, commentId); // Cần thêm method này
-
-        // Xử lý xóa replies (ví dụ: xóa mềm luôn)
-        deleteRepliesRecursively(comment);
+        mentionRepository.softDeleteByCommentId(commentId);
+        reactionRepository.softDeleteByReactable(ReactableType.COMMENT, commentId);
     }
 
     // --- Helper Methods ---
@@ -309,27 +333,46 @@ public class CommentServiceImpl implements ICommentService {
         return depth;
     }
 
-    /** Xóa mềm các replies (đệ quy) */
-    private void deleteRepliesRecursively(Comment parentComment) {
-        List<Comment> replies = commentRepository.findByParentId(parentComment.getId()); // Cần method này trong Repo
+    /** * Xóa mềm các replies (đệ quy) và TRẢ VỀ số lượng đã xóa
+     */
+    private int deleteRepliesRecursively(Comment parentComment) {
+        int deletedCount = 0;
+        List<Comment> replies = commentRepository.findByParentId(parentComment.getId());
+
         for (Comment reply : replies) {
-            if (reply.getDeletedAt() == null) { // Chỉ xóa nếu chưa bị xóa
-                deleteRepliesRecursively(reply); // Xóa con của nó trước
-                commentRepository.delete(reply); // Xóa mềm reply này
-                // TODO: Xóa mềm Mention, Reaction của reply
+            if (reply.getDeletedAt() == null) {
+                // Đệ quy trước để xóa các cháu
+                deletedCount += deleteRepliesRecursively(reply);
+
+                // Xóa reply hiện tại
+                commentRepository.delete(reply);
+
+                // Xóa mention/reaction của reply
                 mentionRepository.softDeleteByCommentId(reply.getId());
+                reactionRepository.softDeleteByReactable(ReactableType.COMMENT, reply.getId());
+
+                // Tăng biến đếm (cho reply này)
+                deletedCount++;
             }
         }
+        return deletedCount;
     }
 
-
-    /** Set trạng thái tương tác của user hiện tại cho comment DTO */
+    /** * Set trạng thái tương tác của user hiện tại cho comment DTO
+     */
     private void setInteractionStatusForCurrentUser(CommentResponse commentDto, UUID currentUserId) {
-        // TODO: Implement logic to query ReactionRepository
-        // Reaction reaction = reactionRepository.findByReactableTypeAndReactableIdAndUserId(ReactableType.COMMENT, commentDto.getId(), currentUserId).orElse(null);
-        // commentDto.setCurrentUserReaction(reaction != null ? reaction.getReactionType() : null);
+        if (currentUserId == null) {
+            commentDto.setCurrentUserReaction(null);
+            return;
+        }
 
-        // Placeholder:
-        // commentDto.setCurrentUserReaction(null);
+        // Query ReactionRepository để tìm reaction của user cho COMMENT này
+        Optional<Reaction> reaction = reactionRepository.findByUserIdAndReactableTypeAndReactableId(
+                currentUserId,
+                ReactableType.COMMENT,
+                commentDto.getId()
+        );
+
+        commentDto.setCurrentUserReaction(reaction.map(Reaction::getReactionType).orElse(null));
     }
 }

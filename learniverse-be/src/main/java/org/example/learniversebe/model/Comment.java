@@ -4,10 +4,9 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.example.learniversebe.enums.ReactableType;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
-import org.hibernate.annotations.Where;
-import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -28,8 +27,9 @@ public class Comment extends BaseEntity {
 
     // Không dùng @ManyToOne trực tiếp cho polymorphic relationship trong JPA chuẩn
     // Cần lưu type và id riêng
+    @Enumerated(EnumType.STRING)
     @Column(name = "commentable_type", nullable = false, length = 20)
-    private String commentableType; // Sẽ là "content" hoặc "answer"
+    private ReactableType commentableType;
 
     @Column(name = "commentable_id", nullable = false)
     private UUID commentableId;

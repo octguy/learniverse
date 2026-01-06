@@ -6,6 +6,7 @@ import org.example.learniversebe.dto.response.CommentResponse;
 import org.example.learniversebe.dto.response.PageResponse;
 import org.example.learniversebe.enums.ReactableType;
 import org.springframework.data.domain.Pageable;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
