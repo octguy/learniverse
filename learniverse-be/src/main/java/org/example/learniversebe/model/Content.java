@@ -6,6 +6,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.example.learniversebe.enums.ContentStatus;
 import org.example.learniversebe.enums.ContentType;
+import org.hibernate.annotations.NotFound;
+import org.hibernate.annotations.NotFoundAction;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
@@ -89,6 +91,7 @@ public class Content extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "original_content_id")
+    @NotFound(action = NotFoundAction.IGNORE)
     private Content originalContent;
 
     @PrePersist

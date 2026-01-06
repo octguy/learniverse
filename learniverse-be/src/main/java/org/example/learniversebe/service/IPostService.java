@@ -120,6 +120,9 @@ public interface IPostService {
      */
     void deletePost(UUID postId);
 
+    @Transactional
+    PostResponse restorePost(UUID postId);
+
     /**
      * Performs a search for posts based on a query string using full-text search.
      * Returns a paginated list of summaries.

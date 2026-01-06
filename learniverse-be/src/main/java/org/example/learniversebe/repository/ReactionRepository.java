@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -46,7 +47,16 @@ public interface ReactionRepository extends JpaRepository<Reaction, UUID> {
             "WHERE r.reactableType = :reactableType " +
             "AND r.reactableId = :reactableId " +
             "AND r.deletedAt IS NULL")
-    void softDeleteByReactable(@Param("reactableType") ReactableType reactableType, @Param("reactableId") UUID reactableId);
+    int softDeleteByReactable(@Param("reactableType") ReactableType reactableType, @Param("reactableId") UUID reactableId);
 
     Optional<Reaction> findByReactableTypeAndReactableIdAndUserIdAndReactionType(ReactableType reactableType, UUID reactableId, UUID id, @NotNull(message = "Reaction type cannot be null") ReactionType reactionType);
+
+    /**
+     * Tìm tất cả reaction của user trong một danh sách các item (dùng để map hàng loạt).
+     */
+    List<Reaction> findByUserIdAndReactableTypeAndReactableIdIn(
+            UUID userId,
+            ReactableType reactableType,
+            Collection<UUID> reactableIds
+    );
 }
