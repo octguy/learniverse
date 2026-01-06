@@ -18,6 +18,7 @@ import org.example.learniversebe.service.IPostService;
 import org.example.learniversebe.service.IStorageService;
 import org.example.learniversebe.util.ServiceHelper;
 import org.example.learniversebe.util.SlugGenerator;
+import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -204,16 +205,21 @@ public class PostServiceImpl implements IPostService {
         Page<Content> page = contentRepository.findByContentTypeInAndStatus(
                 types, ContentStatus.PUBLISHED, pageable);
 
+        page.getContent().forEach(content -> {
+            if (content.getAuthor() != null) {
+                Hibernate.initialize(content.getAuthor().getUserProfile());
+            }
+        });
+
         PageResponse<PostSummaryResponse> response = contentMapper.contentPageToPostSummaryPage(page);
 
         UUID currentUserId = serviceHelper.getCurrentUserId();
         if (currentUserId != null && response.getContent() != null) {
-            List<UUID> postIds = response.getContent().stream()
-                    .map(PostSummaryResponse::getId).toList();
-
             for (PostSummaryResponse post : response.getContent()) {
-                post.setBookmarkedByCurrentUser(interactionService.isContentBookmarkedByUser(post.getId()));
-                post.setCurrentUserReaction(interactionService.getCurrentUserReaction(ReactableType.CONTENT, post.getId()));
+                post.setBookmarkedByCurrentUser(
+                        interactionService.isContentBookmarkedByUser(post.getId()));
+                post.setCurrentUserReaction(
+                        interactionService.getCurrentUserReaction(ReactableType.CONTENT, post.getId()));
             }
         }
 
@@ -230,6 +236,12 @@ public class PostServiceImpl implements IPostService {
         List<ContentType> types = List.of(ContentType.POST, ContentType.SHARED_POST);
         Page<Content> postPage = contentRepository.findByAuthorIdAndContentTypeInAndStatusOrderByPublishedAtDesc(
                 authorId, types, ContentStatus.PUBLISHED, pageable);
+
+        postPage.getContent().forEach(content -> {
+            if (content.getAuthor() != null) {
+                Hibernate.initialize(content.getAuthor().getUserProfile());
+            }
+        });
         return contentMapper.contentPageToPostSummaryPage(postPage);
     }
 
@@ -240,6 +252,11 @@ public class PostServiceImpl implements IPostService {
             throw new ResourceNotFoundException("Tag not found with id: " + tagId);
         }
         Page<Content> postPage = contentRepository.findPublishedPostsByTagId(tagId, pageable);
+        postPage.getContent().forEach(content -> {
+            if (content.getAuthor() != null) {
+                Hibernate.initialize(content.getAuthor().getUserProfile());
+            }
+        });
         return contentMapper.contentPageToPostSummaryPage(postPage);
     }
 
@@ -256,8 +273,9 @@ public class PostServiceImpl implements IPostService {
 
         User currentUser = serviceHelper.getCurrentUser();
 
-        content.setViewCount(content.getViewCount() + 1);
-        contentRepository.save(content);
+        if (content.getAuthor() != null) {
+            Hibernate.initialize(content.getAuthor().getUserProfile());
+        }
 
         boolean isAuthor = currentUser != null && content.getAuthor().getId().equals(currentUser.getId());
         boolean isPublished = content.getStatus() == ContentStatus.PUBLISHED;
@@ -281,6 +299,12 @@ public class PostServiceImpl implements IPostService {
         Page<Content> draftPage = contentRepository.findByAuthorIdAndContentTypeAndStatusOrderByUpdatedAtDesc(
                 currentUser.getId(), ContentType.POST, ContentStatus.DRAFT, pageable);
 
+        draftPage.getContent().forEach(content -> {
+            if (content.getAuthor() != null) {
+                Hibernate.initialize(content.getAuthor().getUserProfile());
+            }
+        });
+
         return contentMapper.contentPageToPostSummaryPage(draftPage);
     }
 
@@ -295,6 +319,12 @@ public class PostServiceImpl implements IPostService {
                 ContentStatus.ARCHIVED,
                 pageable
         );
+
+        archivedPage.getContent().forEach(content -> {
+            if (content.getAuthor() != null) {
+                Hibernate.initialize(content.getAuthor().getUserProfile());
+            }
+        });
 
         return contentMapper.contentPageToPostSummaryPage(archivedPage);
     }
@@ -318,6 +348,12 @@ public class PostServiceImpl implements IPostService {
                     currentUser.getId(), types, searchStatus, pageable);
         }
 
+        postPage.getContent().forEach(content -> {
+            if (content.getAuthor() != null) {
+                Hibernate.initialize(content.getAuthor().getUserProfile());
+            }
+        });
+
         return contentMapper.contentPageToPostSummaryPage(postPage);
     }
 
@@ -326,6 +362,10 @@ public class PostServiceImpl implements IPostService {
     public PostResponse getPostBySlug(String slug) {
         Content content = contentRepository.findBySlugAndContentTypeAndStatus(slug, ContentType.POST, ContentStatus.PUBLISHED)
                 .orElseThrow(() -> new ResourceNotFoundException("Post not found with slug: " + slug));
+
+        if (content.getAuthor() != null) {
+            Hibernate.initialize(content.getAuthor().getUserProfile());
+        }
 
         content.setViewCount(content.getViewCount() + 1);
         contentRepository.save(content);
@@ -491,6 +531,12 @@ public class PostServiceImpl implements IPostService {
             return PageResponse.<PostSummaryResponse>builder().content(List.of()).build(); // Trả về trang rỗng nếu query trống
         }
         Page<Content> postPage = contentRepository.searchPublishedPosts(query, pageable);
+
+        postPage.getContent().forEach(content -> {
+            if (content.getAuthor() != null) {
+                Hibernate.initialize(content.getAuthor().getUserProfile());
+            }
+        });
         return contentMapper.contentPageToPostSummaryPage(postPage);
     }
 
