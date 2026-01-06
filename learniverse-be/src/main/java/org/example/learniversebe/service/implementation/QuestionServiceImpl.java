@@ -433,14 +433,14 @@ public class QuestionServiceImpl implements IQuestionService {
         // Delete related answers first
         List<UUID> answerIds = answerRepository.findAllIdsByQuestionId(questionId);
         for (UUID answerId : answerIds) {
-            commentRepository.softDeleteByCommentable(CommentableType.ANSWER.name(), answerId);
+            commentRepository.softDeleteByCommentable(ReactableType.ANSWER, answerId);
             reactionRepository.softDeleteByReactable(ReactableType.ANSWER, answerId);
             voteRepository.softDeleteByVotable(VotableType.ANSWER, answerId);
             answerRepository.softDeleteById(answerId);
         }
         
         // Delete question-related interactions
-        commentRepository.softDeleteByCommentable(CommentableType.CONTENT.name(), questionId);
+        commentRepository.softDeleteByCommentable(ReactableType.CONTENT, questionId);
         reactionRepository.softDeleteByReactable(ReactableType.CONTENT, questionId);
         voteRepository.softDeleteByVotable(VotableType.CONTENT, questionId);
         bookmarkRepository.softDeleteByContentId(questionId);
