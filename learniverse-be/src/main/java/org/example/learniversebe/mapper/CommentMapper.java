@@ -49,7 +49,8 @@ public interface CommentMapper {
     @Mapping(source = "parent.id", target = "parentId") // Map ID from parent comment object
     // Avoid mapping replies here to prevent N+1 issues; provide a separate endpoint/logic for replies
     @Mapping(target = "replies", ignore = true)
-    @Mapping(target = "mentionedUsers", ignore = true) // Needs specific logic in Service to fetch mentions
+    @Mapping(target = "mentionedUsers", ignore = true)
+    @Mapping(target = "currentUserReaction", ignore = true)
     CommentResponse commentToCommentResponse(Comment comment);
 
     /**
