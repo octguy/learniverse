@@ -45,7 +45,7 @@ public class AuthController {
 
         ApiResponse<AuthResponse> apiResponse = new ApiResponse<>(
                 HttpStatus.CREATED,
-                "Admin registered successfully, please check your email for getting secure password",
+                "Admin registered successfully, please check new admin's email for getting secure password",
                 authResponse,
                 null
         );
