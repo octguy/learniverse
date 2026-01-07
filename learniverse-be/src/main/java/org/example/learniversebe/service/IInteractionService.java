@@ -6,10 +6,10 @@ import org.example.learniversebe.dto.request.VoteRequest;
 import org.example.learniversebe.dto.response.BookmarkResponse; // Assuming you create this DTO
 import org.example.learniversebe.dto.response.PageResponse;
 import org.example.learniversebe.enums.ReactableType; // Ensure correct import
-import org.example.learniversebe.enums.VotableType;   // Ensure correct import
 import org.example.learniversebe.enums.ReactionType; // Ensure correct import
 
 import org.springframework.data.domain.Pageable;
+import org.springframework.transaction.annotation.Transactional;
 
 
 import java.util.UUID;
@@ -73,6 +73,9 @@ public interface IInteractionService {
      * @throws org.example.learniversebe.exception.ResourceNotFoundException if the bookmark is not found for the user/content.
      */
     void removeBookmark(UUID contentId);
+
+    @Transactional
+    boolean toggleBookmark(UUID contentId);
 
     /**
      * Retrieves a paginated list of bookmarks for the currently authenticated user.
