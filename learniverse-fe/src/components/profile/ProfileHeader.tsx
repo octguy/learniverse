@@ -76,7 +76,7 @@ export default function ProfileHeader({ profile, isOwnProfile, onEditClick, cust
                         </div>
 
                         {profile.bio && (
-                            <p className="mt-3 text-gray-700 dark:text-gray-300 text-sm md:text-base max-w-2xl leading-relaxed">
+                            <p className="mt-3 text-gray-700 dark:text-gray-300 text-sm md:text-base max-w-2xl leading-relaxed whitespace-pre-wrap">
                                 {profile.bio}
                             </p>
                         )}
