@@ -127,4 +127,15 @@ public class FriendController {
                 new ApiResponse<>(HttpStatus.OK, "Friend search successfully.", result, null)
         );
     }
+
+    @Operation(summary = "Get friend list of user by userId")
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<ApiResponse<List<UserProfileResponse>>> getOtherUserFriends(
+            @PathVariable UUID userId
+    ){
+        List<UserProfileResponse> responses = friendService.getOtherUserFriends(userId);
+        return ResponseEntity.ok(
+                new ApiResponse<>(HttpStatus.OK, "Friends list retrieved successfully. User ID: " + userId, responses, null)
+        );
+    }
 }
