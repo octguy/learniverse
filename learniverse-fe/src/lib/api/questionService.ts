@@ -10,7 +10,24 @@ export interface QuestionQuery {
     page?: number
     size?: number
     sort?: string
+    answerFilter?: "unanswered" | "answered" | "accepted"
+    tagIds?: string[]
     query?: string
+}
+
+export interface CreateQuestionPayload {
+    title: string
+    body: string
+    tagIds: string[]
+    status?: "DRAFT" | "PUBLISHED"
+}
+
+export interface UpdateQuestionPayload {
+    title: string
+    body: string
+    tagIds: string[]
+    editReason?: string
+    removeMediaIds?: string[]
 }
 
 const BASE_PATH = "/questions"
@@ -37,8 +54,15 @@ export const questionService = {
 
         const response = await apiService.get<
             ApiResponse<PageResponse<QuestionSummary>>
-        >(url, {
-            params: searchParams,
+        >(BASE_PATH, {
+            params: {
+                page: params.page,
+                size: params.size,
+                sort: params.sort,
+                answerFilter: params.answerFilter,
+                tagIds: params.tagIds,
+                query: params.query,
+            },
         })
         return unwrap(response.data)
     },
@@ -54,20 +78,65 @@ export const questionService = {
         )
         return unwrap(response.data)
     },
-    async create(payload: { title: string; body: string; tagIds: string[] }) {
+    /**
+     * Create a new question using multipart/form-data
+     * Backend expects: @RequestPart("question") + @RequestPart("files") optional
+     */
+    async create(payload: CreateQuestionPayload, files?: File[]) {
+        const formData = new FormData()
+        
+        // Append the question JSON as a Blob with application/json type
+        const questionBlob = new Blob([JSON.stringify(payload)], {
+            type: "application/json",
+        })
+        formData.append("question", questionBlob)
+        
+        // Append files if provided
+        if (files && files.length > 0) {
+            files.forEach((file) => {
+                formData.append("files", file)
+            })
+        }
+        
         const response = await apiService.post<ApiResponse<QuestionDetail>>(
             BASE_PATH,
-            payload
+            formData,
+            {
+                headers: {
+                    "Content-Type": "multipart/form-data",
+                },
+            }
         )
         return unwrap(response.data)
     },
-    async update(
-        id: string,
-        payload: { title: string; body: string; tagIds: string[] }
-    ) {
+    /**
+     * Update an existing question using multipart/form-data
+     * Backend expects: @RequestPart("question") + @RequestPart("files") optional
+     */
+    async update(id: string, payload: UpdateQuestionPayload, files?: File[]) {
+        const formData = new FormData()
+        
+        // Append the question JSON as a Blob with application/json type
+        const questionBlob = new Blob([JSON.stringify(payload)], {
+            type: "application/json",
+        })
+        formData.append("question", questionBlob)
+        
+        // Append files if provided
+        if (files && files.length > 0) {
+            files.forEach((file) => {
+                formData.append("files", file)
+            })
+        }
+        
         const response = await apiService.put<ApiResponse<QuestionDetail>>(
             `${BASE_PATH}/${id}`,
-            payload
+            formData,
+            {
+                headers: {
+                    "Content-Type": "multipart/form-data",
+                },
+            }
         )
         return unwrap(response.data)
     },
@@ -100,6 +169,16 @@ export const questionService = {
                 },
             }
         )
+    /**
+     * Get questions by author
+     * Backend endpoint: GET /questions/author/{authorId}
+     */
+    async getQuestionsByAuthor(authorId: string, page = 0, size = 10) {
+        const response = await apiService.get<
+            ApiResponse<PageResponse<QuestionSummary>>
+        >(`${BASE_PATH}/author/${authorId}`, {
+            params: { page, size },
+        })
         return unwrap(response.data)
     },
 }

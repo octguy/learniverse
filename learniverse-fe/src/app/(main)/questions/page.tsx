@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Link from "next/link"
 
 import { QuestionFeed } from "@/components/question/question-feed"
@@ -13,27 +14,10 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-
-const FOLLOW_SUGGESTIONS = [
-    {
-        id: "marie",
-        name: "Marie Clark",
-        description: "Người hướng dẫn học tập",
-        avatar: "https://randomuser.me/api/portraits/women/90.jpg",
-    },
-    {
-        id: "mark",
-        name: "Mark Tini",
-        description: "Nhóm học STEM",
-        avatar: "https://randomuser.me/api/portraits/men/12.jpg",
-    },
-    {
-        id: "linh",
-        name: "Linh Tran",
-        description: "Cộng đồng luyện IELTS",
-        avatar: "https://randomuser.me/api/portraits/women/68.jpg",
-    },
-]
+import { Skeleton } from "@/components/ui/skeleton"
+import { friendService } from "@/lib/api/friendService"
+import { SuggestedFriend } from "@/types/friend"
+import { Loader2 } from "lucide-react"
 
 function initialsFromName(name: string) {
     return (
@@ -47,6 +31,41 @@ function initialsFromName(name: string) {
 }
 
 export default function QuestionsPage() {
+    const [suggestions, setSuggestions] = useState<SuggestedFriend[]>([])
+    const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(true)
+    const [followingIds, setFollowingIds] = useState<Set<string>>(new Set())
+    const [loadingFollowId, setLoadingFollowId] = useState<string | null>(null)
+
+    useEffect(() => {
+        const fetchSuggestions = async () => {
+            try {
+                setIsLoadingSuggestions(true)
+                const response = await friendService.getSuggestedFriends(5)
+                setSuggestions(response.data?.data ?? [])
+            } catch (error) {
+                console.error("Failed to fetch friend suggestions:", error)
+                setSuggestions([])
+            } finally {
+                setIsLoadingSuggestions(false)
+            }
+        }
+
+        fetchSuggestions()
+    }, [])
+
+    const handleFollow = async (userId: string) => {
+        if (loadingFollowId) return
+        setLoadingFollowId(userId)
+        try {
+            await friendService.sendRequest(userId)
+            setFollowingIds((prev) => new Set(prev).add(userId))
+        } catch (error) {
+            console.error("Failed to send friend request:", error)
+        } finally {
+            setLoadingFollowId(null)
+        }
+    }
+
     return (
         <div className="mx-auto w-full max-w-6xl space-y-8 pb-12">
             <div className="flex flex-wrap items-center justify-between gap-4">
@@ -78,42 +97,96 @@ export default function QuestionsPage() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            {FOLLOW_SUGGESTIONS.map((person) => (
-                                <div
-                                    key={person.id}
-                                    className="flex items-center justify-between gap-3"
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <Avatar>
-                                            <AvatarImage
-                                                src={person.avatar}
-                                                alt={person.name}
-                                            />
-                                            <AvatarFallback>
-                                                {initialsFromName(person.name)}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        <div className="leading-tight">
-                                            <p className="text-sm font-medium text-foreground">
-                                                {person.name}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground">
-                                                {person.description}
-                                            </p>
+                            {isLoadingSuggestions ? (
+                                // Loading skeleton
+                                <>
+                                    {[1, 2, 3].map((i) => (
+                                        <div
+                                            key={i}
+                                            className="flex items-center justify-between gap-3"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <Skeleton className="h-10 w-10 rounded-full" />
+                                                <div className="space-y-1.5">
+                                                    <Skeleton className="h-3.5 w-24" />
+                                                    <Skeleton className="h-3 w-32" />
+                                                </div>
+                                            </div>
+                                            <Skeleton className="h-8 w-20" />
                                         </div>
+                                    ))}
+                                </>
+                            ) : suggestions.length > 0 ? (
+                                // Display suggestions
+                                suggestions.map((person) => (
+                                    <div
+                                        key={person.id}
+                                        className="flex items-center justify-between gap-3"
+                                    >
+                                        <Link
+                                            href={`/profile/${person.userId}`}
+                                            className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                                        >
+                                            <Avatar>
+                                                <AvatarImage
+                                                    src={person.avatarUrl ?? undefined}
+                                                    alt={person.displayName || person.username}
+                                                />
+                                                <AvatarFallback>
+                                                    {initialsFromName(
+                                                        person.displayName || person.username
+                                                    )}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <div className="leading-tight">
+                                                <p className="text-sm font-medium text-foreground">
+                                                    {person.displayName || person.username}
+                                                </p>
+                                                {person.bio ? (
+                                                    <p className="text-xs text-muted-foreground line-clamp-1">
+                                                        {person.bio}
+                                                    </p>
+                                                ) : (
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {person.postCount} bài viết • {person.answeredQuestionCount} câu trả lời
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </Link>
+                                        <Button
+                                            size="sm"
+                                            variant={followingIds.has(person.userId) ? "secondary" : "outline"}
+                                            disabled={loadingFollowId === person.userId || followingIds.has(person.userId)}
+                                            onClick={() => handleFollow(person.userId)}
+                                        >
+                                            {loadingFollowId === person.userId ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : followingIds.has(person.userId) ? (
+                                                "Đã gửi"
+                                            ) : (
+                                                "+ Kết bạn"
+                                            )}
+                                        </Button>
                                     </div>
-                                    <Button size="sm" variant="outline">
-                                        + Theo dõi
-                                    </Button>
-                                </div>
-                            ))}
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="w-full text-primary"
-                            >
-                                Xem thêm gợi ý
-                            </Button>
+                                ))
+                            ) : (
+                                // No suggestions
+                                <p className="text-sm text-muted-foreground text-center py-2">
+                                    Không có gợi ý kết nối nào.
+                                </p>
+                            )}
+                            {suggestions.length > 0 && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="w-full text-primary"
+                                    asChild
+                                >
+                                    <Link href="/friends/suggestions">
+                                        Xem thêm gợi ý
+                                    </Link>
+                                </Button>
+                            )}
                         </CardContent>
                     </Card>
 

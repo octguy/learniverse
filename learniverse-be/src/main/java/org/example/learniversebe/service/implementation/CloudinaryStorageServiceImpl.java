@@ -32,23 +32,75 @@ public class CloudinaryStorageServiceImpl implements IStorageService {
 
         String contentType = file.getContentType();
         String resourceType = "auto";
+        String publicId = UUID.randomUUID().toString();
 
-        if (contentType != null && !contentType.startsWith("image/")) {
-            resourceType = "raw";
-        } else {
+
+        if (contentType != null && contentType.startsWith("image/")) {
             resourceType = "image";
+            String extension = getFileExtension(file.getOriginalFilename());
+            if (!extension.isEmpty()) {
+                publicId = publicId + "." + extension;
+            }
+        } else if (PDF_TYPE.equals(contentType)) {
+            resourceType = "raw";
+            // CRITICAL: PDF phải có extension để mở được
+            publicId = publicId + ".pdf";
+        } else {
+            resourceType = "raw";
+            // Các file khác cũng nên có extension
+            String extension = getFileExtension(file.getOriginalFilename());
+            if (!extension.isEmpty()) {
+                publicId = publicId + "." + extension;
+            }
         }
 
         Map uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.asMap(
                 "resource_type", resourceType,
                 "folder", "learniverse/posts",
-                "public_id", UUID.randomUUID().toString()
+                "public_id", publicId
         ));
 
         return Map.of(
                 "url", (String) uploadResult.get("secure_url"),
                 "key", (String) uploadResult.get("public_id")
         );
+    }
+
+    @Override
+    public boolean deleteFile(String publicId) throws IOException {
+        try {
+            // Determine resource type based on public_id or try both
+            Map result = cloudinary.uploader().destroy(publicId, ObjectUtils.asMap("resource_type", "image"));
+            String deleteResult = (String) result.get("result");
+            
+            if (!"ok".equals(deleteResult)) {
+                // Try as raw (for PDFs and other files)
+                result = cloudinary.uploader().destroy(publicId, ObjectUtils.asMap("resource_type", "raw"));
+                deleteResult = (String) result.get("result");
+            }
+            return "ok".equals(deleteResult);
+        } catch (Exception e) {
+            throw new IOException("Failed to delete file: " + e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Extract file extension từ filename
+     */
+    private String getFileExtension(String filename) {
+        if (filename == null || filename.isEmpty()) {
+            return "";
+        }
+        int lastDotIndex = filename.lastIndexOf('.');
+        if (lastDotIndex > 0 && lastDotIndex < filename.length() - 1) {
+            String ext = filename.substring(lastDotIndex + 1).toLowerCase();
+            // Validate extension
+            List<String> allowedExtensions = Arrays.asList("pdf", "jpg", "jpeg", "png", "gif", "webp");
+            if (allowedExtensions.contains(ext)) {
+                return ext;
+            }
+        }
+        return "";
     }
 
     private void validateFile(MultipartFile file) {

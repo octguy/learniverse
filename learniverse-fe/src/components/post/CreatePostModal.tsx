@@ -84,14 +84,14 @@ export default function CreatePostModalContent({
 
     useEffect(() => {
         if (initialData) {
-            setTitle(initialData.title)
-            setContent(initialData.body)
-            setSelectedTags(initialData.tags.map(t => ({
+            setTitle(initialData.title || "")
+            setContent(initialData.body || "")
+            setSelectedTags(initialData.tags ? initialData.tags.map(t => ({
                 id: t.id,
                 name: t.name,
                 slug: t.slug,
                 description: null
-            })))
+            })) : [])
             setExistingAttachments(initialData.attachments || [])
         }
     }, [initialData])

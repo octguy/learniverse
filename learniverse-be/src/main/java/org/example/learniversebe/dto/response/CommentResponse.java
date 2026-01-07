@@ -4,6 +4,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Data;
 import org.example.learniversebe.enums.CommentableType;
+import org.example.learniversebe.enums.ReactableType;
+import org.example.learniversebe.enums.ReactionType;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -19,7 +21,7 @@ public class CommentResponse {
     private UUID id;
 
     @Schema(description = "Loại đối tượng được bình luận")
-    private CommentableType commentableType;
+    private ReactableType commentableType;
 
     @Schema(description = "ID của đối tượng được bình luận")
     private UUID commentableId;
@@ -53,4 +55,7 @@ public class CommentResponse {
 
     @Schema(description = "Danh sách người dùng được đề cập")
     private Set<UserResponse> mentionedUsers;
+
+    @Schema(description = "Reaction của người dùng hiện tại (nếu có)")
+    private ReactionType currentUserReaction;
 }

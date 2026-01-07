@@ -48,6 +48,18 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
     }
 
+    @ExceptionHandler(AccountSuspendedException.class)
+    public ResponseEntity<ApiResponse<?>> handleAccountSuspendedException(AccountSuspendedException ex) {
+        ApiResponse<?> response = new ApiResponse<>(
+                HttpStatus.FORBIDDEN,
+                ex.getMessage(),
+                null,
+                "USER_SUSPENDED"
+        );
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
     @ExceptionHandler(InvalidVerificationCodeException.class)
     public ResponseEntity<ApiResponse<?>> handleInvalidVerificationCodeException(InvalidVerificationCodeException ex) {
         ApiResponse<?> response = new ApiResponse<>(

@@ -221,6 +221,18 @@ public class FriendServiceImpl implements IFriendService {
                 .toList();
     }
 
+    @Override
+    public List<UserProfileResponse> getOtherUserFriends(UUID userId){
+        List<Friend> acceptedFriends = friendRepository.findAcceptedFriends(userId, FriendStatus.ACCEPTED);
+
+        if (acceptedFriends.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<UUID> friendUserIds = extractFriendUserIds(acceptedFriends, userId);
+        return getUserProfileResponses(friendUserIds);
+    }
+
     // ==================== PRIVATE HELPER METHODS ====================
 
     private UUID[] getNormalizedIds(UUID id1, UUID id2) {

@@ -508,14 +508,16 @@ export function PostCard({ post, onDelete }: PostCardProps) {
       </CardFooter>
 
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <CreatePostModal
-          setOpen={setIsEditModalOpen}
-          onSuccess={() => {
-            // Có thể thêm logic reload post hoặc update UI ở đây
-            window.location.reload(); // Tạm thời reload để thấy thay đổi
-          }}
-          initialData={post}
-        />
+        {isEditModalOpen && (
+            <CreatePostModal 
+              setOpen={setIsEditModalOpen} 
+              onSuccess={() => {
+                // Có thể thêm logic reload post hoặc update UI ở đây
+                window.location.reload(); // Tạm thời reload để thấy thay đổi
+              }}
+              initialData={post}
+            />
+        )}
       </Dialog>
 
       <Dialog open={isShareModalOpen} onOpenChange={setIsShareModalOpen}>

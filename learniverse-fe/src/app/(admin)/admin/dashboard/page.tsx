@@ -20,7 +20,6 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header & Filter */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
@@ -48,24 +47,17 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* 1. Stats Cards Section */}
       <DashboardStats />
 
-      {/* 2. Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* Biểu đồ tăng trưởng user (3/5 width) - Truyền period state xuống */}
         <UserGrowthChart period={period} />
 
-        {/* Biểu đồ so sánh Post/Question (2/5 width) */}
         <ContentComparisonChart period={period} />
       </div>
 
-      {/* 3. Bottom Lists Section */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* Danh sách user mới (3/5 width) */}
         <RecentUsers />
 
-        {/* Top Tags (2/5 width) */}
         <TopTags />
       </div>
     </div>
