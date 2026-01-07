@@ -22,17 +22,13 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.file.AccessDeniedException;
 import java.time.LocalDateTime;
 import java.util.*;
-
-import static java.util.stream.Collectors.toList;
 
 @Slf4j
 @Service
@@ -128,7 +124,44 @@ public class AuthServiceImpl implements IAuthService {
 
     @Override
     @Transactional
-    public AuthResponse createAdmin(RegisterRequest request) {
+    public void initAdmin(RegisterRequest request) {
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new UserAlreadyExistException("Email already in use");
+        }
+
+        if (userRepository.existsByUsername(request.getUsername())) {
+            throw new UserAlreadyExistException("Username already in use");
+        }
+
+        // Create user
+        User user = new User();
+        user.setId(UUID.randomUUID());
+        user.setEmail(request.getEmail());
+        user.setUsername(request.getUsername());
+        user.setEnabled(true);
+        user.setStatus(UserStatus.ACTIVE);
+        user.setCreatedAt(LocalDateTime.now());
+        user.setUpdatedAt(LocalDateTime.now());
+
+        // Assign role
+        Role role = roleRepository.findByName(UserRole.ROLE_ADMIN)
+                .orElseThrow(() -> new RuntimeException("Role not found"));
+
+        user.addRole(role);
+
+        AuthCredential authCredential = new AuthCredential();
+        authCredential.setId(UUID.randomUUID());
+        authCredential.setUser(user);
+        authCredential.setPassword(passwordEncoder.encode(request.getPassword()));
+        authCredential.setVerificationCode(null);
+        authCredential.setVerificationExpiration(null);
+        authCredential.setCreatedAt(LocalDateTime.now());
+        authCredential.setUpdatedAt(LocalDateTime.now());
+        authCredentialRepository.save(authCredential);
+    }
+
+    @Override
+    public AuthResponse registerAdmin(RegisterRequest request) {
         return createUserWithRole(request, UserRole.ROLE_ADMIN);
     }
 
@@ -146,8 +179,12 @@ public class AuthServiceImpl implements IAuthService {
         user.setId(UUID.randomUUID());
         user.setEmail(request.getEmail());
         user.setUsername(request.getUsername());
-        user.setEnabled(false);
-        user.setStatus(UserStatus.PENDING_VERIFICATION);
+        
+        // Admin users are enabled immediately, regular users need verification
+        boolean isAdmin = roleName == UserRole.ROLE_ADMIN;
+        user.setEnabled(isAdmin);
+        user.setStatus(isAdmin ? UserStatus.ACTIVE : UserStatus.PENDING_VERIFICATION);
+        
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
 
@@ -160,14 +197,21 @@ public class AuthServiceImpl implements IAuthService {
         return userRepository.save(user);
     }
 
-    private AuthCredential createCredential(User user, String password) {
+    private AuthCredential createCredential(User user, String password, boolean requiresVerification) {
         AuthCredential authCredential = new AuthCredential();
         authCredential.setId(UUID.randomUUID());
         authCredential.setUser(user);
         authCredential.setPassword(passwordEncoder.encode(password));
-        String verificationCode = generateVerificationCode();
-        authCredential.setVerificationCode(verificationCode);
-        authCredential.setVerificationExpiration(LocalDateTime.now().plusMinutes(expiration));
+        
+        if (requiresVerification) {
+            String verificationCode = generateVerificationCode();
+            authCredential.setVerificationCode(verificationCode);
+            authCredential.setVerificationExpiration(LocalDateTime.now().plusMinutes(expiration));
+        } else {
+            authCredential.setVerificationCode(null);
+            authCredential.setVerificationExpiration(null);
+        }
+        
         authCredential.setCreatedAt(LocalDateTime.now());
         authCredential.setUpdatedAt(LocalDateTime.now());
         authCredentialRepository.save(authCredential);
@@ -176,13 +220,27 @@ public class AuthServiceImpl implements IAuthService {
 
     private AuthResponse createUserWithRole(RegisterRequest request, UserRole roleName) {
         User user = createUser(request, roleName);
-        AuthCredential credential = createCredential(user, request.getPassword());
+        
+        String password;
+        boolean isAdmin = roleName == UserRole.ROLE_ADMIN;
+        
+        if (isAdmin) {
+            // Generate secure password for admin
+            password = generateSecurePassword();
+        } else {
+            // Use provided password for regular users
+            password = request.getPassword();
+        }
+        
+        // Admin doesn't require email verification, regular users do
+        AuthCredential credential = createCredential(user, password, !isAdmin);
 
-        sendVerificationEmail(user.getEmail(), credential.getVerificationCode());
-
-//        List<String> roles = user.getRoleUsers().stream()
-//                .map(roleUser -> roleUser.getRole().getName().name())
-//                .toList();
+        if (isAdmin) {
+            sendPasswordForAdmin(user.getEmail(), password);
+        }
+        else {
+            sendVerificationEmail(user.getEmail(), credential.getVerificationCode());
+        }
 
         return AuthResponse.builder()
                 .id(user.getId())
@@ -334,16 +392,55 @@ public class AuthServiceImpl implements IAuthService {
     }
 
     private void sendForgetPasswordEmail(String email, String token) {
-        String subject = "Password Reset Request";
+        String subject = "[Learniverse System] Password Reset Request";
         String resetLink = "http://localhost:8386/reset-password?token=" + token;// Replace with your frontend URL
-        String htmlMessage = "<html>"
-                + "<body style=\"font-family: Arial, sans-serif;\">"
-                + "<div style=\"background-color: #f5f5f5; padding: 20px;\">"
-                + "<h2 style=\"color: #333;\">Password Reset Request</h2>"
-                + "<p style=\"font-size: 16px;\">We received a request to reset your password. Click the link below to reset it:</p>"
-                + "<a href=\"" + resetLink + "\" style=\"display: inline-block; padding: 10px 20px; font-size: 16px; color: #fff; background-color: #007bff; text-decoration: none; border-radius: 5px;\">Reset Password</a>"
-                + "<p style=\"font-size: 14px; color: #777; margin-top: 20px;\">If you did not request a password reset, please ignore this email.</p>"
-                + "</div>"
+        String htmlMessage = "<!DOCTYPE html>"
+                + "<html lang=\"en\">"
+                + "<head>"
+                + "<meta charset=\"UTF-8\">"
+                + "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
+                + "<title>Learniverse System - Password Reset</title>"
+                + "</head>"
+                + "<body style=\"margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4;\">"
+                + "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background-color: #f4f4f4; padding: 40px 0;\">"
+                + "<tr>"
+                + "<td align=\"center\">"
+                + "<table width=\"600\" cellpadding=\"0\" cellspacing=\"0\" style=\"background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);\">"
+                + "<!-- Header -->"
+                + "<tr>"
+                + "<td style=\"background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px; text-align: center; border-radius: 8px 8px 0 0;\">"
+                + "<h1 style=\"color: #ffffff; margin: 0; font-size: 28px; font-weight: 600;\">🔐 Password Reset Request</h1>"
+                + "<p style=\"color: #ffffff; margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;\">Learniverse System</p>"
+                + "</td>"
+                + "</tr>"
+                + "<!-- Content -->"
+                + "<tr>"
+                + "<td style=\"padding: 40px 50px;\">"
+                + "<p style=\"color: #333333; font-size: 16px; line-height: 1.6; margin: 0 0 10px 0;\">Dear User,</p>"
+                + "<p style=\"color: #666666; font-size: 15px; line-height: 1.6; margin: 0 0 25px 0;\">Greetings from Learniverse!</p>"
+                + "<p style=\"color: #333333; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;\">We received a request to reset your password. Click the button below to create a new password:</p>"
+                + "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\">"
+                + "<tr>"
+                + "<td align=\"center\" style=\"padding: 20px 0;\">"
+                + "<a href=\"" + resetLink + "\" style=\"display: inline-block; padding: 15px 40px; font-size: 16px; font-weight: 600; color: #ffffff; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); text-decoration: none; border-radius: 50px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); transition: all 0.3s;\">Reset Password</a>"
+                + "</td>"
+                + "</tr>"
+                + "</table>"
+                + "<p style=\"color: #666666; font-size: 14px; line-height: 1.6; margin: 30px 0 0 0; padding: 20px; background-color: #f8f9fa; border-left: 4px solid #ffc107; border-radius: 4px;\">⚠️ <strong>Security Notice:</strong> If you did not request a password reset, please ignore this email. Your password will remain unchanged.</p>"
+                + "<p style=\"color: #999999; font-size: 13px; line-height: 1.6; margin: 20px 0 0 0;\">This link will expire in 1 hour for security reasons.</p>"
+                + "</td>"
+                + "</tr>"
+                + "<!-- Footer -->"
+                + "<tr>"
+                + "<td style=\"background-color: #f8f9fa; padding: 30px; text-align: center; border-radius: 0 0 8px 8px; border-top: 1px solid #e9ecef;\">"
+                + "<p style=\"color: #6c757d; font-size: 13px; margin: 0 0 10px 0;\">© 2026 Learniverse. All rights reserved.</p>"
+                + "<p style=\"color: #adb5bd; font-size: 12px; margin: 0;\">This is an automated message, please do not reply.</p>"
+                + "</td>"
+                + "</tr>"
+                + "</table>"
+                + "</td>"
+                + "</tr>"
+                + "</table>"
                 + "</body>"
                 + "</html>";
 
@@ -356,18 +453,57 @@ public class AuthServiceImpl implements IAuthService {
     }
 
     private void sendVerificationEmail(String email, String code) {
-        String subject = "Account Verification";
-        String verificationCode = "VERIFICATION CODE " + code;
-        String htmlMessage = "<html>"
-                + "<body style=\"font-family: Arial, sans-serif;\">"
-                + "<div style=\"background-color: #f5f5f5; padding: 20px;\">"
-                + "<h2 style=\"color: #333;\">Welcome to our app!</h2>"
-                + "<p style=\"font-size: 16px;\">Please enter the verification code below to continue:</p>"
-                + "<div style=\"background-color: #fff; padding: 20px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.1);\">"
-                + "<h3 style=\"color: #333;\">Verification Code:</h3>"
-                + "<p style=\"font-size: 18px; font-weight: bold; color: #007bff;\">" + verificationCode + "</p>"
+        String subject = "[Learniverse System] Email Verification Required";
+        String htmlMessage = "<!DOCTYPE html>"
+                + "<html lang=\"en\">"
+                + "<head>"
+                + "<meta charset=\"UTF-8\">"
+                + "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
+                + "<title>Learniverse System - Email Verification</title>"
+                + "</head>"
+                + "<body style=\"margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4;\">"
+                + "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background-color: #f4f4f4; padding: 40px 0;\">"
+                + "<tr>"
+                + "<td align=\"center\">"
+                + "<table width=\"600\" cellpadding=\"0\" cellspacing=\"0\" style=\"background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);\">"
+                + "<!-- Header -->"
+                + "<tr>"
+                + "<td style=\"background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px; text-align: center; border-radius: 8px 8px 0 0;\">"
+                + "<h1 style=\"color: #ffffff; margin: 0; font-size: 28px; font-weight: 600;\">✨ Welcome to Learniverse!</h1>"
+                + "<p style=\"color: #ffffff; margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;\">Your Learning Journey Begins Here</p>"
+                + "</td>"
+                + "</tr>"
+                + "<!-- Content -->"
+                + "<tr>"
+                + "<td style=\"padding: 40px 50px;\">"
+                + "<p style=\"color: #333333; font-size: 16px; line-height: 1.6; margin: 0 0 10px 0;\">Dear Learner,</p>"
+                + "<p style=\"color: #666666; font-size: 15px; line-height: 1.6; margin: 0 0 25px 0;\">Greetings from the Learniverse Team!</p>"
+                + "<p style=\"color: #333333; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;\">Thank you for joining our learning community. To complete your account registration and begin your educational journey, please verify your email address using the code below:</p>"
+                + "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\">"
+                + "<tr>"
+                + "<td align=\"center\" style=\"padding: 30px 0;\">"
+                + "<div style=\"background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); padding: 30px; border-radius: 12px; display: inline-block; box-shadow: 0 4px 15px rgba(0,0,0,0.1);\">"
+                + "<p style=\"color: #666666; font-size: 14px; margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 2px;\">Your Verification Code</p>"
+                + "<p style=\"color: #667eea; font-size: 36px; font-weight: 700; margin: 0; letter-spacing: 8px; font-family: 'Courier New', monospace;\">" + code + "</p>"
                 + "</div>"
-                + "</div>"
+                + "</td>"
+                + "</tr>"
+                + "</table>"
+                + "<p style=\"color: #666666; font-size: 14px; line-height: 1.6; margin: 20px 0 0 0; padding: 20px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;\">⏱️ <strong>Note:</strong> This code will expire in 15 minutes.</p>"
+                + "<p style=\"color: #999999; font-size: 13px; line-height: 1.6; margin: 20px 0 0 0;\">If you didn't create an account with us, please ignore this email.</p>"
+                + "</td>"
+                + "</tr>"
+                + "<!-- Footer -->"
+                + "<tr>"
+                + "<td style=\"background-color: #f8f9fa; padding: 30px; text-align: center; border-radius: 0 0 8px 8px; border-top: 1px solid #e9ecef;\">"
+                + "<p style=\"color: #6c757d; font-size: 13px; margin: 0 0 10px 0;\">© 2026 Learniverse. All rights reserved.</p>"
+                + "<p style=\"color: #adb5bd; font-size: 12px; margin: 0;\">This is an automated message, please do not reply.</p>"
+                + "</td>"
+                + "</tr>"
+                + "</table>"
+                + "</td>"
+                + "</tr>"
+                + "</table>"
                 + "</body>"
                 + "</html>";
 
@@ -377,6 +513,104 @@ public class AuthServiceImpl implements IAuthService {
             // Handle email sending exception
             e.printStackTrace();
         }
+    }
+
+    private void sendPasswordForAdmin(String email, String password) {
+        String subject = "[Learniverse System] Administrator Account Created";
+        String htmlMessage = "<!DOCTYPE html>"
+                + "<html lang=\"en\">"
+                + "<head>"
+                + "<meta charset=\"UTF-8\">"
+                + "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
+                + "<title>Learniverse System - Admin Account</title>"
+                + "</head>"
+                + "<body style=\"margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4;\">"
+                + "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background-color: #f4f4f4; padding: 40px 0;\">"
+                + "<tr>"
+                + "<td align=\"center\">"
+                + "<table width=\"600\" cellpadding=\"0\" cellspacing=\"0\" style=\"background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);\">"
+                + "<!-- Header -->"
+                + "<tr>"
+                + "<td style=\"background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 40px; text-align: center; border-radius: 8px 8px 0 0;\">"
+                + "<h1 style=\"color: #ffffff; margin: 0; font-size: 28px; font-weight: 600;\">👑 Administrator Access Granted</h1>"
+                + "<p style=\"color: #ffffff; margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;\">Learniverse System</p>"
+                + "</td>"
+                + "</tr>"
+                + "<!-- Content -->"
+                + "<tr>"
+                + "<td style=\"padding: 40px 50px;\">"
+                + "<p style=\"color: #333333; font-size: 16px; line-height: 1.6; margin: 0 0 10px 0;\">Dear Administrator,</p>"
+                + "<p style=\"color: #666666; font-size: 15px; line-height: 1.6; margin: 0 0 25px 0;\">Greetings from Learniverse!</p>"
+                + "<p style=\"color: #333333; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;\">Your administrator account has been successfully created with elevated privileges. Please find your secure login credentials below:</p>"
+                + "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background-color: #f8f9fa; border-radius: 8px; padding: 25px; margin: 20px 0;\">"
+                + "<tr>"
+                + "<td>"
+                + "<p style=\"color: #666666; font-size: 14px; margin: 0 0 15px 0;\"><strong style=\"color: #333333;\">Email:</strong></p>"
+                + "<p style=\"color: #667eea; font-size: 16px; margin: 0 0 25px 0; font-family: 'Courier New', monospace; background-color: #ffffff; padding: 12px; border-radius: 4px; border: 1px solid #e9ecef;\">" + email + "</p>"
+                + "<p style=\"color: #666666; font-size: 14px; margin: 0 0 15px 0;\"><strong style=\"color: #333333;\">Temporary Password:</strong></p>"
+                + "<p style=\"color: #f5576c; font-size: 18px; font-weight: 600; margin: 0; font-family: 'Courier New', monospace; background-color: #ffffff; padding: 12px; border-radius: 4px; border: 1px solid #e9ecef; letter-spacing: 1px;\">" + password + "</p>"
+                + "</td>"
+                + "</tr>"
+                + "</table>"
+                + "<p style=\"color: #666666; font-size: 14px; line-height: 1.6; margin: 30px 0 0 0; padding: 20px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;\">⚠️ <strong>Important:</strong> Please change this password immediately after your first login for security purposes.</p>"
+                + "<p style=\"color: #666666; font-size: 14px; line-height: 1.6; margin: 20px 0 0 0; padding: 20px; background-color: #f8d7da; border-left: 4px solid #dc3545; border-radius: 4px;\">🔒 <strong>Security Notice:</strong> Never share your credentials with anyone. Keep this email secure and delete it after changing your password.</p>"
+                + "</td>"
+                + "</tr>"
+                + "<!-- Footer -->"
+                + "<tr>"
+                + "<td style=\"background-color: #f8f9fa; padding: 30px; text-align: center; border-radius: 0 0 8px 8px; border-top: 1px solid #e9ecef;\">"
+                + "<p style=\"color: #6c757d; font-size: 13px; margin: 0 0 10px 0;\">© 2026 Learniverse. All rights reserved.</p>"
+                + "<p style=\"color: #adb5bd; font-size: 12px; margin: 0;\">This is an automated message, please do not reply.</p>"
+                + "</td>"
+                + "</tr>"
+                + "</table>"
+                + "</td>"
+                + "</tr>"
+                + "</table>"
+                + "</body>"
+                + "</html>";
+
+        try {
+            emailService.sendEmail(email, subject, htmlMessage);
+        } catch (MessagingException e) {
+            // Handle email sending exception
+            e.printStackTrace();
+        }
+    }
+
+    private String generateSecurePassword() {
+        String upperChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        String lowerChars = "abcdefghijklmnopqrstuvwxyz";
+        String numbers = "0123456789";
+        String specialChars = "!@#$%^&*";
+        
+        Random random = new Random();
+        StringBuilder password = new StringBuilder();
+        
+        // Ensure at least one of each required character type
+        password.append(upperChars.charAt(random.nextInt(upperChars.length())));
+        password.append(numbers.charAt(random.nextInt(numbers.length())));
+        password.append(specialChars.charAt(random.nextInt(specialChars.length())));
+        
+        // Fill the rest with random characters from all categories
+        String allChars = upperChars + lowerChars + numbers + specialChars;
+        for (int i = 3; i < 12; i++) {
+            password.append(allChars.charAt(random.nextInt(allChars.length())));
+        }
+        
+        // Shuffle the password to randomize position of required characters
+        List<Character> passwordChars = new ArrayList<>();
+        for (char c : password.toString().toCharArray()) {
+            passwordChars.add(c);
+        }
+        Collections.shuffle(passwordChars, random);
+        
+        StringBuilder shuffledPassword = new StringBuilder();
+        for (char c : passwordChars) {
+            shuffledPassword.append(c);
+        }
+        
+        return shuffledPassword.toString();
     }
 
     private String generateVerificationCode() {

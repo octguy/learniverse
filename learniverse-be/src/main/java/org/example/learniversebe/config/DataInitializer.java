@@ -48,7 +48,7 @@ public class DataInitializer implements CommandLineRunner {
         if (roleUserRepository.existsOneAdmin()) {
             log.debug("Exist admin user.");
         } else {
-            authService.createAdmin(new RegisterRequest("admin1@gmail.com", "Admin1", "123456@A"));
+            authService.initAdmin(new RegisterRequest("admin1@gmail.com", "Admin1", "123456@A"));
             log.info("Created admin user.");
         }
     }

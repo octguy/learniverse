@@ -2,7 +2,6 @@ package org.example.learniversebe.service;
 
 import org.example.learniversebe.dto.request.*;
 import org.example.learniversebe.dto.response.AuthResponse;
-import org.example.learniversebe.model.User;
 
 public interface IAuthService {
 
@@ -10,7 +9,9 @@ public interface IAuthService {
 
     AuthResponse register(RegisterRequest request);
 
-    AuthResponse createAdmin(RegisterRequest request);
+    void initAdmin(RegisterRequest request);
+
+    AuthResponse registerAdmin(RegisterRequest request);
 
     void verifyUser(VerifyUserRequest request);
 
