@@ -17,11 +17,12 @@ import java.util.List;
 public interface BookmarkMapper {
 
     @Mapping(source = "user.id", target = "userId")
+    @Mapping(target = "collectionName", expression = "java(bookmark.getCollectionName() == null ? \"General\" : bookmark.getCollectionName())")
     @Mapping(target = "postSummary", expression = "java(mapPostSummary(bookmark, contentMapper))")
     @Mapping(target = "questionSummary", expression = "java(mapQuestionSummary(bookmark, contentMapper))")
     BookmarkResponse toBookmarkResponse(Bookmark bookmark, @org.mapstruct.Context ContentMapper contentMapper);
 
-    List<BookmarkResponse> toBookmarkResponseList(List<Bookmark> bookmarks);
+//    List<BookmarkResponse> toBookmarkResponseList(List<Bookmark> bookmarks);
 
     /**
      * Map sang PostSummary nếu là POST
