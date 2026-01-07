@@ -99,6 +99,9 @@ public interface ContentMapper {
     @Mapping(target = "bookmarkedByCurrentUser", ignore = true)
     @Mapping(target = "currentUserReaction", ignore = true)
     @Mapping(source = "originalContent", target = "originalPost", qualifiedByName = "mapOriginalPost")
+    @Mapping(source = "group.id", target = "groupId")
+    @Mapping(source = "group.name", target = "groupName")
+    @Mapping(source = "group.slug", target = "groupSlug")
     PostSummaryResponse contentToPostSummaryResponse(Content content);
 
     /**

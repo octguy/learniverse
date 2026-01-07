@@ -94,6 +94,14 @@ public class Content extends BaseEntity {
     @NotFound(action = NotFoundAction.IGNORE)
     private Content originalContent;
 
+    // Group post support
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "group_id")
+    private Group group;
+
+    @Column(name = "is_pinned", nullable = false, columnDefinition = "boolean default false")
+    private Boolean isPinned = false;
+
     @PrePersist
     protected void onCreate() {
         LocalDateTime now = LocalDateTime.now();

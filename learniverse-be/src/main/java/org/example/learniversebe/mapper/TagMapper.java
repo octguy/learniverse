@@ -4,6 +4,7 @@ import org.example.learniversebe.dto.request.CreateTagRequest;
 import org.example.learniversebe.dto.response.PageResponse;
 import org.example.learniversebe.dto.response.TagResponse;
 import org.example.learniversebe.model.Tag;
+import org.example.learniversebe.model.GroupTag;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.springframework.data.domain.Page;
@@ -66,5 +67,27 @@ public interface TagMapper {
                 .map(this::toTagResponse) // 'this' refers to the injected mapper instance
                 .collect(Collectors.toList());
         return PageResponse.fromPage(page, dtoList);
+    }
+
+    /**
+     * Maps a GroupTag to TagResponse by extracting the Tag.
+     */
+    default TagResponse groupTagToTagResponse(GroupTag groupTag) {
+        if (groupTag == null || groupTag.getTag() == null) {
+            return null;
+        }
+        return toTagResponse(groupTag.getTag());
+    }
+
+    /**
+     * Maps a Set of GroupTag to List of TagResponse.
+     */
+    default List<TagResponse> groupTagsToTagResponses(Set<GroupTag> groupTags) {
+        if (groupTags == null) {
+            return null;
+        }
+        return groupTags.stream()
+                .map(this::groupTagToTagResponse)
+                .collect(Collectors.toList());
     }
 }

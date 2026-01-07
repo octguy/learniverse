@@ -50,6 +50,8 @@ public class PostServiceImpl implements IPostService {
     private final ShareRepository shareRepository;
     private final IStorageService storageService;
     private final AttachmentRepository attachmentRepository;
+    private final GroupRepository groupRepository;
+    private final GroupMemberRepository groupMemberRepository;
 
     @Value("${app.content.edit.limit-hours:24}") // Lấy từ application.properties, mặc định 24h
     private long editLimitHours;
@@ -69,7 +71,9 @@ public class PostServiceImpl implements IPostService {
                            ReactionRepository reactionRepository,
                            BookmarkRepository bookmarkRepository,
                            ShareRepository shareRepository, IStorageService storageService,
-                           AttachmentRepository attachmentRepository
+                           AttachmentRepository attachmentRepository,
+                           GroupRepository groupRepository,
+                           GroupMemberRepository groupMemberRepository
     ) {
         this.contentRepository = contentRepository;
         this.userRepository = userRepository;
@@ -86,6 +90,8 @@ public class PostServiceImpl implements IPostService {
         this.shareRepository = shareRepository;
         this.storageService = storageService;
         this.attachmentRepository = attachmentRepository;
+        this.groupRepository = groupRepository;
+        this.groupMemberRepository = groupMemberRepository;
     }
 
     @Override
@@ -103,6 +109,22 @@ public class PostServiceImpl implements IPostService {
             content.setPublishedAt(LocalDateTime.now());
         }
         content.setSlug(slugGenerator.generateSlug(request.getTitle() != null ? request.getTitle() : request.getBody().substring(0, Math.min(request.getBody().length(), 50)))); // Tạo slug
+
+        // Handle group posts
+        if (request.getGroupId() != null) {
+            Group group = groupRepository.findById(request.getGroupId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Nhóm không tồn tại"));
+            
+            // Check if user is a member of the group
+            boolean isMember = groupMemberRepository.existsByGroupIdAndUserIdAndIsBannedFalse(
+                    request.getGroupId(), author.getId());
+            if (!isMember) {
+                throw new UnauthorizedException("Bạn phải là thành viên của nhóm để đăng bài");
+            }
+            
+            content.setGroup(group);
+            content.setIsPinned(false);
+        }
 
         associateTags(content, request.getTagIds());
 

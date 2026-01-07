@@ -21,6 +21,7 @@ export interface CreatePostRequest {
   body: string;
   tagIds: string[];
   status?: "DRAFT" | "PUBLISHED";
+  groupId?: string;
 }
 
 export interface UpdatePostRequest extends CreatePostRequest {
@@ -69,4 +70,8 @@ export type Post = {
   attachments: PostAttachment[];
   bookmarkedByCurrentUser: boolean;
   currentUserReaction: string | null;
+  // Group info (if posted in a group)
+  groupId?: string;
+  groupName?: string;
+  groupSlug?: string;
 };

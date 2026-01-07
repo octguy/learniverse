@@ -18,6 +18,7 @@ import {
     Hash,
     LogOut,
     Bookmark,
+    Users,
 } from "lucide-react"
 import { tagService, Tag } from "@/lib/api/tagService"
 import { cn } from "@/lib/utils"
@@ -49,6 +50,7 @@ export function SideBar() {
     const navItems = [
         { href: "/home", label: "Bảng tin", icon: Home },
         { href: "/questions", label: "Hỏi đáp", icon: HelpCircle },
+        { href: "/groups", label: "Nhóm học tập", icon: Users },
         { href: "/chat", label: "Tin nhắn", icon: MessageCircle },
         { href: "/profile", label: "Hồ sơ cá nhân", icon: User },
         { href: "/bookmark", label: "Đã đánh dấu", icon: Bookmark },

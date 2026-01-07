@@ -58,6 +58,15 @@ public class PostSummaryResponse {
     @Schema(description = "Reaction của user hiện tại (nếu có)")
     private ReactionType currentUserReaction;
 
+    @Schema(description = "ID nhóm (nếu đăng trong nhóm)")
+    private UUID groupId;
+
+    @Schema(description = "Tên nhóm (nếu đăng trong nhóm)")
+    private String groupName;
+
+    @Schema(description = "Slug nhóm (nếu đăng trong nhóm)")
+    private String groupSlug;
+
     @Schema(description = "Bài đăng gốc")
     private PostSummaryResponse originalPost;
 }

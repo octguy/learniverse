@@ -38,7 +38,7 @@ import { toast } from "sonner"
 import { useAuth } from "@/context/AuthContext"
 import { Dialog } from "@/components/ui/dialog"
 import CreatePostModal from "./CreatePostModal"
-import { Edit, Trash2, Flag } from "lucide-react"
+import { Edit, Trash2, Flag, Users } from "lucide-react"
 import { postService } from "@/lib/api/postService"
 const REACTIONS_CONFIG = [
   {
@@ -76,9 +76,10 @@ const REACTIONS_CONFIG = [
 interface PostCardProps {
   post: Post
   onDelete?: (postId: string) => void
+  showGroupName?: boolean
 }
 
-export function PostCard({ post, onDelete }: PostCardProps) {
+export function PostCard({ post, onDelete, showGroupName = true }: PostCardProps) {
   const { user } = useAuth()
   const { author, title, body, tags = [], attachments = [], createdAt, lastEditedAt } = post
 
@@ -176,6 +177,19 @@ export function PostCard({ post, onDelete }: PostCardProps) {
 
   return (
     <Card className="w-full max-w-2xl mx-auto overflow-visible">
+      {/* Group indicator */}
+      {showGroupName && post.groupName && (
+        <div className="px-4 pt-3 pb-0">
+          <a 
+            href={`/groups/${post.groupSlug}`}
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary"
+          >
+            <Users className="size-3" />
+            <span>Đăng trong</span>
+            <span className="font-medium text-foreground">{post.groupName}</span>
+          </a>
+        </div>
+      )}
       <CardHeader className="p-4 pb-1 space-y-3">
         <div className="flex items-center gap-3">
           <Avatar className="h-10 w-10">
@@ -257,7 +271,11 @@ export function PostCard({ post, onDelete }: PostCardProps) {
 
       <CardContent className="p-4 pt-0">
         <div className="mb-4">
-          <MarkdownRenderer content={body} />
+          {body ? (
+            <MarkdownRenderer content={body} />
+          ) : (
+            <p className="text-muted-foreground">Nội dung bài viết...</p>
+          )}
         </div>
         {images.length > 0 && (
           <div className="mt-4">
