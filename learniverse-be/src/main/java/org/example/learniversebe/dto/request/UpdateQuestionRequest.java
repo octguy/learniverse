@@ -30,4 +30,7 @@ public class UpdateQuestionRequest {
 
     @Schema(description = "Lý do chỉnh sửa (tùy chọn)")
     private String editReason;
+
+    @Schema(description = "Danh sách ID các tệp đính kèm cần xóa")
+    private Set<UUID> removeMediaIds;
 }

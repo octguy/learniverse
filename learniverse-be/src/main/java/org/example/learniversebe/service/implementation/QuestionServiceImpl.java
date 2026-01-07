@@ -182,9 +182,38 @@ public class QuestionServiceImpl implements IQuestionService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<QuestionSummaryResponse> getAllQuestions(Pageable pageable) {
-        Page<Content> page = contentRepository.findByContentTypeAndStatus(
-                ContentType.QUESTION, ContentStatus.PUBLISHED, pageable);
+    public PageResponse<QuestionSummaryResponse> getAllQuestions(String answerFilter, List<UUID> tagIds, String query, Pageable pageable) {
+        Page<Content> page;
+        
+        boolean hasQuery = query != null && !query.isBlank();
+        boolean hasTagFilter = tagIds != null && !tagIds.isEmpty();
+        
+        // Determine which repository method to call based on filters
+        if (hasQuery) {
+            // Search with optional answer filter
+            if ("unanswered".equalsIgnoreCase(answerFilter)) {
+                page = contentRepository.searchUnansweredQuestions(query.trim(), pageable);
+            } else if ("answered".equalsIgnoreCase(answerFilter)) {
+                page = contentRepository.searchAnsweredQuestions(query.trim(), pageable);
+            } else if ("accepted".equalsIgnoreCase(answerFilter)) {
+                page = contentRepository.searchAcceptedQuestions(query.trim(), pageable);
+            } else {
+                page = contentRepository.searchPublishedQuestions(query.trim(), pageable);
+            }
+        } else if (hasTagFilter) {
+            // Filter by tags
+            page = contentRepository.findPublishedQuestionsByTagIds(tagIds, pageable);
+        } else if ("unanswered".equalsIgnoreCase(answerFilter)) {
+            page = contentRepository.findUnansweredQuestions(pageable);
+        } else if ("answered".equalsIgnoreCase(answerFilter)) {
+            page = contentRepository.findAnsweredQuestions(pageable);
+        } else if ("accepted".equalsIgnoreCase(answerFilter)) {
+            page = contentRepository.findAcceptedQuestions(pageable);
+        } else {
+            // No filters - get all published questions
+            page = contentRepository.findByContentTypeAndStatus(
+                    ContentType.QUESTION, ContentStatus.PUBLISHED, pageable);
+        }
 
         PageResponse<QuestionSummaryResponse> response = contentMapper.contentPageToQuestionSummaryPage(page);
 
@@ -271,6 +300,13 @@ public class QuestionServiceImpl implements IQuestionService {
         // Lấy danh sách câu trả lời phân trang
         Page<Answer> answerPage = answerRepository.findByQuestionIdOrderByIsAcceptedDescVoteScoreDescCreatedAtAsc(content.getId(), answerPageable);
         PageResponse<AnswerResponse> answerPageResponse = answerMapper.answerPageToAnswerPageResponse(answerPage);
+        
+        // Set interaction status for each answer
+        UUID currentUserId = serviceHelper.getCurrentUserId();
+        if (currentUserId != null && answerPageResponse.getContent() != null) {
+            answerPageResponse.getContent().forEach(answerDto -> setAnswerInteractionStatus(answerDto, currentUserId));
+        }
+        
         response.setAnswers(answerPageResponse.getContent());
 
         return response;
@@ -306,7 +342,7 @@ public class QuestionServiceImpl implements IQuestionService {
 
     @Override
     @Transactional
-    public QuestionResponse updateQuestion(UUID questionId, UpdateQuestionRequest request) {
+    public QuestionResponse updateQuestion(UUID questionId, UpdateQuestionRequest request, List<MultipartFile> files) {
         User currentUser = serviceHelper.getCurrentUser();
         Content content = findQuestionByIdOrFail(questionId);
 
@@ -328,6 +364,54 @@ public class QuestionServiceImpl implements IQuestionService {
         // Cập nhật Tags
         updateTags(content, request.getTagIds());
 
+        // Remove attachments if requested
+        if (request.getRemoveMediaIds() != null && !request.getRemoveMediaIds().isEmpty()) {
+            for (UUID attachmentId : request.getRemoveMediaIds()) {
+                Attachment attachment = attachmentRepository.findById(attachmentId).orElse(null);
+                if (attachment != null && attachment.getContent().getId().equals(questionId)) {
+                    // Delete from cloud storage
+                    if (attachment.getStorageKey() != null) {
+                        try {
+                            storageService.deleteFile(attachment.getStorageKey());
+                        } catch (IOException e) {
+                            log.warn("Failed to delete file from storage: {}", attachment.getStorageKey(), e);
+                            // Continue with database deletion even if cloud deletion fails
+                        }
+                    }
+                    // Remove from question and delete from database
+                    content.getAttachments().remove(attachment);
+                    attachmentRepository.delete(attachment);
+                }
+            }
+        }
+
+        // Add new attachments if provided
+        if (files != null && !files.isEmpty()) {
+            List<Attachment> newAttachments = new ArrayList<>();
+            for (MultipartFile file : files) {
+                try {
+                    Map<String, String> uploadResult = storageService.uploadFile(file);
+
+                    Attachment attachment = new Attachment();
+                    attachment.setContent(content);
+                    attachment.setUploadedBy(currentUser);
+                    attachment.setFileName(file.getOriginalFilename());
+                    attachment.setMimeType(file.getContentType());
+                    attachment.setFileSize(file.getSize());
+                    attachment.setStorageUrl(uploadResult.get("url"));
+                    attachment.setStorageKey(uploadResult.get("key"));
+                    attachment.setFileType(determineAttachmentType(Objects.requireNonNull(file.getContentType())));
+                    attachment.setIsVerified(true);
+
+                    newAttachments.add(attachment);
+                } catch (IOException e) {
+                    throw new BadRequestException("Failed to upload file: " + file.getOriginalFilename());
+                }
+            }
+            attachmentRepository.saveAll(newAttachments);
+            content.getAttachments().addAll(newAttachments);
+        }
+
         Content updatedContent = contentRepository.save(content);
 
         // Map và trả về (không cần lấy lại answer page)
@@ -346,20 +430,27 @@ public class QuestionServiceImpl implements IQuestionService {
             throw new UnauthorizedException("User is not authorized to delete this question");
         }
 
-        contentRepository.delete(content);
-        contentTagRepository.deleteByContentId(questionId);
+        // Delete related answers first
         List<UUID> answerIds = answerRepository.findAllIdsByQuestionId(questionId);
         for (UUID answerId : answerIds) {
-            answerRepository.softDeleteById(answerId);
             commentRepository.softDeleteByCommentable(ReactableType.ANSWER, answerId);
             reactionRepository.softDeleteByReactable(ReactableType.ANSWER, answerId);
             voteRepository.softDeleteByVotable(VotableType.ANSWER, answerId);
+            answerRepository.softDeleteById(answerId);
         }
+        
+        // Delete question-related interactions
         commentRepository.softDeleteByCommentable(ReactableType.CONTENT, questionId);
         reactionRepository.softDeleteByReactable(ReactableType.CONTENT, questionId);
         voteRepository.softDeleteByVotable(VotableType.CONTENT, questionId);
         bookmarkRepository.softDeleteByContentId(questionId);
         shareRepository.softDeleteByContentId(questionId);
+        
+        // Delete content tags
+        contentTagRepository.deleteByContentId(questionId);
+        
+        // Finally delete the question content (soft delete via @SQLDelete)
+        contentRepository.delete(content);
     }
 
     @Override
@@ -468,11 +559,51 @@ public class QuestionServiceImpl implements IQuestionService {
         if (newTagIds == null || newTagIds.isEmpty()) {
             throw new BadRequestException("At least one tag is required for a question.");
         }
-        // Xóa liên kết cũ
-        contentTagRepository.deleteAll(content.getContentTags());
-        content.getContentTags().clear();
-        // Thêm liên kết mới
-        associateTags(content, newTagIds);
+        
+        // Get current tag IDs
+        Set<UUID> currentTagIds = content.getContentTags().stream()
+                .map(ct -> ct.getTag().getId())
+                .collect(Collectors.toSet());
+        
+        // If tags are the same, no need to update
+        if (currentTagIds.equals(newTagIds)) {
+            return;
+        }
+        
+        // Find tags to remove and tags to add
+        Set<UUID> tagsToRemove = currentTagIds.stream()
+                .filter(id -> !newTagIds.contains(id))
+                .collect(Collectors.toSet());
+        
+        Set<UUID> tagsToAdd = newTagIds.stream()
+                .filter(id -> !currentTagIds.contains(id))
+                .collect(Collectors.toSet());
+        
+        // Remove old content tags
+        if (!tagsToRemove.isEmpty()) {
+            content.getContentTags().removeIf(ct -> tagsToRemove.contains(ct.getTag().getId()));
+            contentTagRepository.deleteByContentIdAndTagIds(content.getId(), tagsToRemove);
+            contentTagRepository.flush(); // Ensure deletes are persisted before adding
+        }
+        
+        // Add new tags
+        if (!tagsToAdd.isEmpty()) {
+            List<Tag> newTags = tagRepository.findAllById(tagsToAdd);
+            if (newTags.size() != tagsToAdd.size()) {
+                Set<UUID> foundIds = newTags.stream().map(Tag::getId).collect(Collectors.toSet());
+                Set<UUID> notFoundIds = tagsToAdd.stream().filter(id -> !foundIds.contains(id)).collect(Collectors.toSet());
+                throw new BadRequestException("Tags not found with IDs: " + notFoundIds);
+            }
+            
+            LocalDateTime now = LocalDateTime.now();
+            for (Tag tag : newTags) {
+                ContentTag contentTag = new ContentTag();
+                contentTag.setContent(content);
+                contentTag.setTag(tag);
+                contentTag.setCreatedAt(now);
+                content.getContentTags().add(contentTag);
+            }
+        }
     }
 
 
@@ -489,7 +620,8 @@ public class QuestionServiceImpl implements IQuestionService {
         history.setEditedBy(editor);
         history.setPreviousTitle(content.getTitle());
         history.setPreviousBody(content.getBody());
-        history.setEditReason(reason);
+        // Set default edit reason if null to avoid NOT NULL constraint violation
+        history.setEditReason(reason != null && !reason.isBlank() ? reason : "Chỉnh sửa nội dung");
         // editedAt được set bởi @PrePersist
         editHistoryRepository.save(history);
     }
@@ -515,5 +647,88 @@ public class QuestionServiceImpl implements IQuestionService {
             response.setCurrentUserVote(null);
             response.setCurrentUserReaction(null);
         }
+    }
+
+    /**
+     * Helper to set user-specific interaction status on an AnswerResponse DTO.
+     */
+    private void setAnswerInteractionStatus(AnswerResponse answerDto, UUID currentUserId) {
+        if (currentUserId == null) return;
+
+        Optional<Vote> voteOpt = voteRepository.findByUserIdAndVotableTypeAndVotableId(
+                currentUserId, VotableType.ANSWER, answerDto.getId());
+        answerDto.setCurrentUserVote(voteOpt.map(Vote::getVoteType).orElse(null));
+
+        Optional<Reaction> reactionOpt = reactionRepository.findByUserIdAndReactableTypeAndReactableId(
+                currentUserId, ReactableType.ANSWER, answerDto.getId());
+        answerDto.setCurrentUserReaction(reactionOpt.map(Reaction::getReactionType).orElse(null));
+    }
+
+    @Override
+    @Transactional
+    public QuestionResponse addAttachments(UUID questionId, List<MultipartFile> files) {
+        User currentUser = serviceHelper.getCurrentUser();
+        Content question = findQuestionByIdOrFail(questionId);
+        
+        serviceHelper.ensureCurrentUserIsAuthor(question.getAuthor().getId(), "add attachments to question");
+        
+        if (files == null || files.isEmpty()) {
+            throw new BadRequestException("No files provided");
+        }
+        
+        List<Attachment> attachments = new ArrayList<>();
+        for (MultipartFile file : files) {
+            try {
+                Map<String, String> uploadResult = storageService.uploadFile(file);
+                
+                Attachment attachment = new Attachment();
+                attachment.setContent(question);
+                attachment.setUploadedBy(currentUser);
+                attachment.setFileName(file.getOriginalFilename());
+                attachment.setMimeType(file.getContentType());
+                attachment.setFileSize(file.getSize());
+                attachment.setStorageUrl(uploadResult.get("url"));
+                attachment.setStorageKey(uploadResult.get("key"));
+                attachment.setFileType(determineAttachmentType(Objects.requireNonNull(file.getContentType())));
+                attachment.setIsVerified(true);
+                
+                attachments.add(attachment);
+            } catch (IOException e) {
+                throw new BadRequestException("Failed to upload file: " + file.getOriginalFilename());
+            }
+        }
+        
+        attachmentRepository.saveAll(attachments);
+        question.getAttachments().addAll(attachments);
+        
+        return getQuestionResponseWithInteraction(question);
+    }
+
+    @Override
+    @Transactional
+    public void removeAttachment(UUID questionId, UUID attachmentId) {
+        Content question = findQuestionByIdOrFail(questionId);
+        serviceHelper.ensureCurrentUserIsAuthor(question.getAuthor().getId(), "remove attachment from question");
+        
+        Attachment attachment = attachmentRepository.findById(attachmentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Attachment not found with id: " + attachmentId));
+        
+        if (!attachment.getContent().getId().equals(questionId)) {
+            throw new BadRequestException("Attachment does not belong to this question");
+        }
+        
+        // Delete from cloud storage
+        if (attachment.getStorageKey() != null) {
+            try {
+                storageService.deleteFile(attachment.getStorageKey());
+            } catch (IOException e) {
+                log.warn("Failed to delete file from storage: {}", attachment.getStorageKey(), e);
+                // Continue with database deletion even if cloud deletion fails
+            }
+        }
+        
+        // Remove from question and delete from database
+        question.getAttachments().remove(attachment);
+        attachmentRepository.delete(attachment);
     }
 }

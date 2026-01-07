@@ -5,7 +5,6 @@ import org.example.learniversebe.dto.request.CreateAnswerRequest;
 import org.example.learniversebe.dto.request.UpdateAnswerRequest;
 import org.example.learniversebe.dto.response.AnswerResponse;
 import org.example.learniversebe.dto.response.PageResponse;
-import org.example.learniversebe.enums.AttachmentType;
 import org.example.learniversebe.enums.ContentType;
 import org.example.learniversebe.enums.ReactableType;
 import org.example.learniversebe.enums.VotableType;
@@ -17,8 +16,6 @@ import org.example.learniversebe.model.*;
 import org.example.learniversebe.repository.*;
 import org.example.learniversebe.service.IAnswerService;
 import org.example.learniversebe.service.IInteractionService;
-import org.example.learniversebe.service.INotificationService;
-import org.example.learniversebe.service.IStorageService;
 import org.example.learniversebe.util.ServiceHelper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
@@ -26,13 +23,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
-
-import java.io.IOException;
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-import java.util.*;
+import java.util.Optional;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -45,12 +39,10 @@ public class AnswerServiceImpl implements IAnswerService {
     private final ServiceHelper serviceHelper;
     private final IInteractionService interactionService;
     // private final INotificationService notificationService;
-    private final IStorageService storageService;
-    private final AttachmentRepository attachmentRepository;
     private final VoteRepository voteRepository;
     private final ReactionRepository reactionRepository;
 
-    @Value("${app.answer.edit.limit-minutes:30}")
+    @Value("${app.answer.edit.limit-minutes:60}")
     private long answerEditLimitMinutes;
 
     public AnswerServiceImpl(AnswerRepository answerRepository,
@@ -58,17 +50,13 @@ public class AnswerServiceImpl implements IAnswerService {
                              UserRepository userRepository,
                              AnswerMapper answerMapper,
                              ServiceHelper serviceHelper,
-                             @Lazy IInteractionService interactionService, IStorageService storageService, AttachmentRepository attachmentRepository, VoteRepository voteRepository, ReactionRepository reactionRepository
-            /*, INotificationService notificationService */) {
+                             @Lazy IInteractionService interactionService, VoteRepository voteRepository, ReactionRepository reactionRepository) {
         this.answerRepository = answerRepository;
         this.contentRepository = contentRepository;
         this.userRepository = userRepository;
         this.answerMapper = answerMapper;
         this.serviceHelper = serviceHelper;
         this.interactionService = interactionService;
-        // this.notificationService = notificationService;
-        this.storageService = storageService;
-        this.attachmentRepository = attachmentRepository;
         this.voteRepository = voteRepository;
         this.reactionRepository = reactionRepository;
     }
@@ -76,7 +64,7 @@ public class AnswerServiceImpl implements IAnswerService {
 
     @Override
     @Transactional
-    public AnswerResponse addAnswer(CreateAnswerRequest request, List<MultipartFile> files) {
+    public AnswerResponse addAnswer(CreateAnswerRequest request) {
         log.info("Adding answer to question ID: {}", request.getQuestionId());
         User author = serviceHelper.getCurrentUser();
         Content question = contentRepository.findById(request.getQuestionId())
@@ -94,33 +82,6 @@ public class AnswerServiceImpl implements IAnswerService {
         Answer savedAnswer = answerRepository.save(answer);
         log.info("Answer created with ID: {} for question ID: {} by user: {}", savedAnswer.getId(), question.getId(), author.getUsername());
 
-        if (files != null && !files.isEmpty()) {
-            List<Attachment> attachments = new ArrayList<>();
-            for (MultipartFile file : files) {
-                try {
-                    Map<String, String> uploadResult = storageService.uploadFile(file);
-
-                    Attachment attachment = new Attachment();
-                    attachment.setAnswer(savedAnswer);
-                    attachment.setContent(null);
-                    attachment.setUploadedBy(author);
-                    attachment.setFileName(file.getOriginalFilename());
-                    attachment.setMimeType(file.getContentType());
-                    attachment.setFileSize(file.getSize());
-                    attachment.setStorageUrl(uploadResult.get("url"));
-                    attachment.setStorageKey(uploadResult.get("key"));
-                    attachment.setFileType(determineAttachmentType(Objects.requireNonNull(file.getContentType())));
-                    attachment.setIsVerified(true);
-
-                    attachments.add(attachment);
-                } catch (IOException e) {
-                    throw new BadRequestException("Failed to upload file: " + file.getOriginalFilename());
-                }
-            }
-            attachmentRepository.saveAll(attachments);
-            // answer.setAttachments(...) if Answer entity has OneToMany List<Attachment>
-        }
-
         question.setAnswerCount(question.getAnswerCount() + 1);
         contentRepository.save(question);
 
@@ -131,12 +92,6 @@ public class AnswerServiceImpl implements IAnswerService {
         AnswerResponse response = answerMapper.answerToAnswerResponse(savedAnswer);
         setInteractionStatusForCurrentUser(response, author.getId());
         return response;
-    }
-
-    private AttachmentType determineAttachmentType(String mimeType) {
-        if (mimeType.startsWith("image/")) return AttachmentType.IMAGE;
-        if (mimeType.equals("application/pdf")) return AttachmentType.PDF;
-        return AttachmentType.OTHER;
     }
 
     @Override

@@ -32,14 +32,18 @@ public interface IQuestionService {
     QuestionResponse publishQuestion(UUID questionId);
 
     /**
-     * Retrieves a paginated list of all published questions.
+     * Retrieves a paginated list of all published questions with optional filters.
+     * Supports filtering by answer status (unanswered, answered, accepted) and tags.
      * Allows sorting by creation date, vote score, or unanswered status via Pageable's Sort object.
      * Includes user-specific interaction status if possible in summary.
      *
-     * @param pageable Pagination and sorting information.
+     * @param answerFilter Filter by answer status: "unanswered", "answered", "accepted", or null for all.
+     * @param tagIds       Optional list of tag IDs to filter by.
+     * @param query        Optional search query string.
+     * @param pageable     Pagination and sorting information.
      * @return A PageResponse containing QuestionSummaryResponse DTOs.
      */
-    PageResponse<QuestionSummaryResponse> getAllQuestions(Pageable pageable);
+    PageResponse<QuestionSummaryResponse> getAllQuestions(String answerFilter, List<UUID> tagIds, String query, Pageable pageable);
 
     /**
      * Retrieves a paginated list of questions created by a specific author.
@@ -100,7 +104,7 @@ public interface IQuestionService {
      * @throws org.example.learniversebe.exception.UnauthorizedException if the user is not the author or edit time limit exceeded.
      * @throws org.example.learniversebe.exception.BadRequestException if tag IDs are invalid.
      */
-    QuestionResponse updateQuestion(UUID questionId, UpdateQuestionRequest request);
+    QuestionResponse updateQuestion(UUID questionId, UpdateQuestionRequest request, List<MultipartFile> files);
 
     /**
      * Deletes a question identified by its ID (soft delete).
@@ -148,4 +152,23 @@ public interface IQuestionService {
      * @return A PageResponse containing QuestionSummaryResponse DTOs matching the search query.
      */
     PageResponse<QuestionSummaryResponse> searchQuestions(String query, Pageable pageable);
+
+    /**
+     * Adds new attachments to an existing question.
+     * Requires authenticated user to be the author of the question.
+     *
+     * @param questionId The UUID of the question.
+     * @param files      List of files to attach.
+     * @return Updated QuestionResponse with new attachments.
+     */
+    QuestionResponse addAttachments(UUID questionId, List<MultipartFile> files);
+
+    /**
+     * Removes an attachment from a question.
+     * Also deletes the file from cloud storage.
+     *
+     * @param questionId   The UUID of the question.
+     * @param attachmentId The UUID of the attachment to remove.
+     */
+    void removeAttachment(UUID questionId, UUID attachmentId);
 }

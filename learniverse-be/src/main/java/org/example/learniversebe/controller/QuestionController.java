@@ -65,10 +65,13 @@ public class QuestionController {
     }
 
     @GetMapping
-    @Operation(summary = "Get all questions", description = "Retrieves a paginated list of all published questions.")
+    @Operation(summary = "Get all questions", description = "Retrieves a paginated list of all published questions. Supports filtering by answer status and tags.")
     public ResponseEntity<ApiResponse<PageResponse<QuestionSummaryResponse>>> getAllQuestions(
+            @RequestParam(required = false) String answerFilter,
+            @RequestParam(required = false) List<UUID> tagIds,
+            @RequestParam(required = false) String query,
             @ParameterObject @PageableDefault(sort = "publishedAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
-        PageResponse<QuestionSummaryResponse> questionPage = questionService.getAllQuestions(pageable);
+        PageResponse<QuestionSummaryResponse> questionPage = questionService.getAllQuestions(answerFilter, tagIds, query, pageable);
         ApiResponse<PageResponse<QuestionSummaryResponse>> response = new ApiResponse<>(HttpStatus.OK, "Questions retrieved successfully", questionPage, null);
         return ResponseEntity.ok(response);
     }
@@ -134,13 +137,20 @@ public class QuestionController {
         return ResponseEntity.ok(response);
     }
 
-    @PutMapping("/{questionId}")
+    @PutMapping(value = "/{questionId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('USER')")
-    @Operation(summary = "Update an existing question", description = "UC 3.1: Updates a question. Requires user to be the author and within the edit limit.")
+    @Operation(summary = "Update an existing question", description = "UC 3.1: Updates a question with optional new attachments. Requires user to be the author and within the edit limit.")
     public ResponseEntity<ApiResponse<QuestionResponse>> updateQuestion(
             @PathVariable UUID questionId,
-            @Valid @RequestBody UpdateQuestionRequest request) {
-        QuestionResponse updatedQuestion = questionService.updateQuestion(questionId, request);
+            @RequestPart("question")
+            @Parameter(description = "Question update data (JSON)", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE))
+            @Valid UpdateQuestionRequest request,
+
+            @RequestPart(value = "files", required = false)
+            @Parameter(description = "New attachments to add (Image/PDF)", content = @Content(mediaType = MediaType.APPLICATION_OCTET_STREAM_VALUE))
+            List<MultipartFile> files
+    ) {
+        QuestionResponse updatedQuestion = questionService.updateQuestion(questionId, request, files);
         ApiResponse<QuestionResponse> response = new ApiResponse<>(HttpStatus.OK, "Question updated successfully", updatedQuestion, null);
         return ResponseEntity.ok(response);
     }

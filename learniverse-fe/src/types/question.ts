@@ -28,6 +28,7 @@ export interface QuestionAnswer {
     questionId: string
     author: QuestionAuthor
     body: string
+    attachments?: QuestionAttachment[]
     voteScore?: number | null
     upvoteCount?: number | null
     downvoteCount?: number | null
