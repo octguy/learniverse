@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/context/AuthContext"; // Sử dụng context hiện có của bạn
+import { useAuth } from "@/context/AuthContext";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import AdminTopbar from "@/components/admin/AdminTopbar";
-import { cn } from "@/lib/utils"; // Tiện ích nối class của Shadcn
+import { cn } from "@/lib/utils"; 
+import { toast } from "sonner";
 
 export default function AdminLayout({
   children,
@@ -25,6 +26,7 @@ export default function AdminLayout({
                         user.roles?.includes("ROLE_ADMIN");
         
         if (!isAdmin) {
+          toast.error("Bạn không có quyền truy cập vào trang quản trị.");
           router.push("/home");
         }
       }
@@ -39,15 +41,14 @@ export default function AdminLayout({
     );
   }
 
-  // Nếu user chưa load hoặc không phải admin (đang redirect), render null hoặc loading
-  if (!user) return null;
+  const isAdmin = user && (user.role === "ROLE_ADMIN" || user.roles?.includes("ROLE_ADMIN"));
+
+  if (!user || !isAdmin) return null;
 
   return (
     <div className="flex min-h-screen bg-background text-foreground overflow-hidden">
-      {/* Sidebar Component */}
       <AdminSidebar open={sidebarOpen} setOpen={setSidebarOpen} />
 
-      {/* Mobile Overlay */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-background/80 backdrop-blur-sm z-30 md:hidden"
@@ -55,7 +56,6 @@ export default function AdminLayout({
         />
       )}
 
-      {/* Main Content Area */}
       <div
         className={cn(
           "flex-1 flex flex-col min-h-screen transition-all duration-300 ease-in-out",
