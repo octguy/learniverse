@@ -37,7 +37,7 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).body(apiResponse);
     }
 
-    @Operation(summary = "Register an admin", description = "Authenticate a user and send email verification")
+    @Operation(summary = "Register an admin", description = "Create new admin and send secure password to him/her email")
     @PostMapping("/register-admin")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<AuthResponse>> registerAdmin(@RequestBody @Valid RegisterRequest registerRequest) {
