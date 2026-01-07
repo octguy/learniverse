@@ -71,7 +71,7 @@ export default function AdminTopbar({
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => (window.location.href = "/")}>
+            <DropdownMenuItem onClick={() => (window.location.href = "/home")}>
               Về trang chủ
             </DropdownMenuItem>
             <DropdownMenuSeparator />

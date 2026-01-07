@@ -2,7 +2,21 @@
 
 import * as React from "react"
 import Image from "next/image"
-import { X } from "lucide-react"
+import { 
+  X, 
+  Calculator, 
+  BookOpenText, 
+  Languages, 
+  Atom, 
+  FlaskConical, 
+  Dna, 
+  History, 
+  Globe2, 
+  Scale, 
+  Monitor, 
+  Cpu, 
+  Shapes 
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Card, CardContent } from "@/components/ui/card"
@@ -35,6 +49,22 @@ export function TagSelector({
     const MAX_SELECTION = 5
     const MIN_SELECTION = 3
 
+    const getIconForTag = (tagName: string) => {
+        const lowerName = tagName.toLowerCase();
+        if (lowerName.includes("toán")) return <Calculator className="w-8 h-8 text-blue-600" />;
+        if (lowerName.includes("văn")) return <BookOpenText className="w-8 h-8 text-orange-600" />;
+        if (lowerName.includes("tiếng anh") || lowerName.includes("ngoại ngữ")) return <Languages className="w-8 h-8 text-purple-600" />;
+        if (lowerName.includes("lý")) return <Atom className="w-8 h-8 text-cyan-600" />;
+        if (lowerName.includes("hóa")) return <FlaskConical className="w-8 h-8 text-green-600" />;
+        if (lowerName.includes("sinh")) return <Dna className="w-8 h-8 text-red-600" />;
+        if (lowerName.includes("sử")) return <History className="w-8 h-8 text-yellow-600" />;
+        if (lowerName.includes("địa")) return <Globe2 className="w-8 h-8 text-teal-600" />;
+        if (lowerName.includes("công dân")) return <Scale className="w-8 h-8 text-indigo-600" />;
+        if (lowerName.includes("tin")) return <Monitor className="w-8 h-8 text-slate-600" />;
+        if (lowerName.includes("công nghệ")) return <Cpu className="w-8 h-8 text-sky-600" />;
+        return <Shapes className="w-8 h-8 text-gray-600" />;
+    };
+
     const toggleTag = (tagId: string) => {
         if (selectedTags.includes(tagId)) {
             onChange(selectedTags.filter((t) => t !== tagId))
@@ -63,7 +93,7 @@ export function TagSelector({
                 </div>
 
                 <div className="flex-1 flex items-start overflow-y-auto max-h-[400px] pr-2">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 w-full">
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-6 w-full auto-rows-[80px]">
                         {filteredTags.map((tag) => {
                             const isSelected = selectedTags.includes(tag.id)
                             const isDisabled = !isSelected && selectedTags.length >= MAX_SELECTION
@@ -72,18 +102,28 @@ export function TagSelector({
                                     key={tag.id}
                                     onClick={() => !isDisabled && toggleTag(tag.id)}
                                     className={cn(
-                                        "flex items-center border rounded-md overflow-hidden cursor-pointer transition-all select-none",
+                                        "flex h-full border rounded-xl overflow-hidden cursor-pointer transition-all select-none shadow-sm",
                                         isSelected
-                                            ? "ring-2 ring-blue-500 bg-blue-50"
+                                            ? "border-blue-500 ring-1 ring-blue-500 bg-blue-50"
                                             : isDisabled
-                                                ? "opacity-50 cursor-not-allowed"
-                                                : "bg-white hover:bg-gray-50 hover:shadow-md"
+                                                ? "opacity-50 cursor-not-allowed border-gray-200"
+                                                : "bg-white border-gray-200 hover:border-blue-300 hover:shadow-md"
                                     )}
                                 >
-                                    <div className="w-1/3 bg-gray-100 flex items-center justify-center p-2">
-                                        <Image src="/favicon.ico" alt={tag.name} width={50} height={50} />
+                                    <div className={cn(
+                                        "w-[80px] flex items-center justify-center h-full",
+                                        isSelected ? "bg-blue-100" : "bg-gray-50"
+                                    )}>
+                                        {getIconForTag(tag.name)}
                                     </div>
-                                    <div className="flex-1 text-center py-2 text-sm font-medium">{tag.name}</div>
+                                    <div className="flex-1 flex items-center justify-center p-3 text-center">
+                                        <span className={cn(
+                                            "text-base font-semibold",
+                                            isSelected ? "text-blue-700" : "text-gray-700"
+                                        )}>
+                                            {tag.name}
+                                        </span>
+                                    </div>
                                 </div>
                             )
                         })}
