@@ -9,6 +9,7 @@ import org.example.learniversebe.model.ApiResponse;
 import org.example.learniversebe.service.IAuthService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RequestMapping("/api/v1/auth")
@@ -36,14 +37,15 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).body(apiResponse);
     }
 
-    @Operation(summary = "Register an admin", description = "Authenticate a user and send email verification")
+    @Operation(summary = "Register an admin", description = "Create new admin and send secure password to him/her email")
     @PostMapping("/register-admin")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<AuthResponse>> registerAdmin(@RequestBody @Valid RegisterRequest registerRequest) {
-        AuthResponse authResponse = authService.createAdmin(registerRequest);
+        AuthResponse authResponse = authService.registerAdmin(registerRequest);
 
         ApiResponse<AuthResponse> apiResponse = new ApiResponse<>(
                 HttpStatus.CREATED,
-                "Admin registered successfully",
+                "Admin registered successfully, please check your email for getting secure password",
                 authResponse,
                 null
         );

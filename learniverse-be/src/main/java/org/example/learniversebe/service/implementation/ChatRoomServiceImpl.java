@@ -82,8 +82,8 @@ public class ChatRoomServiceImpl implements IChatRoomService {
         chatParticipantRepository.saveAll(participants);
 
         Set<UUID> participantIds = participants.stream()
-                        .map(participant -> participant.getParticipant().getId())
-                        .collect(Collectors.toSet());
+                .map(participant -> participant.getParticipant().getId())
+                .collect(Collectors.toSet());
 
 
         log.info("Created direct chat room between {} and {}", currentUser.getUsername(), recipientUser.getUsername());
@@ -180,7 +180,7 @@ public class ChatRoomServiceImpl implements IChatRoomService {
     @Transactional(readOnly = true)
     public ChatRoomResponse getChatRoomById(UUID chatRoomId) {
         User currentUser = SecurityUtils.getCurrentUser();
-        
+
         ChatRoom room = chatRoomRepository.findById(chatRoomId)
                 .orElseThrow(() -> new RuntimeException("Chat room not found: " + chatRoomId));
 
@@ -335,7 +335,7 @@ public class ChatRoomServiceImpl implements IChatRoomService {
 
         try {
             Object[] msg = results.get(0);
-            
+
             // Query returns: user_id (0), display_name (1), message_type (2), text_content (3), created_at (4)
             if (msg.length < 5) {
                 log.warn("Expected 5 columns but got {} for room {}", msg.length, room.getId());
@@ -345,7 +345,7 @@ public class ChatRoomServiceImpl implements IChatRoomService {
             String senderDisplayName = msg[1] != null ? msg[1].toString() : null;
             String messageType = msg[2] != null ? msg[2].toString() : null;
             String content = msg[3] != null ? msg[3].toString() : null;
-            
+
             LocalDateTime sendAt = null;
             if (msg[4] != null) {
                 if (msg[4] instanceof Timestamp) {
