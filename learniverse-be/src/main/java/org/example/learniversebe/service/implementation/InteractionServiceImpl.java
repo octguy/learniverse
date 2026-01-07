@@ -181,60 +181,92 @@ public class InteractionServiceImpl implements IInteractionService {
     public BookmarkResponse addBookmark(BookmarkRequest request) {
         User currentUser = serviceHelper.getCurrentUser();
         Content content = contentRepository.findById(request.getContentId())
-                .orElseThrow(() -> new ResourceNotFoundException("Content not found with id: " + request.getContentId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Content not found"));
 
+        // 1. Tìm bookmark (kể cả đã xóa)
         Optional<Bookmark> existingBookmarkOpt = bookmarkRepository
-                .findByUserIdAndContentIdIncludingDeleted(currentUser.getId(), content.getId());
+                .findByUserIdAndContentIdRaw(currentUser.getId(), content.getId());
+
+        Bookmark bookmark;
 
         if (existingBookmarkOpt.isPresent()) {
-            Bookmark existingBookmark = existingBookmarkOpt.get();
-
-            if (existingBookmark.getDeletedAt() != null) {
-                existingBookmark.setDeletedAt(null);
-                existingBookmark.setCollectionName(request.getCollectionName());
-                existingBookmark.setNotes(request.getNotes());
-                existingBookmark.setUpdatedAt(LocalDateTime.now());
-                Bookmark restored = bookmarkRepository.save(existingBookmark);
-
+            bookmark = existingBookmarkOpt.get();
+            // Nếu đã xóa -> Khôi phục (Restore)
+            if (bookmark.getDeletedAt() != null) {
+                bookmark.setDeletedAt(null);
                 content.setBookmarkCount(content.getBookmarkCount() + 1);
-                contentRepository.save(content);
-
-                return bookmarkMapper.toBookmarkResponse(restored, contentMapper);
-            } else {
-                bookmarkRepository.delete(existingBookmark);
-                content.setBookmarkCount(Math.max(0, content.getBookmarkCount() - 1));
-                contentRepository.save(content);
-                return null;
             }
+            // Luôn cập nhật thông tin mới nhất (dù là mới hay cũ)
+            bookmark.setCollectionName(request.getCollectionName());
+            bookmark.setNotes(request.getNotes());
+            bookmark.setUpdatedAt(LocalDateTime.now());
         } else {
-            Bookmark bookmark = new Bookmark();
+            // Chưa từng tồn tại -> Tạo mới (Create)
+            bookmark = new Bookmark();
             bookmark.setUser(currentUser);
             bookmark.setContent(content);
             bookmark.setCollectionName(request.getCollectionName());
             bookmark.setNotes(request.getNotes());
-            Bookmark saved = bookmarkRepository.save(bookmark);
 
             content.setBookmarkCount(content.getBookmarkCount() + 1);
-            contentRepository.save(content);
-
-            return bookmarkMapper.toBookmarkResponse(saved, contentMapper);
         }
+
+        contentRepository.save(content);
+        Bookmark saved = bookmarkRepository.save(bookmark);
+        return bookmarkMapper.toBookmarkResponse(saved, contentMapper);
     }
 
     @Override
     @Transactional
     public void removeBookmark(UUID contentId) {
         User currentUser = serviceHelper.getCurrentUser();
-        Bookmark bookmark = bookmarkRepository.findByUserIdAndContentId(currentUser.getId(), contentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Bookmark not found for user " + currentUser.getId() + " and content " + contentId));
 
-        Content content = bookmark.getContent();
+        // Chỉ tìm những cái đang active (chưa xóa)
+        Optional<Bookmark> bookmarkOpt = bookmarkRepository.findByUserIdAndContentId(currentUser.getId(), contentId);
 
-        bookmarkRepository.delete(bookmark);
+        if (bookmarkOpt.isPresent()) {
+            Bookmark bookmark = bookmarkOpt.get();
+            bookmarkRepository.delete(bookmark);
 
-        if (content != null) {
+            // Giảm count
+            Content content = bookmark.getContent();
             content.setBookmarkCount(Math.max(0, content.getBookmarkCount() - 1));
             contentRepository.save(content);
+        }
+        // Nếu không tìm thấy (đã xóa hoặc chưa từng bookmark) -> Không làm gì cả (Idempotent)
+    }
+
+    @Transactional
+    @Override
+    public boolean toggleBookmark(UUID contentId) {
+        User currentUser = serviceHelper.getCurrentUser();
+
+        // Tìm bookmark (kể cả đã xóa) để quyết định hành động
+        Optional<Bookmark> existingBookmarkOpt = bookmarkRepository
+                .findByUserIdAndContentIdRaw(currentUser.getId(), contentId);
+
+        if (existingBookmarkOpt.isPresent()) {
+            Bookmark bookmark = existingBookmarkOpt.get();
+
+            if (bookmark.getDeletedAt() == null) {
+                // Case 1: Đang active -> Thực hiện Remove
+                // Gọi lại hàm removeBookmark để tái sử dụng logic (DRY)
+                removeBookmark(contentId);
+                return false; // Trả về false nghĩa là "đã xóa"
+            } else {
+                // Case 2: Đã xóa mềm -> Thực hiện Restore (Add)
+                // Tạo request giả để tái sử dụng logic addBookmark
+                BookmarkRequest request = new BookmarkRequest();
+                request.setContentId(contentId);
+                addBookmark(request);
+                return true; // Trả về true nghĩa là "đã thêm"
+            }
+        } else {
+            // Case 3: Chưa có -> Thực hiện Create (Add)
+            BookmarkRequest request = new BookmarkRequest();
+            request.setContentId(contentId);
+            addBookmark(request);
+            return true; // Trả về true nghĩa là "đã thêm"
         }
     }
 
