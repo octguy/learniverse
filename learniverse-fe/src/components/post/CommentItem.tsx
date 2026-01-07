@@ -16,9 +16,10 @@ import { useAuth } from "@/context/AuthContext";
 interface CommentItemProps {
     comment: Comment;
     postId: string;
+    commentableType: "POST" | "QUESTION" | "ANSWER";
 }
 
-export function CommentItem({ comment, postId }: CommentItemProps) {
+export function CommentItem({ comment, postId, commentableType }: CommentItemProps) {
     const { user } = useAuth();
     const [isReplying, setIsReplying] = useState(false);
     const [showReplies, setShowReplies] = useState(false);
@@ -56,7 +57,7 @@ export function CommentItem({ comment, postId }: CommentItemProps) {
         setIsSubmittingReply(true);
         try {
             const createdReply = await commentService.createComment({
-                commentableType: "CONTENT",
+                commentableType: commentableType,
                 commentableId: postId,
                 parentId: comment.id,
                 body: replyText,
@@ -83,7 +84,7 @@ export function CommentItem({ comment, postId }: CommentItemProps) {
     return (
         <div className="flex gap-3">
             <Avatar className="w-8 h-8">
-                <AvatarImage src={comment.author.avatarUrl} />
+                <AvatarImage src={comment.author.avatarUrl || comment.author.avatar} />
                 <AvatarFallback>{comment.author.username.charAt(0)}</AvatarFallback>
             </Avatar>
             <div className="flex-1 space-y-1">
@@ -148,7 +149,7 @@ export function CommentItem({ comment, postId }: CommentItemProps) {
                             <div className="text-xs text-muted-foreground pl-4">Đang tải...</div>
                         ) : (
                             replies.map((reply) => (
-                                <CommentItem key={reply.id} comment={reply} postId={postId} />
+                                <CommentItem key={reply.id} comment={reply} postId={postId} commentableType={commentableType} />
                             ))
                         )}
                     </div>

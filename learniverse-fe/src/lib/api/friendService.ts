@@ -41,4 +41,10 @@ export const friendService = {
     getSuggestedFriends: async (limit = 10) => {
         return apiService.get<ApiResponse<SuggestedFriend[]>>(`${BASE_URL}/suggestions?limit=${limit}`);
     },
+
+    searchFriends: async (keyword: string) => {
+        return apiService.get<ApiResponse<SuggestedFriend[]>>(`${BASE_URL}/search`, {
+            params: { keyword }
+        });
+    },
 };

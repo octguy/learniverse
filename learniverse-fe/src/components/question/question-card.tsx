@@ -111,7 +111,7 @@ export function QuestionCard({ question }: QuestionCardProps) {
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <Avatar className="h-7 w-7">
                             <AvatarImage
-                                src={question.author?.avatarUrl ?? undefined}
+                                src={question.author?.avatarUrl || (question.author as any)?.avatar}
                                 alt={authorName}
                             />
                             <AvatarFallback className="bg-[#f97362] text-[11px] font-semibold uppercase text-white">
@@ -151,37 +151,37 @@ function Metric({
     const palette = {
         vote: active
             ? {
-                  container: "border-amber-500 bg-amber-500 text-white",
-                  value: "text-white",
-                  label: "text-white/90",
-              }
+                container: "border-amber-500 bg-amber-500 text-white",
+                value: "text-white",
+                label: "text-white/90",
+            }
             : {
-                  container: "border-amber-300 bg-amber-50",
-                  value: "text-amber-700",
-                  label: "text-amber-600",
-              },
+                container: "border-amber-300 bg-amber-50",
+                value: "text-amber-700",
+                label: "text-amber-600",
+            },
         answer: active
             ? {
-                  container: "border-emerald-500 bg-emerald-500 text-white",
-                  value: "text-white",
-                  label: "text-white/90",
-              }
+                container: "border-emerald-500 bg-emerald-500 text-white",
+                value: "text-white",
+                label: "text-white/90",
+            }
             : {
-                  container: "border-emerald-200 bg-emerald-50",
-                  value: "text-emerald-700",
-                  label: "text-emerald-600",
-              },
+                container: "border-emerald-200 bg-emerald-50",
+                value: "text-emerald-700",
+                label: "text-emerald-600",
+            },
         view: active
             ? {
-                  container: "border-sky-400 bg-sky-500 text-white",
-                  value: "text-white",
-                  label: "text-white/90",
-              }
+                container: "border-sky-400 bg-sky-500 text-white",
+                value: "text-white",
+                label: "text-white/90",
+            }
             : {
-                  container: "border-sky-200 bg-sky-50",
-                  value: "text-sky-700",
-                  label: "text-sky-600",
-              },
+                container: "border-sky-200 bg-sky-50",
+                value: "text-sky-700",
+                label: "text-sky-600",
+            },
     } as const
 
     const colors = palette[variant]
