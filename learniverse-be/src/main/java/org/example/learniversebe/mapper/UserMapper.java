@@ -6,6 +6,7 @@ import org.example.learniversebe.model.User;
 import org.example.learniversebe.model.UserProfile;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+import org.mapstruct.Named;
 import org.mapstruct.factory.Mappers;
 
 import java.util.List;
@@ -25,8 +26,7 @@ public interface UserMapper {
      * @param user The User entity to map.
      * @return The corresponding UserResponse DTO.
      */
-    // TODO: Map avatarUrl when the User entity includes profile information or avatar URL directly.
-    @Mapping(target = "avatarUrl", ignore = true)
+    @Mapping(target = "avatarUrl", source = "user", qualifiedByName = "mapAvatarUrl")
     UserResponse toUserResponse(User user);
 
     /**
@@ -45,4 +45,11 @@ public interface UserMapper {
     @Mapping(source = "user.id", target = "userId")
     @Mapping(source = "user.username", target = "username")
     UserProfileResponse toProfileResponse(UserProfile userProfile);
+
+    @Named("mapAvatarUrl")
+    default String mapAvatarUrl(User user) {
+        if (user == null) return null;
+        UserProfile profile = user.getUserProfile();
+        return profile != null ? profile.getAvatarUrl() : null;
+    }
 }
