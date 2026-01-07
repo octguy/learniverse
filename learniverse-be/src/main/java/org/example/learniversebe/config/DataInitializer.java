@@ -87,7 +87,6 @@ public class DataInitializer implements CommandLineRunner {
         if (roleService.findAll().isEmpty()) {
             roleService.createNewRole(UserRole.ROLE_ADMIN);
             roleService.createNewRole(UserRole.ROLE_USER);
-            roleService.createNewRole(UserRole.ROLE_MODERATOR);
             System.out.println("Initialized default roles.");
         }
         else {
