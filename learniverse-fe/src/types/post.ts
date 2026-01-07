@@ -4,7 +4,7 @@ export interface BookmarkResponse {
   id: string;
   userId: string;
   postSummary?: Post;
-  questionSummary?: any;
+  questionSummary?: Record<string, any>;
   collectionName?: string;
   notes?: string;
   createdAt: string;
@@ -27,9 +27,10 @@ export interface UpdatePostRequest extends CreatePostRequest {
   deletedAttachmentIds?: string[];
 }
 export type PostAuthor = {
-  id: string; 
+  id: string;
   username: string;
   avatarUrl: string;
+  avatar?: string;
 };
 
 export type PostTag = {
@@ -61,12 +62,13 @@ export type Post = {
   reactionCount: number;
   bookmarkCount: number;
   shareCount: number;
-  createdAt: string; 
+  createdAt: string;
   updatedAt: string;
   publishedAt: string;
-  lastEditedAt?: string; 
+  lastEditedAt?: string;
   tags: PostTag[];
   attachments: PostAttachment[];
   bookmarkedByCurrentUser: boolean;
   currentUserReaction: string | null;
+  originalPost?: Post;
 };

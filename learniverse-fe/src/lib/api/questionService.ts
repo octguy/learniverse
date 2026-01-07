@@ -22,7 +22,7 @@ function unwrap<T>(response: ApiResponse<T>) {
 export const questionService = {
     async list(params: QuestionQuery = {}) {
         const url = BASE_PATH;
-        const searchParams: any = {
+        const searchParams: Record<string, any> = {
             page: params.page,
             size: params.size,
             sort: params.sort,
@@ -90,8 +90,16 @@ export const questionService = {
         return unwrap(response.data)
     },
     getQuestionsByUserId: async (userId: string, page = 0, size = 10) => {
-        return apiService.get<PageResponse<QuestionResponse>>(
-            `/questions/user/${userId}?page=${page}&size=${size}`
+        const response = await apiService.get<ApiResponse<PageResponse<QuestionResponse>>>(
+            `/questions/author/${userId}`,
+            {
+                params: {
+                    page,
+                    size,
+                    sort: "publishedAt,desc",
+                },
+            }
         )
+        return unwrap(response.data)
     },
 }

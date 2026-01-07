@@ -131,7 +131,7 @@ export function Header() {
                     className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 cursor-pointer"
                     onClick={() => {
                       setShowResults(false);
-                      router.push(`/profile/${friend.id}`);
+                      router.push(`/profile/${friend.userId || friend.id}`);
                     }}
                   >
                     <Avatar className="w-8 h-8">
@@ -211,6 +211,6 @@ export function Header() {
           </div>
         </div>
       </div>
-    </header>
+    </header >
   );
 }

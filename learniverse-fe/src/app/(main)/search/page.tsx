@@ -134,7 +134,7 @@ export default function SearchPage() {
                                         </div>
                                     </div>
                                     <Button asChild variant="outline">
-                                        <a href={`/profile/${friend.id}`}>Xem hồ sơ</a>
+                                        <a href={`/profile/${friend.userId || friend.id}`}>Xem hồ sơ</a>
                                     </Button>
                                 </div>
                             ))}
