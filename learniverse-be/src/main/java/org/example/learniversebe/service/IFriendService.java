@@ -18,4 +18,6 @@ public interface IFriendService {
     List<UserProfileResponse> getSuggestedFriends(int limit); // Suggest friend
 
     List<UserProfileResponse> searchFriends(String keyword);
+
+    List<UserProfileResponse> getOtherUserFriends(UUID userId);
 }
