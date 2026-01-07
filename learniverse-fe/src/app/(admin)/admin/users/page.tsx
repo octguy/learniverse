@@ -143,7 +143,6 @@ export default function UsersManagementPage() {
   const getRoleBadgeVariant = (role: string) => {
       switch (role) {
           case "ROLE_ADMIN": return "destructive";
-          case "ROLE_MODERATOR": return "default"; 
           default: return "secondary";
       }
   };
@@ -337,7 +336,6 @@ export default function UsersManagementPage() {
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="ROLE_USER">USER (Người dùng)</SelectItem>
-                        <SelectItem value="ROLE_MODERATOR">MODERATOR (Điều hành viên)</SelectItem>
                         <SelectItem value="ROLE_ADMIN">ADMIN (Quản trị viên)</SelectItem>
                     </SelectContent>
                 </Select>

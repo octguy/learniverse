@@ -6,7 +6,7 @@ const BASE_URL = "/users";
 const DASHBOARD_URL = "/dashboard/users";
 
 export interface UserAdmin extends User {
-    role: "ROLE_USER" | "ROLE_ADMIN" | "ROLE_MODERATOR";
+    role: "ROLE_USER" | "ROLE_ADMIN";
     createdAt: string;
 }
 

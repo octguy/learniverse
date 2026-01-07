@@ -36,20 +36,27 @@ export const interactionService = {
         )
         return unwrap(response.data)
     },
-    async bookmark(contentId: string) {
-        const response = await apiService.post<ApiResponse<any>>(`${BASE_PATH}/bookmark`, {
-            contentId: contentId,
-        })
+    async bookmark(payload: { contentId: string; collectionName?: string; notes?: string }) {
+        const response = await apiService.post<ApiResponse<BookmarkResponse>>(`${BASE_PATH}/bookmark`, payload)
         return unwrap(response.data)
     },
     async unbookmark(contentId: string) {
         const response = await apiService.delete<ApiResponse<void>>(`${BASE_PATH}/bookmark/${contentId}`)
         return unwrap(response.data)
     },
-    getMyBookmarks: async (page = 0, size = 10) => {
+    async toggleBookmark(contentId: string) {
+        const response = await apiService.post<ApiResponse<boolean>>(
+            `${BASE_PATH}/bookmark/${contentId}/toggle`
+        )
+        return unwrap(response.data)
+    },
+    getMyBookmarks: async (page = 0, size = 10, collection?: string) => {
+        const params: any = { page, size };
+        if (collection) params.collection = collection;
+
         const res = await apiService.get<ApiResponse<PageResponse<BookmarkResponse>>>(
             `${BASE_PATH}/bookmarks/me`,
-            { params: { page, size } }
+            { params }
         );
         return res.data.data;
     },

@@ -15,6 +15,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { formatDistanceToNow } from "date-fns"
 import { vi } from "date-fns/locale"
 import {
@@ -78,9 +85,10 @@ const REACTIONS_CONFIG = [
 interface PostCardProps {
   post: Post
   onDelete?: (postId: string) => void
+  initialCollectionName?: string
 }
 
-export function PostCard({ post, onDelete }: PostCardProps) {
+export function PostCard({ post, onDelete, initialCollectionName }: PostCardProps) {
   const { user } = useAuth()
   const { author, title, body, tags = [], attachments = [], createdAt, lastEditedAt } = post
 
@@ -91,6 +99,9 @@ export function PostCard({ post, onDelete }: PostCardProps) {
   const [isApiLoading, setIsApiLoading] = useState(false)
   const [isBookmarked, setIsBookmarked] = useState(post.bookmarkedByCurrentUser);
   const [isBookmarkLoading, setIsBookmarkLoading] = useState(false);
+  const [collectionName, setCollectionName] = useState(initialCollectionName || "");
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
 
@@ -179,29 +190,44 @@ export function PostCard({ post, onDelete }: PostCardProps) {
       setIsApiLoading(false)
     }
   }
-  const handleBookmark = async () => {
+  
+  const handleSaveBookmark = async () => {
     if (isBookmarkLoading) return;
     setIsBookmarkLoading(true);
-    const prevIsBookmarked = isBookmarked;
-
-    setIsBookmarked(!isBookmarked);
 
     try {
-      if (prevIsBookmarked) {
-        await interactionService.unbookmark(post.id);
-        toast.success("Đã bỏ lưu bài viết");
-      } else {
-        await interactionService.bookmark(post.id);
-        toast.success("Đã lưu bài viết");
-      }
+        await interactionService.bookmark({ 
+            contentId: post.id, 
+            collectionName: collectionName.trim() || "General"
+        });
+        setIsBookmarked(true);
+        toast.success(collectionName ? `Đã lưu vào "${collectionName}"` : "Đã lưu vào General");
+        setIsPopoverOpen(false);
     } catch (error) {
       console.error("Lỗi bookmark:", error);
       toast.error("Có lỗi xảy ra, vui lòng thử lại");
-      setIsBookmarked(prevIsBookmarked);
     } finally {
       setIsBookmarkLoading(false);
     }
   };
+
+  const handleUnbookmark = async () => {
+    if (isBookmarkLoading) return;
+    setIsBookmarkLoading(true);
+
+    try {
+        await interactionService.unbookmark(post.id);
+        setIsBookmarked(false);
+        toast.success("Đã bỏ lưu bài viết");
+        setIsPopoverOpen(false);
+    } catch (error) {
+        console.error("Lỗi unbookmark:", error);
+        toast.error("Có lỗi xảy ra");
+    } finally {
+        setIsBookmarkLoading(false);
+    }
+  };
+
 
   const handleCopyLink = async () => {
     try {
@@ -311,24 +337,61 @@ export function PostCard({ post, onDelete }: PostCardProps) {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn(
-                "flex-none w-12 transition-colors",
-                isBookmarked && "text-yellow-600 hover:text-yellow-700 bg-yellow-50"
-              )}
-              onClick={handleBookmark}
-              disabled={isBookmarkLoading}
-              title={isBookmarked ? "Bỏ lưu" : "Lưu bài viết"}
-            >
-              <Bookmark
-                className={cn(
-                  "h-4 w-4",
-                  isBookmarked && "fill-current"
-                )}
-              />
-            </Button>
+            <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "flex-none w-12 transition-colors",
+                    isBookmarked && "text-yellow-600 hover:text-yellow-700 bg-yellow-50"
+                  )}
+                  disabled={isBookmarkLoading}
+                  title={isBookmarked ? "Đã lưu" : "Lưu bài viết"}
+                >
+                  <Bookmark
+                    className={cn(
+                      "h-4 w-4",
+                      isBookmarked && "fill-current"
+                    )}
+                  />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80" align="end">
+                <div className="grid gap-4">
+                  <div className="space-y-2">
+                    <h4 className="font-medium leading-none">{isBookmarked ? "Đã lưu bài viết" : "Lưu vào bộ sưu tập"}</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {isBookmarked ? "Quản lý bài viết đã lưu của bạn." : "Nhập tên bộ sưu tập để dễ dàng tìm kiếm sau này."}
+                    </p>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="collection">Tên bộ sưu tập</Label>
+                    <Input
+                      id="collection"
+                      placeholder="Ví dụ: Java, Tips, Đọc sau..."
+                      className="h-9"
+                      value={collectionName}
+                      onChange={(e) => setCollectionName(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex justify-between gap-2 mt-2">
+                     {isBookmarked && (
+                        <Button variant="outline" size="sm" onClick={handleUnbookmark} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                            Bỏ lưu
+                        </Button>
+                     )}
+                     <Button 
+                        size="sm" 
+                        onClick={handleSaveBookmark} 
+                        className={isBookmarked ? "ml-auto" : "w-full"}
+                    >
+                        {isBookmarked ? "Cập nhật" : "Lưu bài viết"}
+                     </Button>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
         {title && !title.startsWith("Shared:") && (

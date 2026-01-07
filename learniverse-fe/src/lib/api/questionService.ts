@@ -169,6 +169,8 @@ export const questionService = {
                 },
             }
         )
+                return unwrap(response.data)
+    },
     /**
      * Get questions by author
      * Backend endpoint: GET /questions/author/{authorId}
