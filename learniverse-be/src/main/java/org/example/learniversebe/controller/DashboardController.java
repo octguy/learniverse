@@ -143,7 +143,7 @@ public class DashboardController {
     }
 
     @Operation(summary = "Update user role",
-            description = "Updates a user's role (ROLE_USER, ROLE_ADMIN, ROLE_MODERATOR)")
+            description = "Updates a user's role (ROLE_USER, ROLE_ADMIN)")
     @PutMapping("/users/{userId}/role")
     public ResponseEntity<NewUserResponse> updateUserRole(
             @Parameter(description = "User ID")

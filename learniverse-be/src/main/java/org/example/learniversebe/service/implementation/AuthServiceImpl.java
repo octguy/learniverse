@@ -85,8 +85,14 @@ public class AuthServiceImpl implements IAuthService {
 
         // Still throw BadCredentialsException to avoid giving hints to attackers
         if (!user.isEnabled()) {
-            log.warn("Login failed - email not verified for user: {}", request.getEmail());
-            throw new AccountNotActivatedException("Email not verified!");
+            if (user.getStatus() == UserStatus.PENDING_VERIFICATION) {
+                log.warn("Login failed - email not verified for user: {}", request.getEmail());
+                throw new AccountNotActivatedException("Email not verified!");
+            }
+            else {
+                log.warn("Login failed - user disabled: {}", request.getEmail());
+                throw new AccountSuspendedException("User suspended!");
+            }
         }
 
         Authentication authentication = authenticationManager.authenticate(

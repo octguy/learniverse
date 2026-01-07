@@ -9,12 +9,9 @@ import org.example.learniversebe.dto.request.UpdateUserRoleRequest;
 import org.example.learniversebe.dto.request.UpdateUserStatusRequest;
 import org.example.learniversebe.dto.request.BroadcastNotificationRequest;
 import org.example.learniversebe.dto.response.*;
-import org.example.learniversebe.enums.ContentType;
-import org.example.learniversebe.enums.DashboardPeriod;
+import org.example.learniversebe.enums.*;
 import org.example.learniversebe.mapper.NotificationMapper;
 import org.example.learniversebe.model.Notification;
-import org.example.learniversebe.enums.NotificationType;
-import org.example.learniversebe.enums.UserRole;
 import org.example.learniversebe.exception.ResourceNotFoundException;
 import org.example.learniversebe.mapper.NotificationMapper;
 import org.example.learniversebe.model.Notification;
@@ -224,6 +221,16 @@ public class DashboardServiceImpl implements IDashboardService {
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId.toString()));
 
         user.setStatus(request.getStatus());
+        
+        // Update enabled flag based on status
+        if (request.getStatus() != UserStatus.ACTIVE) {
+            user.setEnabled(false);
+            log.info("User enabled set to false for userId: {} due to status: {}", userId, request.getStatus());
+        } else {
+            user.setEnabled(true);
+            log.info("User enabled set to true for userId: {} due to status: {}", userId, request.getStatus());
+        }
+        
         User updatedUser = userRepository.save(user);
 
         log.info("User status updated successfully for userId: {}", userId);
