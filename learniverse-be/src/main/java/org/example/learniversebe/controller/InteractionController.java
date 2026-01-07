@@ -49,19 +49,29 @@ public class InteractionController {
     }
 
     @PostMapping("/bookmark")
-    @Operation(summary = "Bookmark a Post or Question", description = "UC 7.3: Adds a bookmark for a specific content item.")
+    @Operation(summary = "Add bookmark", description = "Ensures the content is bookmarked.")
     public ResponseEntity<ApiResponse<BookmarkResponse>> addBookmark(@Valid @RequestBody BookmarkRequest request) {
-        BookmarkResponse bookmarkResponse = interactionService.addBookmark(request);
-        ApiResponse<BookmarkResponse> response = new ApiResponse<>(HttpStatus.CREATED, "Content bookmarked successfully", bookmarkResponse, null);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        BookmarkResponse response = interactionService.addBookmark(request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new ApiResponse<>(HttpStatus.CREATED, "Bookmarked successfully", response, null));
     }
 
     @DeleteMapping("/bookmark/{contentId}")
-    @Operation(summary = "Remove a bookmark", description = "UC 7.3: Removes a bookmark from a specific content item.")
+    @Operation(summary = "Remove bookmark", description = "Ensures the content is NOT bookmarked.")
     public ResponseEntity<ApiResponse<Void>> removeBookmark(@PathVariable UUID contentId) {
         interactionService.removeBookmark(contentId);
-        ApiResponse<Void> response = new ApiResponse<>(HttpStatus.OK, "Bookmark removed successfully", null, null);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(
+                new ApiResponse<>(HttpStatus.OK, "Bookmark removed successfully", null, null));
+    }
+
+    @PostMapping("/bookmark/{contentId}/toggle")
+    @Operation(summary = "Toggle bookmark", description = "Switches between bookmarked and un-bookmarked.")
+    public ResponseEntity<ApiResponse<Boolean>> toggleBookmark(@PathVariable UUID contentId) {
+        boolean isBookmarked = interactionService.toggleBookmark(contentId);
+        String message = isBookmarked ? "Bookmarked successfully" : "Un-bookmarked successfully";
+
+        return ResponseEntity.ok(
+                new ApiResponse<>(HttpStatus.OK, message, isBookmarked, null));
     }
 
     @GetMapping("/bookmarks/me")

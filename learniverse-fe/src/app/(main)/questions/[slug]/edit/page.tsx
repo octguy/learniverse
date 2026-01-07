@@ -107,8 +107,7 @@ export default function EditQuestionPage() {
                 <CardHeader>
                     <CardTitle>Chỉnh sửa câu hỏi</CardTitle>
                     <CardDescription>
-                        Cập nhật tiêu đề, nội dung và thẻ cho câu hỏi của bạn.
-                        Các tệp đính kèm mới hiện chưa hỗ trợ cập nhật.
+                        Cập nhật tiêu đề, nội dung, thẻ và tệp đính kèm cho câu hỏi của bạn.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>

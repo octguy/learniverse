@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Repository
@@ -32,4 +33,9 @@ public interface ContentTagRepository extends JpaRepository<ContentTag, ContentT
     @Modifying
     @Query("UPDATE ContentTag ct SET ct.deletedAt = CURRENT_TIMESTAMP WHERE ct.contentTagId.tagId = :tagId AND ct.deletedAt IS NULL")
     void softDeleteByTagId(@Param("tagId") UUID tagId);
+
+    // Delete specific tags from a content (for update scenarios)
+    @Modifying
+    @Query("DELETE FROM ContentTag ct WHERE ct.contentTagId.contentId = :contentId AND ct.contentTagId.tagId IN :tagIds")
+    void deleteByContentIdAndTagIds(@Param("contentId") UUID contentId, @Param("tagIds") Set<UUID> tagIds);
 }

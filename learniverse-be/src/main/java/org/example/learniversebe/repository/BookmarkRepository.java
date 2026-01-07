@@ -24,10 +24,15 @@ public interface BookmarkRepository extends JpaRepository<Bookmark, UUID> {
             @Param("contentId") UUID contentId);
 
     /**
-     * Tìm bookmark của user cho content, BAO GỒM CẢ đã soft delete
-     * QUAN TRỌNG: Method này để xử lý trường hợp restore bookmark
+     * Native Query để tìm bookmark bất kể trạng thái deletedAt
      */
-    @Query("SELECT b FROM Bookmark b WHERE b.user.id = :userId AND b.content.id = :contentId")
+    @Query(value = "SELECT * FROM bookmarks b WHERE b.user_id = :userId AND b.content_id = :contentId", nativeQuery = true)
+    Optional<Bookmark> findByUserIdAndContentIdRaw(@Param("userId") UUID userId, @Param("contentId") UUID contentId);
+
+    /**
+     * Tìm bookmark của user cho content, BAO GỒM CẢ đã soft delete
+     */
+    @Query(value = "SELECT * FROM bookmarks b WHERE b.user_id = :userId AND b.content_id = :contentId", nativeQuery = true)
     Optional<Bookmark> findByUserIdAndContentIdIncludingDeleted(
             @Param("userId") UUID userId,
             @Param("contentId") UUID contentId);
