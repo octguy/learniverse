@@ -114,9 +114,9 @@ export default function TagsManagementPage() {
       toast.success("Xóa thẻ thành công");
       setIsDeleteDialogOpen(false);
       fetchTags();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting tag:", error);
-      toast.error("Có lỗi xảy ra khi xóa thẻ");
+      toast.error(error.response?.data?.message || "Có lỗi xảy ra khi xóa thẻ");
     } finally {
         setTagsLoading(false);
     }
@@ -186,9 +186,15 @@ export default function TagsManagementPage() {
                     <Button variant="ghost" size="icon" onClick={() => openEditDialog(tag)}>
                         <Pencil className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600" onClick={() => openDeleteDialog(tag)}>
-                        <Trash className="h-4 w-4" />
-                    </Button>
+                    {(tag.postCount || 0) > 0 ? (
+                        <Button variant="ghost" size="icon" className="text-gray-300 cursor-not-allowed" disabled title="Không thể xóa thẻ đã có bài viết">
+                             <Trash className="h-4 w-4" />
+                        </Button>
+                    ) : (
+                        <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600" onClick={() => openDeleteDialog(tag)}>
+                            <Trash className="h-4 w-4" />
+                        </Button>
+                    )}
                     </TableCell>
                 </TableRow>
                 ))
@@ -270,15 +276,23 @@ export default function TagsManagementPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Xác nhận xóa</DialogTitle>
-             <DialogDescription>
-                Bạn có chắc chắn muốn xóa thẻ "{currentTag?.name}" không? Hành động này không thể hoàn tác.
+             <DialogDescription className="space-y-2">
+                <p>Bạn có chắc chắn muốn xóa thẻ <span className="font-bold text-foreground">"{currentTag?.name}"</span> không?</p>
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-md border border-yellow-200 dark:border-yellow-900 text-yellow-800 dark:text-yellow-200 text-sm">
+                    <strong>Cảnh báo quan trọng:</strong>
+                    <ul className="list-disc list-inside mt-1 space-y-1">
+                        <li>Hành động này không thể hoàn tác.</li>
+                        <li>Nếu còn <strong>người dùng</strong> đang chọn thẻ này trong hồ sơ (Sở thích/Kỹ năng), việc xóa thẻ có thể gây lỗi hệ thống khi tải thông tin người dùng đó.</li>
+                        <li>Vui lòng đảm bảo không có người dùng nào đang sử dụng thẻ này hoặc chấp nhận rủi ro trước khi xóa.</li>
+                    </ul>
+                </div>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
              <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>Hủy</Button>
              <Button variant="destructive" onClick={handleDelete} disabled={tagsLoading}>
                 {tagsLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Xóa
+                Xóa (Chấp nhận rủi ro)
              </Button>
           </DialogFooter>
         </DialogContent>
