@@ -23,7 +23,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/interactions")
 @Tag(name = "User Interactions", description = "APIs for user interactions (Vote, Reaction, Bookmark, Report - UC 2.3, 3.3, 7.3)")
-@PreAuthorize("hasRole('USER')")
+@PreAuthorize("isAuthenticated()")
 public class InteractionController {
 
     private final IInteractionService interactionService;

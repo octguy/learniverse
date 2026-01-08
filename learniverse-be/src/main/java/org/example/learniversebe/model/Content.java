@@ -108,7 +108,6 @@ public class Content extends BaseEntity {
     @PreUpdate
     protected void onUpdate() {
         this.setUpdatedAt(LocalDateTime.now());
-        this.lastEditedAt = LocalDateTime.now();
     }
 
     // Helper method để thêm attachment

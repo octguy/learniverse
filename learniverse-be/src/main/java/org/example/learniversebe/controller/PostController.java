@@ -159,7 +159,7 @@ public class PostController {
     }
 
     @PutMapping(value = "/{postId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Update an existing post", description = "Update post content and attachments.")
     public ResponseEntity<ApiResponse<PostResponse>> updatePost(
             @PathVariable UUID postId,
@@ -179,7 +179,7 @@ public class PostController {
     }
 
     @DeleteMapping("/{postId}")
-    @PreAuthorize("hasRole('USER')") // Hoặc 'hasAnyRole("USER", "MODERATOR", "ADMIN")'
+    @PreAuthorize("hasAnyRole('USER', 'MODERATOR', 'ADMIN')")
     @Operation(summary = "Delete a post", description = "UC 2.2: Soft-deletes a post. Requires user to be the author or moderator/admin.")
     public ResponseEntity<ApiResponse<Void>> deletePost(@PathVariable UUID postId) {
         postService.deletePost(postId);

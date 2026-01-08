@@ -38,7 +38,7 @@ public class QuestionController {
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Create a new question", description = "UC 2.2: Creates a new question with attachments. Supports Draft status.")
     public ResponseEntity<ApiResponse<QuestionResponse>> createQuestion(
             @RequestPart("question")
@@ -57,7 +57,7 @@ public class QuestionController {
 
     // Add Publish endpoint for Draft Questions
     @PutMapping("/{questionId}/publish")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Publish a draft question", description = "Changes status from DRAFT to PUBLISHED")
     public ResponseEntity<ApiResponse<QuestionResponse>> publishQuestion(@PathVariable UUID questionId) {
         QuestionResponse response = questionService.publishQuestion(questionId);
@@ -138,7 +138,7 @@ public class QuestionController {
     }
 
     @PutMapping(value = "/{questionId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Update an existing question", description = "UC 3.1: Updates a question with optional new attachments. Requires user to be the author and within the edit limit.")
     public ResponseEntity<ApiResponse<QuestionResponse>> updateQuestion(
             @PathVariable UUID questionId,
@@ -156,7 +156,7 @@ public class QuestionController {
     }
 
     @DeleteMapping("/{questionId}")
-    @PreAuthorize("hasRole('USER')") // Hoặc 'hasAnyRole("USER", "MODERATOR", "ADMIN")'
+    @PreAuthorize("hasAnyRole('USER', 'MODERATOR', 'ADMIN')")
     @Operation(summary = "Delete a question", description = "UC 3.1: Soft-deletes a question. Requires user to be the author or moderator/admin.")
     public ResponseEntity<ApiResponse<Void>> deleteQuestion(@PathVariable UUID questionId) {
         questionService.deleteQuestion(questionId);
@@ -165,7 +165,7 @@ public class QuestionController {
     }
 
     @PutMapping("/{questionId}/answers/{answerId}/accept")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Mark an answer as accepted", description = "UC 3.4: Marks an answer as the correct one. Requires user to be the author of the *question*.")
     public ResponseEntity<ApiResponse<Void>> markAnswerAsAccepted(
             @PathVariable UUID questionId,
@@ -176,7 +176,7 @@ public class QuestionController {
     }
 
     @DeleteMapping("/{questionId}/answers/{answerId}/accept")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Unmark an accepted answer", description = "UC 3.4: Removes the 'accepted' status from an answer. Requires user to be the author of the *question*.")
     public ResponseEntity<ApiResponse<Void>> unmarkAnswerAsAccepted(
             @PathVariable UUID questionId,
