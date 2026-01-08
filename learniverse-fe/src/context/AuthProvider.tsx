@@ -53,10 +53,21 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     const refreshAuth = useCallback(async () => {
         const storedRefreshToken = localStorage.getItem('refreshToken');
+        const storedAccessToken = localStorage.getItem('accessToken');
 
         if (!storedRefreshToken) {
             setLoading(false);
             return;
+        }
+
+        if (storedAccessToken) {
+            const decoded = parseJwt(storedAccessToken);
+            const currentTime = Date.now();
+            if (decoded && decoded.exp * 1000 > currentTime + (2 * 60 * 1000)) {
+                if (!accessToken) setAccessToken(storedAccessToken);
+                setLoading(false);
+                return;
+            }
         }
 
         try {
@@ -68,7 +79,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [accessToken]);
 
     useEffect(() => {
         refreshAuth();
@@ -147,7 +158,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setUser(userProfile);
         setAccessToken(accessToken);
 
-        // Update user in storage
         localStorage.setItem('user', JSON.stringify(userProfile));
 
         return userProfile;

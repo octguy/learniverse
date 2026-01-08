@@ -33,7 +33,6 @@ export default function AdminSidebar({ open, setOpen }: AdminSidebarProps) {
     { name: "Thẻ (Tags)", href: "/admin/tags", icon: BookOpen },
     { name: "Thông báo", href: "/admin/announcements", icon: Megaphone },
     { name: "Báo cáo", href: "/admin/reports", icon: Flag },
-    { name: "Cài đặt", href: "/admin/settings", icon: Settings },
   ];
 
   return (

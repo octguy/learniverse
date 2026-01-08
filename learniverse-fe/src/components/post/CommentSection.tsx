@@ -34,7 +34,8 @@ export function CommentSection({ postId, commentableType, onCommentAdded }: Comm
     try {
       setIsLoading(true);
       const data = await commentService.getComments(commentableType, postId);
-      setComments(data.content);
+      const topLevelComments = data.content.filter((c: Comment) => !c.parentId);
+      setComments(topLevelComments);
     } catch (error) {
       console.error("Lỗi tải bình luận:", error);
     } finally {

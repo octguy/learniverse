@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/shares")
 @Tag(name = "Share Operations", description = "APIs for sharing content (UC 2.11)")
-@PreAuthorize("hasRole('USER')")
+@PreAuthorize("isAuthenticated()")
 public class ShareController {
 
     private final IShareService shareService;

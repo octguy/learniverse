@@ -33,7 +33,7 @@ public class CommentController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Post a new comment or reply", description = "UC 7.1: Adds a new comment to a Post/Question/Answer. Use parentId to make it a reply.")
     public ResponseEntity<ApiResponse<CommentResponse>> addComment(@Valid @RequestBody CreateCommentRequest request) {
         CommentResponse createdComment = commentService.addComment(request);
@@ -71,7 +71,7 @@ public class CommentController {
     }
 
     @PutMapping("/{commentId}")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Update an existing comment", description = "UC 7.5: Updates a comment. Requires user to be the author and within edit limit.")
     public ResponseEntity<ApiResponse<CommentResponse>> updateComment(
             @PathVariable UUID commentId,
@@ -82,7 +82,7 @@ public class CommentController {
     }
 
     @DeleteMapping("/{commentId}")
-    @PreAuthorize("hasRole('USER')") // Hoặc 'hasAnyRole("USER", "MODERATOR", "ADMIN")'
+    @PreAuthorize("hasAnyRole('USER', 'MODERATOR', 'ADMIN')")
     @Operation(summary = "Delete a comment", description = "UC 7.5: Soft-deletes a comment. Requires user to be the author or moderator/admin.")
     public ResponseEntity<ApiResponse<Void>> deleteComment(@PathVariable UUID commentId) {
         commentService.deleteComment(commentId);

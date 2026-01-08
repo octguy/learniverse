@@ -28,6 +28,10 @@ export const friendService = {
     getFriends: async () => {
         return apiService.get<ApiResponse<SuggestedFriend[]>>(`${BASE_URL}`);
     },
+
+    getFriendsByUser: async (userId: string) => {
+        return apiService.get<ApiResponse<SuggestedFriend[]>>(`${BASE_URL}/user/${userId}`);
+    },
     getFriendRequests: async () => {
         return apiService.get<ApiResponse<SuggestedFriend[]>>(
             `${BASE_URL}/requests/received`
@@ -46,5 +50,9 @@ export const friendService = {
         return apiService.get<ApiResponse<SuggestedFriend[]>>(`${BASE_URL}/search`, {
             params: { keyword }
         });
+    },
+
+    getFriendsByUser: async (userId: string) => {
+        return apiService.get<ApiResponse<SuggestedFriend[]>>(`${BASE_URL}/user/${userId}`);
     },
 };

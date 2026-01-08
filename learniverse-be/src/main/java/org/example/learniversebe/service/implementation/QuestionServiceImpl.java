@@ -338,6 +338,7 @@ public class QuestionServiceImpl implements IQuestionService {
         boolean titleChanged = !request.getTitle().equals(content.getTitle());
         content.setTitle(request.getTitle());
         content.setBody(request.getBody());
+        content.setLastEditedAt(LocalDateTime.now());
         if (titleChanged) {
             content.setSlug(slugGenerator.generateSlug(request.getTitle()));
         }

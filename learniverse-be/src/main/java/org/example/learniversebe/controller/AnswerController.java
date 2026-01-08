@@ -31,7 +31,7 @@ public class AnswerController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Create a new answer", description = "UC 3.1: Creates an answer for a question.")
     public ResponseEntity<ApiResponse<AnswerResponse>> createAnswer(
             @Valid @RequestBody CreateAnswerRequest request
@@ -60,7 +60,7 @@ public class AnswerController {
     }
 
     @PutMapping("/{answerId}")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Update an existing answer", description = "UC 3.2: Updates an answer. Requires user to be the author.")
     public ResponseEntity<ApiResponse<AnswerResponse>> updateAnswer(
             @PathVariable UUID answerId,
@@ -71,7 +71,7 @@ public class AnswerController {
     }
 
     @DeleteMapping("/{answerId}")
-    @PreAuthorize("hasRole('USER')") // Hoặc 'hasAnyRole("USER", "MODERATOR", "ADMIN")'
+    @PreAuthorize("hasAnyRole('USER', 'MODERATOR', 'ADMIN')")
     @Operation(summary = "Delete an answer", description = "UC 3.2: Soft-deletes an answer. Requires user to be the author or moderator/admin.")
     public ResponseEntity<ApiResponse<Void>> deleteAnswer(@PathVariable UUID answerId) {
         answerService.deleteAnswer(answerId);
@@ -80,5 +80,4 @@ public class AnswerController {
     }
 
     // Lưu ý: getAnswersForQuestion đã được tích hợp vào getQuestionById.
-    // Nếu muốn API riêng, bạn có thể thêm endpoint: GET /question/{questionId}
 }

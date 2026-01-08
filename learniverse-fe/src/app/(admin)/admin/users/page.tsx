@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
-import { Search, Loader2, UserCog, Ban, CheckCircle2, MoreHorizontal } from "lucide-react";
+import { Search, Loader2, UserCog, Ban, CheckCircle2, MoreHorizontal, Plus, ShieldAlert } from "lucide-react";
 import { adminUserService, UserAdmin } from "@/lib/api/adminUserService";
 import { userProfileService } from "@/lib/api/userProfileService";
 import { toast } from "sonner";
@@ -53,10 +53,15 @@ export default function UsersManagementPage() {
 
   const router = useRouter();
   const [selectedUser, setSelectedUser] = useState<UserAdmin | null>(null);
+  
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
   const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
+  const [isBanDialogOpen, setIsBanDialogOpen] = useState(false);
+  const [isAdminDialogOpen, setIsAdminDialogOpen] = useState(false);
+
   const [newStatus, setNewStatus] = useState("");
   const [newRole, setNewRole] = useState("");
+  const [newAdminData, setNewAdminData] = useState({ email: "", username: "" });
 
   const fetchUsers = async () => {
     try {
@@ -106,6 +111,11 @@ export default function UsersManagementPage() {
       setIsStatusDialogOpen(true);
   }
 
+  const openBanDialog = (user: UserAdmin) => {
+      setSelectedUser(user);
+      setIsBanDialogOpen(true);
+  }
+
   const openRoleDialog = (user: UserAdmin) => {
       setSelectedUser(user);
       let initialRole: string = user.role || "ROLE_USER";
@@ -128,6 +138,18 @@ export default function UsersManagementPage() {
       }
   };
 
+  const handleBanUser = async () => {
+      if (!selectedUser) return;
+      try {
+          await adminUserService.updateUserStatus(selectedUser.id, "BANNED");
+          toast.success("Đã cấm người dùng thành công");
+          setIsBanDialogOpen(false);
+          fetchUsers();
+      } catch (error: any) {
+          toast.error("Thao tác thất bại");
+      }
+  };
+
   const handleSaveRole = async () => {
       if (!selectedUser) return;
       try {
@@ -140,6 +162,29 @@ export default function UsersManagementPage() {
       }
   };
 
+  const handleCreateAdmin = async () => {
+      if (!newAdminData.email || !newAdminData.username) {
+          toast.error("Vui lòng điền đầy đủ thông tin");
+          return;
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(newAdminData.email)) {
+          toast.error("Email không hợp lệ");
+          return;
+      }
+
+      try {
+          await adminUserService.registerAdmin(newAdminData);
+          toast.success("Tạo tài khoản Admin thành công. Mật khẩu đã được gửi đến email.");
+          setIsAdminDialogOpen(false);
+          setNewAdminData({ email: "", username: "" });
+          fetchUsers();
+      } catch (error: any) {
+           toast.error(error.message || "Tạo Admin thất bại");
+      }
+  }
+
   const getRoleBadgeVariant = (role: string) => {
       switch (role) {
           case "ROLE_ADMIN": return "destructive";
@@ -149,9 +194,9 @@ export default function UsersManagementPage() {
 
   const getStatusBadgeVariant = (status: string) => {
       switch (status) {
-          case "ACTIVE": return "outline"; 
+          case "ACTIVE": return "outline"; // Green-ish usually handled by class or outline
           case "BANNED": return "destructive";
-          default: return "secondary";
+          default: return "secondary"; // Inactive
       }
   };
 
@@ -166,6 +211,9 @@ export default function UsersManagementPage() {
             Danh sách tất cả người dùng trong hệ thống.
           </p>
         </div>
+        <Button onClick={() => setIsAdminDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" /> Thêm Admin
+        </Button>
       </div>
 
       <div className="flex items-center gap-2">
@@ -232,7 +280,7 @@ export default function UsersManagementPage() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={getStatusBadgeVariant(u.status)}>
+                    <Badge variant={getStatusBadgeVariant(u.status)} className={u.status === 'ACTIVE' ? "bg-green-100 text-green-800 hover:bg-green-100 border-green-200" : ""}>
                       {u.status}
                     </Badge>
                   </TableCell>
@@ -248,9 +296,14 @@ export default function UsersManagementPage() {
                             <DropdownMenuLabel>Hành động</DropdownMenuLabel>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => openStatusDialog(u)}>
-                                <Ban className="mr-2 h-4 w-4" />
+                                <CheckCircle2 className="mr-2 h-4 w-4" />
                                 Cập nhật trạng thái
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openBanDialog(u)} className="text-red-600 focus:text-red-600">
+                                <Ban className="mr-2 h-4 w-4" />
+                                Cấm người dùng (Ban)
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => openRoleDialog(u)}>
                                 <UserCog className="mr-2 h-4 w-4" />
                                 Phân quyền (Role)
@@ -287,27 +340,27 @@ export default function UsersManagementPage() {
         </Button>
       </div>
 
-      {/* Dialogs */}
+      {/* Dialog: Status Update */}
       <Dialog open={isStatusDialogOpen} onOpenChange={setIsStatusDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Cập nhật trạng thái</DialogTitle>
             <DialogDescription>
-              Thay đổi trạng thái hoạt động cho người dùng <b>{selectedUser?.username}</b>
+              Kiểm soát trạng thái hoạt động của <b>{selectedUser?.username}</b>.<br/>
+              <span className="text-xs text-muted-foreground">Lưu ý: Để cấm người dùng, vui lòng sử dụng chức năng "Cấm người dùng".</span>
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
              <div className="flex flex-col gap-2">
-                <Label>Trạng thái mới</Label>
+                <Label>Trạng thái</Label>
                 <Select value={newStatus} onValueChange={setNewStatus}>
                     <SelectTrigger>
                         <SelectValue placeholder="Chọn trạng thái" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="ACTIVE">Active (Hoạt động)</SelectItem>
-                        <SelectItem value="INACTIVE">Inactive (Vô hiệu hóa)</SelectItem>
-                        <SelectItem value="BANNED">Banned (Cấm)</SelectItem>
-                        <SelectItem value="PENDING_VERIFICATION">Pending (Chờ xác thực)</SelectItem>
+                        <SelectItem value="ACTIVE">ACTIVE (Hoạt động)</SelectItem>
+                        <SelectItem value="INACTIVE">INACTIVE (Tạm ngưng)</SelectItem>
+                        {/* BANNED removed from here as per requirement */}
                     </SelectContent>
                 </Select>
              </div>
@@ -319,6 +372,28 @@ export default function UsersManagementPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Dialog: Ban Confirmation */}
+      <Dialog open={isBanDialogOpen} onOpenChange={setIsBanDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-red-600 flex items-center gap-2">
+                <ShieldAlert className="h-5 w-5"/> Cấm người dùng vĩnh viễn
+            </DialogTitle>
+            <DialogDescription className="space-y-3 pt-2">
+              <p>Bạn có chắc chắn muốn cấm người dùng <b>{selectedUser?.username}</b> không?</p>
+              <div className="bg-red-50 text-red-800 p-3 rounded-md text-sm border border-red-200">
+                  <strong>Cảnh báo:</strong> Người dùng bị cấm sẽ không thể đăng nhập vào hệ thống vĩnh viễn trừ khi được gỡ bỏ lệnh cấm bởi Quản trị viên.
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsBanDialogOpen(false)}>Hủy bỏ</Button>
+            <Button variant="destructive" onClick={handleBanUser}>Xác nhận Cấm</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: Role Update */}
       <Dialog open={isRoleDialogOpen} onOpenChange={setIsRoleDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -344,6 +419,41 @@ export default function UsersManagementPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsRoleDialogOpen(false)}>Hủy</Button>
             <Button onClick={handleSaveRole}>Lưu thay đổi</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: Create Admin */}
+      <Dialog open={isAdminDialogOpen} onOpenChange={setIsAdminDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Thêm Admin mới</DialogTitle>
+            <DialogDescription>
+              Tạo tài khoản quản trị viên mới. Mật khẩu ngẫu nhiên sẽ được gửi đến email đăng ký.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+             <div className="flex flex-col gap-2">
+                <Label>Username</Label>
+                <Input 
+                    value={newAdminData.username} 
+                    onChange={(e) => setNewAdminData({...newAdminData, username: e.target.value})}
+                    placeholder="Nhập tên đăng nhập..."
+                />
+             </div>
+             <div className="flex flex-col gap-2">
+                <Label>Email</Label>
+                <Input 
+                    type="email"
+                    value={newAdminData.email} 
+                    onChange={(e) => setNewAdminData({...newAdminData, email: e.target.value})}
+                    placeholder="example@learniverse.com"
+                />
+             </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAdminDialogOpen(false)}>Hủy</Button>
+            <Button onClick={handleCreateAdmin}>Tạo Admin</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
