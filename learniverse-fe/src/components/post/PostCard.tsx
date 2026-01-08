@@ -15,6 +15,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { formatDistanceToNow } from "date-fns"
 import { vi } from "date-fns/locale"
 import {
@@ -38,8 +45,10 @@ import { toast } from "sonner"
 import { useAuth } from "@/context/AuthContext"
 import { Dialog } from "@/components/ui/dialog"
 import CreatePostModal from "./CreatePostModal"
-import { Edit, Trash2, Flag, Users } from "lucide-react"
+import { Edit, Trash2, Flag, Copy, Users, Send as SendIcon } from "lucide-react"
+import { SharePostDialog } from "./SharePostDialog"
 import { postService } from "@/lib/api/postService"
+import { shareService } from "@/lib/api/shareService"
 const REACTIONS_CONFIG = [
   {
     type: "LIKE" as ReactionType,
@@ -76,10 +85,11 @@ const REACTIONS_CONFIG = [
 interface PostCardProps {
   post: Post
   onDelete?: (postId: string) => void
+  initialCollectionName?: string
   showGroupName?: boolean
 }
 
-export function PostCard({ post, onDelete, showGroupName = true }: PostCardProps) {
+export function PostCard({ post, onDelete, initialCollectionName, showGroupName = true }: PostCardProps) {
   const { user } = useAuth()
   const { author, title, body, tags = [], attachments = [], createdAt, lastEditedAt } = post
 
@@ -90,11 +100,44 @@ export function PostCard({ post, onDelete, showGroupName = true }: PostCardProps
   const [isApiLoading, setIsApiLoading] = useState(false)
   const [isBookmarked, setIsBookmarked] = useState(post.bookmarkedByCurrentUser);
   const [isBookmarkLoading, setIsBookmarkLoading] = useState(false);
+  const [collectionName, setCollectionName] = useState(initialCollectionName || "");
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false)
 
   const [commentCount, setCommentCount] = useState(post.commentCount)
+  const [shareCount, setShareCount] = useState(post.shareCount)
 
   const isAuthor = user?.id === author.id
+
+
+  const [fetchedOriginalPost, setFetchedOriginalPost] = useState<Post | null>(
+    post.originalPost ? post.originalPost : null
+  );
+
+  React.useEffect(() => {
+    const loadOriginalPost = async () => {
+      if (post.originalPost) {
+        const isDataIncomplete = !post.originalPost.body && !post.originalPost.createdAt;
+
+        if (isDataIncomplete) {
+          try {
+            const response = await postService.getPostById(post.originalPost.id);
+            if (response.data) {
+              setFetchedOriginalPost(response.data);
+            }
+          } catch (err) {
+            console.error("Failed to load original post details", err);
+          }
+        }
+      }
+    };
+    loadOriginalPost();
+  }, [post.originalPost]);
+
+  const displayOriginalPost = fetchedOriginalPost || post.originalPost;
+
 
   const handleDelete = async () => {
     if (!confirm("Bạn có chắc chắn muốn xóa bài viết này không?")) return
@@ -107,9 +150,13 @@ export function PostCard({ post, onDelete, showGroupName = true }: PostCardProps
       } else {
         window.location.reload()
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Lỗi xóa bài viết:", error)
-      toast.error("Không thể xóa bài viết")
+      if (error.response?.status === 500) {
+        toast.error("Lỗi máy chủ khi xóa bài viết. Vui lòng báo cáo với admin.")
+      } else {
+        toast.error("Không thể xóa bài viết")
+      }
     }
   }
 
@@ -144,29 +191,62 @@ export function PostCard({ post, onDelete, showGroupName = true }: PostCardProps
       setIsApiLoading(false)
     }
   }
-  const handleBookmark = async () => {
+  
+  const handleSaveBookmark = async () => {
     if (isBookmarkLoading) return;
     setIsBookmarkLoading(true);
-    const prevIsBookmarked = isBookmarked;
-
-    setIsBookmarked(!isBookmarked);
 
     try {
-      if (prevIsBookmarked) {
-        await interactionService.unbookmark(post.id);
-        toast.success("Đã bỏ lưu bài viết");
-      } else {
-        await interactionService.bookmark(post.id);
-        toast.success("Đã lưu bài viết");
-      }
+        await interactionService.bookmark({ 
+            contentId: post.id, 
+            collectionName: collectionName.trim() || "General"
+        });
+        setIsBookmarked(true);
+        toast.success(collectionName ? `Đã lưu vào "${collectionName}"` : "Đã lưu vào General");
+        setIsPopoverOpen(false);
     } catch (error) {
       console.error("Lỗi bookmark:", error);
       toast.error("Có lỗi xảy ra, vui lòng thử lại");
-      setIsBookmarked(prevIsBookmarked);
     } finally {
       setIsBookmarkLoading(false);
     }
   };
+
+  const handleUnbookmark = async () => {
+    if (isBookmarkLoading) return;
+    setIsBookmarkLoading(true);
+
+    try {
+        await interactionService.unbookmark(post.id);
+        setIsBookmarked(false);
+        toast.success("Đã bỏ lưu bài viết");
+        setIsPopoverOpen(false);
+    } catch (error) {
+        console.error("Lỗi unbookmark:", error);
+        toast.error("Có lỗi xảy ra");
+    } finally {
+        setIsBookmarkLoading(false);
+    }
+  };
+
+
+  const handleCopyLink = async () => {
+    try {
+      const link = `${window.location.origin}/posts/${post.id}`
+      await navigator.clipboard.writeText(link)
+      toast.success("Đã sao chép liên kết")
+
+      // Track share action
+      await shareService.trackShare({
+        originalContentId: post.id,
+        shareType: "DIRECT_MESSAGE"
+      })
+      setShareCount(prev => prev + 1)
+    } catch (error) {
+      console.error("Copy link failed", error)
+      toast.error("Không thể sao chép liên kết")
+    }
+  }
 
   const activeReactionConfig = REACTIONS_CONFIG.find(r => r.type === currentReaction)
   const postDate = new Date(createdAt)
@@ -192,28 +272,57 @@ export function PostCard({ post, onDelete, showGroupName = true }: PostCardProps
       )}
       <CardHeader className="p-4 pb-1 space-y-3">
         <div className="flex items-center gap-3">
-          <Avatar className="h-10 w-10">
-            <AvatarImage src={author.avatarUrl} />
-            <AvatarFallback>{author.username.charAt(0)}</AvatarFallback>
-          </Avatar>
-          <div className="min-w-0 flex-1">
-            <p className="font-semibold text-sm leading-none truncate">
-              {author.username}
-            </p>
-            <div className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
-              <span>
-                {!isNaN(postDate.getTime()) ? (
-                  formatDistanceToNow(postDate, { addSuffix: true, locale: vi })
-                ) : (
-                  "Vừa xong"
-                )}
-              </span>
-              {lastEditedAt && (
-                <>
-                  <span>•</span>
-                  <span className="italic">Đã chỉnh sửa</span>
-                </>
-              )}
+          <div
+            className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => window.location.href = `/profile/${author.id}`}
+          >
+            <Avatar className="h-10 w-10">
+              <AvatarImage src={author.avatarUrl || author.avatar || ""} />
+              <AvatarFallback>{author.username?.charAt(0)?.toUpperCase()}</AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-sm leading-none truncate hover:underline">
+                {author.username}
+              </p>
+              <div className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
+                <span>
+                  {!isNaN(postDate.getTime()) ? (
+                    formatDistanceToNow(postDate, { addSuffix: true, locale: vi })
+                  ) : (
+                    "Vừa xong"
+                  )}
+                </span>
+                {(() => {
+                  if (!lastEditedAt) return null;
+
+                  const created = new Date(createdAt).getTime();
+                  const edited = new Date(lastEditedAt).getTime();
+
+
+                  const normalize = (d: string) => {
+                    try {
+                      return d.split('.')[0].replace('Z', '').replace(/[+-]\d{2}:\d{2}$/, '');
+                    } catch (e) { return d; }
+                  };
+
+                  const isSameWallClock = normalize(createdAt) === normalize(lastEditedAt);
+
+                  if (isSameWallClock || edited <= created + 60 * 1000) {
+                    return null;
+                  }
+                  const diff = Math.abs(edited - created);
+                  if (diff > 60000 && diff % 3600000 === 0) {
+                    return null;
+                  }
+
+                  return (
+                    <>
+                      <span>•</span>
+                      <span className="italic">Đã chỉnh sửa</span>
+                    </>
+                  );
+                })()}
+              </div>
             </div>
           </div>
           <div className="ml-auto flex items-center gap-2">
@@ -242,27 +351,64 @@ export function PostCard({ post, onDelete, showGroupName = true }: PostCardProps
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn(
-                "flex-none w-12 transition-colors",
-                isBookmarked && "text-yellow-600 hover:text-yellow-700 bg-yellow-50"
-              )}
-              onClick={handleBookmark}
-              disabled={isBookmarkLoading}
-              title={isBookmarked ? "Bỏ lưu" : "Lưu bài viết"}
-            >
-              <Bookmark
-                className={cn(
-                  "h-4 w-4",
-                  isBookmarked && "fill-current"
-                )}
-              />
-            </Button>
+            <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "flex-none w-12 transition-colors",
+                    isBookmarked && "text-yellow-600 hover:text-yellow-700 bg-yellow-50"
+                  )}
+                  disabled={isBookmarkLoading}
+                  title={isBookmarked ? "Đã lưu" : "Lưu bài viết"}
+                >
+                  <Bookmark
+                    className={cn(
+                      "h-4 w-4",
+                      isBookmarked && "fill-current"
+                    )}
+                  />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80" align="end">
+                <div className="grid gap-4">
+                  <div className="space-y-2">
+                    <h4 className="font-medium leading-none">{isBookmarked ? "Đã lưu bài viết" : "Lưu vào bộ sưu tập"}</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {isBookmarked ? "Quản lý bài viết đã lưu của bạn." : "Nhập tên bộ sưu tập để dễ dàng tìm kiếm sau này."}
+                    </p>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="collection">Tên bộ sưu tập</Label>
+                    <Input
+                      id="collection"
+                      placeholder="Ví dụ: Java, Tips, Đọc sau..."
+                      className="h-9"
+                      value={collectionName}
+                      onChange={(e) => setCollectionName(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex justify-between gap-2 mt-2">
+                     {isBookmarked && (
+                        <Button variant="outline" size="sm" onClick={handleUnbookmark} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                            Bỏ lưu
+                        </Button>
+                     )}
+                     <Button 
+                        size="sm" 
+                        onClick={handleSaveBookmark} 
+                        className={isBookmarked ? "ml-auto" : "w-full"}
+                    >
+                        {isBookmarked ? "Cập nhật" : "Lưu bài viết"}
+                     </Button>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
-        {title && (
+        {title && !title.startsWith("Shared:") && (
           <h2 className="text-lg font-bold text-foreground leading-tight">
             {title}
           </h2>
@@ -277,6 +423,40 @@ export function PostCard({ post, onDelete, showGroupName = true }: PostCardProps
             <p className="text-muted-foreground">Nội dung bài viết...</p>
           )}
         </div>
+
+        {displayOriginalPost && (
+          <div className="border border-muted rounded-md p-3 mt-4 mb-4 select-none cursor-pointer hover:bg-muted/10" onClick={() => window.location.href = `/posts/${displayOriginalPost?.id}`}>
+            <div className="flex items-center gap-3 mb-2">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={displayOriginalPost.author.avatarUrl || displayOriginalPost.author.avatar || ""} />
+                <AvatarFallback>{displayOriginalPost.author.username?.charAt(0)?.toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col">
+                <span className="font-semibold text-sm">{displayOriginalPost.author.username}</span>
+                <span className="text-xs text-muted-foreground">
+                  {!isNaN(new Date(displayOriginalPost.createdAt).getTime()) ? (
+                    formatDistanceToNow(new Date(displayOriginalPost.createdAt), { addSuffix: true, locale: vi })
+                  ) : "Vừa xong"}
+                </span>
+              </div>
+            </div>
+            {displayOriginalPost.title && <p className="font-semibold text-sm mb-1">{displayOriginalPost.title}</p>}
+            <div className="text-sm text-foreground/90">
+              <MarkdownRenderer content={displayOriginalPost.body} />
+            </div>
+            {displayOriginalPost.attachments && displayOriginalPost.attachments.length > 0 && (
+              <div className="mt-2 w-full bg-muted/20 rounded overflow-hidden flex items-center justify-center border">
+                {displayOriginalPost.attachments[0].fileType === "IMAGE" ? (
+                  <img src={displayOriginalPost.attachments[0].storageUrl} className="max-h-96 w-full object-contain" />
+                ) : (
+                  <div className="flex items-center gap-2 text-muted-foreground p-4">
+                    <FileText /> {displayOriginalPost.attachments.length} tệp đính kèm
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
         {images.length > 0 && (
           <div className="mt-4">
             <img
@@ -362,9 +542,29 @@ export function PostCard({ post, onDelete, showGroupName = true }: PostCardProps
             <MessageCircle className="h-4 w-4 mr-2" />
             Bình luận
           </Button>
-          <Button variant="ghost" className="flex-1 flex items-center justify-center">
-            <Share2 className="h-4 w-4 mr-2" /> Chia sẻ
-          </Button>
+
+
+
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="flex-1 flex items-center justify-center">
+                <Share2 className="h-4 w-4 mr-2" />
+                Chia sẻ
+                <span className="ml-1 text-xs text-muted-foreground">({shareCount})</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setIsShareModalOpen(true)}>
+                <SendIcon className="mr-2 h-4 w-4" />
+                Chia sẻ lên bảng tin
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleCopyLink}>
+                <Copy className="mr-2 h-4 w-4" />
+                Sao chép liên kết
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
         </div>
 
@@ -379,10 +579,10 @@ export function PostCard({ post, onDelete, showGroupName = true }: PostCardProps
         )}
         {showComments && (
           <div className="w-full animate-in slide-in-from-top-2 duration-200">
-            <CommentSection 
-              postId={post.id} 
+            <CommentSection
+              postId={post.id}
               commentableType={post.contentType}
-              onCommentAdded={() => setCommentCount(prev => prev + 1)} 
+              onCommentAdded={() => setCommentCount(prev => prev + 1)}
             />
           </div>
         )}
@@ -399,6 +599,17 @@ export function PostCard({ post, onDelete, showGroupName = true }: PostCardProps
               initialData={post}
             />
         )}
+      </Dialog>
+
+      <Dialog open={isShareModalOpen} onOpenChange={setIsShareModalOpen}>
+        <SharePostDialog
+          post={post}
+          setOpen={setIsShareModalOpen}
+          onSuccess={() => {
+            setShareCount(prev => prev + 1);
+            // Optionally reload but setting count is mostly enough unless we show the new post immediately
+          }}
+        />
       </Dialog>
     </Card>
   )

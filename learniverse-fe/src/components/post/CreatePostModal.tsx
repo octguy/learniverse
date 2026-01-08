@@ -231,7 +231,7 @@ export default function CreatePostModalContent({
                 title: title,
                 body: content,
                 tagIds: selectedTags.map(tag => tag.id),
-                status: "PUBLISHED" as const,
+                status: "PUBLISHED" as "PUBLISHED" | "DRAFT",
                 groupId: groupId || undefined
             };
             const filesToUpload = [...images, ...pdfs];
@@ -245,7 +245,7 @@ export default function CreatePostModalContent({
             } else {
                 await postService.createPost(payload, filesToUpload);
             }
-            
+
             setOpen(false)
             setTitle("")
             setContent("")
@@ -434,7 +434,7 @@ export default function CreatePostModalContent({
                         <CardContent>
                             <h2 className="text-xl font-semibold mb-2">{title || "(Chưa có tiêu đề)"}</h2>
                             <div className="mb-4">
-                                {content.trim() ? (
+                                {content && content.trim() ? (
                                     <MarkdownRenderer content={content} />
                                 ) : (
                                     <p className="text-muted-foreground">
@@ -442,7 +442,7 @@ export default function CreatePostModalContent({
                                     </p>
                                 )}
                             </div>
-                            
+
                             {/* Preview Images */}
                             {(existingAttachments.some(a => a.fileType === "IMAGE") || images.length > 0) && (
                                 <div className="mt-4 space-y-4">

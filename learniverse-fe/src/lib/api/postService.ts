@@ -58,10 +58,16 @@ export const postService = {
         });
         return response.data;
     },
+    searchPosts: async (query: string, page = 0, size = 10, sort = 'publishedAt,desc') => {
+        const response = await apiService.get<ApiResponse<PageResponse<Post>>>("/posts/search", {
+            params: { query, page, size, sort }
+        });
+        return response.data;
+    },
     getPostById: async (id: string) => {
-    const response = await apiService.get<ApiResponse<Post>>(`/posts/${id}`);
-    return response.data;
-  },
+        const response = await apiService.get<ApiResponse<Post>>(`/posts/${id}`);
+        return response.data;
+    },
     getPostsByUser: async (userId: string, page = 0, size = 10) => {
         const response = await apiService.get<ApiResponse<PageResponse<Post>>>(`/posts/author/${userId}`, {
             params: { page, size }
