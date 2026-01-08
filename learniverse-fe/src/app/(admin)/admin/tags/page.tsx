@@ -276,15 +276,17 @@ export default function TagsManagementPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Xác nhận xóa</DialogTitle>
-             <DialogDescription className="space-y-2">
-                <p>Bạn có chắc chắn muốn xóa thẻ <span className="font-bold text-foreground">"{currentTag?.name}"</span> không?</p>
-                <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-md border border-yellow-200 dark:border-yellow-900 text-yellow-800 dark:text-yellow-200 text-sm">
-                    <strong>Cảnh báo quan trọng:</strong>
-                    <ul className="list-disc list-inside mt-1 space-y-1">
-                        <li>Hành động này không thể hoàn tác.</li>
-                        <li>Nếu còn <strong>người dùng</strong> đang chọn thẻ này trong hồ sơ (Sở thích/Kỹ năng), việc xóa thẻ có thể gây lỗi hệ thống khi tải thông tin người dùng đó.</li>
-                        <li>Vui lòng đảm bảo không có người dùng nào đang sử dụng thẻ này hoặc chấp nhận rủi ro trước khi xóa.</li>
-                    </ul>
+             <DialogDescription className="space-y-2" asChild>
+                <div>
+                    <p>Bạn có chắc chắn muốn xóa thẻ <span className="font-bold text-foreground">"{currentTag?.name}"</span> không?</p>
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-md border border-yellow-200 dark:border-yellow-900 text-yellow-800 dark:text-yellow-200 text-sm">
+                        <strong>Cảnh báo quan trọng:</strong>
+                        <ul className="list-disc list-inside mt-1 space-y-1">
+                            <li>Hành động này không thể hoàn tác.</li>
+                            <li>Nếu còn <strong>người dùng</strong> đang chọn thẻ này trong hồ sơ (Sở thích/Kỹ năng), việc xóa thẻ có thể gây lỗi hệ thống khi tải thông tin người dùng đó.</li>
+                            <li>Vui lòng đảm bảo không có người dùng nào đang sử dụng thẻ này hoặc chấp nhận rủi ro trước khi xóa.</li>
+                        </ul>
+                    </div>
                 </div>
             </DialogDescription>
           </DialogHeader>

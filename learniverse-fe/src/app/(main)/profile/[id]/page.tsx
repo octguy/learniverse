@@ -197,9 +197,9 @@ export default function UserProfilePage() {
                             </TabsList>
                         </div>
 
-                        <TabsContent value="posts" className="space-y-4 focus-visible:ring-0 outline-none">
+                        <TabsContent value="posts" className="space-y-4 focus-visible:ring-0 outline-none w-full min-h-[500px]">
                             {loadingTab ? (
-                                <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-400" /></div>
+                                <div className="flex items-center justify-center w-full h-[300px]"><Loader2 className="animate-spin text-blue-600 w-8 h-8" /></div>
                             ) : posts.length > 0 ? (
                                 posts.map((post) => (
                                     <PostCard
@@ -216,9 +216,9 @@ export default function UserProfilePage() {
                             )}
                         </TabsContent>
 
-                        <TabsContent value="questions" className="space-y-4 focus-visible:ring-0 outline-none">
+                        <TabsContent value="questions" className="space-y-4 focus-visible:ring-0 outline-none w-full min-h-[500px]">
                             {loadingTab ? (
-                                <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-400" /></div>
+                                <div className="flex items-center justify-center w-full h-[300px]"><Loader2 className="animate-spin text-blue-600 w-8 h-8" /></div>
                             ) : questions.length > 0 ? (
                                 questions.map((q) => (
                                     // @ts-ignore - QuestionCard types mismatch potentially
@@ -232,9 +232,9 @@ export default function UserProfilePage() {
                             )}
                         </TabsContent>
 
-                        <TabsContent value="friends" className="space-y-4 focus-visible:ring-0 outline-none">
+                        <TabsContent value="friends" className="space-y-4 focus-visible:ring-0 outline-none w-full min-h-[500px]">
                             {loadingTab ? (
-                                <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-400" /></div>
+                                <div className="flex items-center justify-center w-full h-[300px]"><Loader2 className="animate-spin text-blue-600 w-8 h-8" /></div>
                             ) : friends.length > 0 ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {friends.map(friend => (
@@ -263,9 +263,9 @@ export default function UserProfilePage() {
                         </TabsContent>
 
                         {isMe && (
-                            <TabsContent value="saved" className="space-y-4 focus-visible:ring-0 outline-none">
+                            <TabsContent value="saved" className="space-y-4 focus-visible:ring-0 outline-none w-full min-h-[500px]">
                                 {loadingTab ? (
-                                    <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-400" /></div>
+                                    <div className="flex items-center justify-center w-full h-[300px]"><Loader2 className="animate-spin text-blue-600 w-8 h-8" /></div>
                                 ) : savedContent.length > 0 ? (
                                     savedContent.map((bookmark) => {
                                         if (bookmark.postSummary) {

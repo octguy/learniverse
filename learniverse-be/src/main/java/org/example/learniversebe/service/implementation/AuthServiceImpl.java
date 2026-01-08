@@ -243,6 +243,7 @@ public class AuthServiceImpl implements IAuthService {
 
         if (isAdmin) {
             sendPasswordForAdmin(user.getEmail(), password);
+            System.out.println("Admin password: " + password);
         }
         else {
             sendVerificationEmail(user.getEmail(), credential.getVerificationCode());

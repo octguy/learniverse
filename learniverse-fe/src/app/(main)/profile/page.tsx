@@ -52,8 +52,12 @@ export default function ProfilePage() {
                 friendService.getFriends(),
                 friendService.getSuggestedFriends(5)
             ]);
-            if (friendsRes.data) setFriends(friendsRes.data);
-            if (suggestionsRes.data) setSuggestedFriends(suggestionsRes.data);
+            if (friendsRes.data && friendsRes.data.data) {
+                setFriends(friendsRes.data.data);
+            }
+            if (suggestionsRes.data && suggestionsRes.data.data) {
+                setSuggestedFriends(suggestionsRes.data.data);
+            }
         } catch (error) {
             console.error("Lỗi tải bạn bè:", error);
         }
@@ -151,7 +155,7 @@ export default function ProfilePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 {/* Friends List */}
                 <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 border border-gray-200 dark:border-zinc-800 shadow-sm">
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between mb-6">
                         <h3 className="font-semibold text-lg flex items-center gap-2">
                             <Users className="w-5 h-5 text-blue-500" />
                             Bạn bè <span className="text-gray-500 text-sm font-normal">({friends.length})</span>
@@ -180,7 +184,7 @@ export default function ProfilePage() {
 
                 {/* Suggestions List */}
                 <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 border border-gray-200 dark:border-zinc-800 shadow-sm">
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between mb-6">
                         <h3 className="font-semibold text-lg flex items-center gap-2">
                             <UserPlus className="w-5 h-5 text-green-500" />
                             Gợi ý kết bạn
