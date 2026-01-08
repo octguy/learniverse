@@ -38,6 +38,9 @@ class Settings:
     CONFIG_FILE = MODELS_DIR / "config.json"
     VOCAB_FILE = MODELS_DIR / "vocab.json"
     
+    # Device settings
+    FORCE_CPU = os.getenv("FORCE_CPU", "false").lower() in ("true", "1", "yes")
+    
     # API settings
     API_TITLE = "Vietnamese Comment Moderation API"
     API_VERSION = "0.1.0"
@@ -143,7 +146,11 @@ class ModelManager:
             raise FileNotFoundError(f"Vocabulary not found: {settings.VOCAB_FILE}")
         
         # Set device
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        if settings.FORCE_CPU:
+            self.device = torch.device("cpu")
+            print("Forcing CPU usage (FORCE_CPU=true)")
+        else:
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"Using device: {self.device}")
         
         # Load config
