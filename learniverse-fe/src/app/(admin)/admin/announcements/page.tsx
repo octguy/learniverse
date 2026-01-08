@@ -193,7 +193,7 @@ export default function AnnouncementsPage() {
                                     </SelectContent>
                                 </Select>
                                 <p className="text-xs text-muted-foreground">
-                                    'Tin tức': Thông báo chung. 'Quan trọng': Cảnh báo hệ thống (hiển thị màu đỏ).
+                                    &apos;Tin tức&apos;: Thông báo chung. &apos;Quan trọng&apos;: Cảnh báo hệ thống (hiển thị màu đỏ).
                                 </p>
                             </div>
                         )}

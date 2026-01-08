@@ -45,7 +45,6 @@ export function Header() {
       if (debouncedSearchTerm.trim()) {
         try {
           const response = await friendService.searchFriends(debouncedSearchTerm);
-          //@ts-ignore
           const data = response.data || response;
           // Handle both array directly or wrapped in data field just in case
           const results = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);

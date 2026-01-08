@@ -7,6 +7,7 @@ import type {
 } from "@/types/question"
 
 export interface QuestionQuery {
+    query?: string
     page?: number
     size?: number
     sort?: string

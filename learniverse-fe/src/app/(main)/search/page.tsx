@@ -83,7 +83,7 @@ export default function SearchPage() {
 
     return (
         <div className="max-w-4xl mx-auto py-6 space-y-6">
-            <h1 className="text-2xl font-bold">Kết quả tìm kiếm cho "{query}"</h1>
+            <h1 className="text-2xl font-bold">Kết quả tìm kiếm cho &quot;{query}&quot;</h1>
 
             <Tabs defaultValue="posts" value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="grid w-full grid-cols-3">

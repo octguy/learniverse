@@ -278,7 +278,7 @@ export default function TagsManagementPage() {
             <DialogTitle>Xác nhận xóa</DialogTitle>
              <DialogDescription className="space-y-2" asChild>
                 <div>
-                    <p>Bạn có chắc chắn muốn xóa thẻ <span className="font-bold text-foreground">"{currentTag?.name}"</span> không?</p>
+                    <p>Bạn có chắc chắn muốn xóa thẻ <span className="font-bold text-foreground">&quot;{currentTag?.name}&quot;</span> không?</p>
                     <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-md border border-yellow-200 dark:border-yellow-900 text-yellow-800 dark:text-yellow-200 text-sm">
                         <strong>Cảnh báo quan trọng:</strong>
                         <ul className="list-disc list-inside mt-1 space-y-1">

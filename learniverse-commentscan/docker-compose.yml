@@ -1,0 +1,23 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Change to empty string if want to use cuda
+        - FORCE_CPU=1
+    container_name: learniverse-moderation
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount models directory for easy updates
+      - ./data/models:/app/data/models:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
