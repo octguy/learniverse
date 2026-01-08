@@ -29,7 +29,10 @@ export function NotificationItem({ notification, onClick }: NotificationItemProp
             </Avatar>
             <div className="flex-1 space-y-1">
                 <p className="text-sm font-semibold">{notification.senderName}</p>
-                <p className="text-sm leading-snug" dangerouslySetInnerHTML={{ __html: notification.content }} />
+                <div 
+                    className="text-sm leading-snug whitespace-pre-wrap"
+                    dangerouslySetInnerHTML={{ __html: notification.content }} 
+                />
                 <p className="text-xs text-muted-foreground">
                     {formatDistanceToNow(new Date(notification.createdAt), {
                         locale: vi,
