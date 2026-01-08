@@ -1,0 +1,8 @@
+# Place ViHSD and ViCTSD datasets here
+# Expected files:
+# - vihsd_train.csv
+# - vihsd_dev.csv  
+# - vihsd_test.csv
+# - victsd_train.csv
+# - victsd_dev.csv
+# - victsd_test.csv
