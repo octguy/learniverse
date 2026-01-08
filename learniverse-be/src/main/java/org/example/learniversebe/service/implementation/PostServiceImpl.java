@@ -185,6 +185,7 @@ public class PostServiceImpl implements IPostService {
         }
 
         content.setStatus(newStatus);
+        content.setLastEditedAt(LocalDateTime.now());
 
         if (newStatus == ContentStatus.PUBLISHED) {
             if (content.getPublishedAt() == null) {
@@ -401,6 +402,7 @@ public class PostServiceImpl implements IPostService {
         boolean titleChanged = request.getTitle() != null && !request.getTitle().equals(content.getTitle());
         content.setTitle(request.getTitle());
         content.setBody(request.getBody());
+        content.setLastEditedAt(LocalDateTime.now());
         if (titleChanged) {
             content.setSlug(slugGenerator.generateSlug(request.getTitle()));
         }
@@ -456,16 +458,21 @@ public class PostServiceImpl implements IPostService {
     @Override
     @Transactional
     public void deletePost(UUID postId) {
-        User currentUser = serviceHelper.getCurrentUser();
-        Content content = contentRepository.findByIdAndContentType(postId, ContentType.POST)
+        // Hàm findById này đã có sẵn @Query check deletedAt IS NULL trong ContentRepository
+        Content content = contentRepository.findById(postId)
                 .orElseThrow(() -> new ResourceNotFoundException("Post not found with id: " + postId));
+
+        // Kiểm tra hợp lệ: Chỉ cho phép xóa nếu là POST hoặc SHARED_POST
+        if (content.getContentType() != ContentType.POST && content.getContentType() != ContentType.SHARED_POST) {
+            throw new ResourceNotFoundException("Post not found with id: " + postId);
+        }
 
         if (!serviceHelper.isCurrentUserAuthor(content.getAuthor().getId())
             /* && !serviceHelper.isCurrentUserAdminOrModerator() */ ) {
             throw new UnauthorizedException("User is not authorized to delete this post");
         }
 
-        // 1. Soft delete comments (bao gồm cả replies)
+        // 1. Soft delete comments (Lưu ý: Đảm bảo ReactableType khớp với logic lúc tạo)
         commentRepository.softDeleteByCommentable(ReactableType.CONTENT, postId);
 
         // 2. Soft delete reactions
@@ -477,18 +484,19 @@ public class PostServiceImpl implements IPostService {
         // 4. Soft delete shares
         shareRepository.softDeleteByContentId(postId);
 
-        // 5. Soft delete attachments (optional - có thể giữ lại để recover)
+        // 5. Soft delete attachments
         attachmentRepository.softDeleteByContentId(postId);
 
-        // 6. Hard delete ContentTags (vì đây là bảng join, không cần soft delete)
+        // 6. Hard delete ContentTags
         contentTagRepository.deleteByContentId(postId);
 
-        // 7. Giữ lại edit history để audit (không xóa)
-        // log.debug("Keeping edit history for audit purposes");
+        // 7. Xử lý xóa các bài share CỦA bài viết này (Cascading delete for shares)
+        // Logic này áp dụng được cho cả POST gốc lẫn SHARED_POST (nếu shared post bị share tiếp)
+        contentRepository.softDeleteSharedPosts(postId);
 
+        // 8. Cuối cùng xóa bài viết
         contentRepository.softDeleteById(postId);
     }
-
     /**
      * Restore a soft-deleted post
      */
