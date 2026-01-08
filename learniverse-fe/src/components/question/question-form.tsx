@@ -656,19 +656,12 @@ export function QuestionForm({
                     editReason: trimmedEditReason,
                     removeMediaIds: Array.from(pendingRemovalIds),
                 }
-                
-                // Combine new images and documents into files array
-                const newFiles = [...images, ...documents]
-                
                 const updated = await questionService.update(
                     initialQuestion.id,
-                    updatePayload,
-                    newFiles.length > 0 ? newFiles : undefined
+                    updatePayload
                 )
                 const slug = updated?.slug ?? initialQuestion.slug
                 setPendingRemovalIds(new Set())
-                setImages([])
-                setDocuments([])
                 if (slug) {
                     if (onSuccess) onSuccess(slug)
                     else router.push(`/questions/${slug}`)

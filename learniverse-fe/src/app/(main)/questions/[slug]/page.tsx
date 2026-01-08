@@ -5,6 +5,7 @@ import {
     useMemo,
     useRef,
     useState,
+    type ChangeEvent,
     type FormEvent,
     type HTMLAttributes,
     type LiHTMLAttributes,
@@ -19,7 +20,6 @@ import { isAxiosError } from "axios"
 import {
     ArrowLeft,
     Download,
-    Edit2,
     Eye,
     FileText,
     Loader2,
@@ -28,6 +28,8 @@ import {
     Bookmark,
     ThumbsDown,
     ThumbsUp,
+    ZoomIn,
+    X,
 } from "lucide-react"
 
 import { questionService } from "@/lib/api/questionService"
@@ -51,6 +53,12 @@ import {
 } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import {
+    Tabs,
+    TabsContent,
+    TabsList,
+    TabsTrigger,
+} from "@/components/ui/tabs"
+import {
     AlertDialog,
     AlertDialogAction,
     AlertDialogCancel,
@@ -61,6 +69,14 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { toast } from "sonner"
 
 interface DetailState {
     status: "loading" | "ready" | "error"
@@ -80,7 +96,9 @@ type MarkdownComponents = Components
 
 const ANSWER_MIN_LENGTH = 10
 const ANSWER_MAX_LENGTH = 5000
-const ANSWER_EDIT_LIMIT_MINUTES = 60 // UC 3.8: Edit allowed within 1 hour
+const MAX_ANSWER_FILES = 5
+const MAX_ANSWER_FILE_SIZE_MB = 10
+const MAX_ANSWER_FILE_SIZE_BYTES = MAX_ANSWER_FILE_SIZE_MB * 1024 * 1024
 
 const MarkdownH2 = ({ className, children, ...props }: HeadingProps) => (
     <h2
@@ -263,6 +281,9 @@ export default function QuestionDetailPage() {
         error: null,
     })
     const [answerBody, setAnswerBody] = useState("")
+    const [answerFiles, setAnswerFiles] = useState<File[]>([])
+    const [answerAttachmentError, setAnswerAttachmentError] = useState<string | null>(null)
+    const [answerTab, setAnswerTab] = useState<"write" | "preview">("write")
     const [isSubmittingAnswer, setIsSubmittingAnswer] = useState(false)
     const [answerError, setAnswerError] = useState<string | null>(null)
     const [answerSuccess, setAnswerSuccess] = useState<string | null>(null)
@@ -279,15 +300,16 @@ export default function QuestionDetailPage() {
         {}
     )
     const [voteError, setVoteError] = useState<string | null>(null)
-    // Edit/Delete answer states
-    const [editingAnswerId, setEditingAnswerId] = useState<string | null>(null)
-    const [editAnswerBody, setEditAnswerBody] = useState("")
-    const [isUpdatingAnswer, setIsUpdatingAnswer] = useState(false)
-    const [isDeletingAnswer, setIsDeletingAnswer] = useState<Record<string, boolean>>({})
-    const [showDeleteAnswerDialog, setShowDeleteAnswerDialog] = useState<string | null>(null)
+    // PDF Preview modal state
+    const [pdfPreview, setPdfPreview] = useState<{ url: string; fileName: string } | null>(null)
+    const [imagePreview, setImagePreview] = useState<{ url: string; fileName: string } | null>(null)
+    // Bookmark popover states
+    const [collectionName, setCollectionName] = useState("")
+    const [isBookmarkPopoverOpen, setIsBookmarkPopoverOpen] = useState(false)
 
     const answerFormRef = useRef<HTMLDivElement | null>(null)
     const answerTextareaRef = useRef<HTMLTextAreaElement | null>(null)
+    const answerFileInputRef = useRef<HTMLInputElement | null>(null)
 
     useEffect(() => {
         if (!slug) return
@@ -404,94 +426,58 @@ export default function QuestionDetailPage() {
         scrollToAnswerForm(true)
     }
 
-    // Helper to check if answer is still editable (within 1 hour)
-    const isAnswerEditable = (createdAt: string) => {
-        const created = new Date(createdAt)
-        const now = new Date()
-        const diffMinutes = (now.getTime() - created.getTime()) / (1000 * 60)
-        return diffMinutes <= ANSWER_EDIT_LIMIT_MINUTES
-    }
+    const handleAnswerFileChange = (
+        event: ChangeEvent<HTMLInputElement>
+    ) => {
+        setAnswerAttachmentError(null)
+        const incoming = Array.from(event.target.files ?? [])
+        if (!incoming.length) return
 
-    const handleStartEditAnswer = (answer: { id: string; body: string; createdAt: string }) => {
-        if (!isAnswerEditable(answer.createdAt)) {
-            setVoteError("Bạn chỉ có thể chỉnh sửa câu trả lời trong vòng 1 giờ sau khi đăng.")
-            return
-        }
-        setEditingAnswerId(answer.id)
-        setEditAnswerBody(answer.body)
-    }
-
-    const handleCancelEditAnswer = () => {
-        setEditingAnswerId(null)
-        setEditAnswerBody("")
-    }
-
-    const handleUpdateAnswer = async (answerId: string) => {
-        if (!user || isUpdatingAnswer) return
-        if (editAnswerBody.trim().length < ANSWER_MIN_LENGTH) {
-            setVoteError(`Câu trả lời phải có ít nhất ${ANSWER_MIN_LENGTH} ký tự.`)
+        const available = MAX_ANSWER_FILES - answerFiles.length
+        if (available <= 0) {
+            setAnswerAttachmentError(
+                `Bạn chỉ có thể đính kèm tối đa ${MAX_ANSWER_FILES} tệp.`
+            )
+            event.target.value = ""
             return
         }
 
-        setIsUpdatingAnswer(true)
-        setVoteError(null)
-        try {
-            const updatedAnswer = await answerService.update(answerId, {
-                body: editAnswerBody.trim(),
-            })
-
-            setState((prev) => {
-                if (!prev.question) return prev
-                return {
-                    ...prev,
-                    question: {
-                        ...prev.question,
-                        answers: prev.question.answers.map((a) =>
-                            a.id === answerId ? { ...a, body: updatedAnswer.body, updatedAt: updatedAnswer.updatedAt } : a
-                        ),
-                    },
-                }
-            })
-            setEditingAnswerId(null)
-            setEditAnswerBody("")
-        } catch (error) {
-            const message = isAxiosError(error)
-                ? error.response?.data?.message ?? "Không thể cập nhật câu trả lời."
-                : "Không thể cập nhật câu trả lời."
-            setVoteError(message)
-        } finally {
-            setIsUpdatingAnswer(false)
+        const selected = incoming.slice(0, available)
+        if (incoming.length > available) {
+            setAnswerAttachmentError(
+                `Chỉ thêm được ${available} tệp nữa (tối đa ${MAX_ANSWER_FILES}).`
+            )
         }
+
+        const accepted: File[] = []
+        for (const file of selected) {
+            const isSupported =
+                file.type.startsWith("image/") ||
+                file.type === "application/pdf"
+            if (!isSupported) {
+                setAnswerAttachmentError(
+                    "Chỉ hỗ trợ ảnh hoặc PDF cho câu trả lời."
+                )
+                continue
+            }
+            if (file.size > MAX_ANSWER_FILE_SIZE_BYTES) {
+                setAnswerAttachmentError(
+                    `Mỗi tệp tối đa ${MAX_ANSWER_FILE_SIZE_MB}MB.`
+                )
+                continue
+            }
+            accepted.push(file)
+        }
+
+        if (accepted.length) {
+            setAnswerFiles((prev) => [...prev, ...accepted])
+        }
+
+        event.target.value = ""
     }
 
-    const handleDeleteAnswer = async (answerId: string) => {
-        if (!user) return
-        setIsDeletingAnswer((prev) => ({ ...prev, [answerId]: true }))
-        try {
-            await answerService.remove(answerId)
-            setState((prev) => {
-                if (!prev.question) return prev
-                return {
-                    ...prev,
-                    question: {
-                        ...prev.question,
-                        answers: prev.question.answers.filter((a) => a.id !== answerId),
-                        answerCount: Math.max(0, (prev.question.answerCount ?? 1) - 1),
-                    },
-                }
-            })
-            setShowDeleteAnswerDialog(null)
-        } catch (error) {
-            const message = isAxiosError(error)
-                ? error.response?.data?.message ?? "Không thể xóa câu trả lời."
-                : "Không thể xóa câu trả lời."
-            setVoteError(message)
-        } finally {
-            setIsDeletingAnswer((prev) => {
-                const { [answerId]: _removed, ...rest } = prev
-                return rest
-            })
-        }
+    const handleRemoveAnswerFile = (index: number) => {
+        setAnswerFiles((prev) => prev.filter((_, idx) => idx !== index))
     }
 
     const handleQuestionVote = async (voteType: "UPVOTE" | "DOWNVOTE") => {
@@ -609,12 +595,15 @@ export default function QuestionDetailPage() {
         setIsSubmittingAnswer(true)
         setAnswerError(null)
         setAnswerSuccess(null)
+        setAnswerAttachmentError(null)
 
         try {
-            const createdAnswer = await answerService.create({
-                questionId: state.question.id,
-                body: answerBody.trim(),
-            })
+            const createdAnswer = await answerService.create(
+                {
+                    questionId: state.question.id,
+                    body: answerBody.trim(),
+                }
+            )
 
             setState((prev) => {
                 if (!prev.question) return prev
@@ -631,6 +620,8 @@ export default function QuestionDetailPage() {
                 }
             })
             setAnswerBody("")
+            setAnswerFiles([])
+            setAnswerTab("write")
             setIsAnswerFormOpen(false)
             setAnswerSuccess("Câu trả lời của bạn đã được đăng.")
             window.setTimeout(() => setAnswerSuccess(null), 4000)
@@ -645,7 +636,7 @@ export default function QuestionDetailPage() {
         }
     }
 
-    const handleBookmarkToggle = async () => {
+    const handleSaveBookmark = async () => {
         if (!user || !state.question) {
             router.push("/login")
             return
@@ -653,28 +644,55 @@ export default function QuestionDetailPage() {
         if (isBookmarking) return
 
         setIsBookmarking(true)
-        const currentlyBookmarked = state.question.bookmarkedByCurrentUser
         try {
-            if (currentlyBookmarked) {
-                await interactionService.unbookmark(state.question.id)
-            } else {
-                await interactionService.bookmark(state.question.id)
-            }
-
+            await interactionService.bookmark({ 
+                contentId: state.question.id, 
+                collectionName: collectionName.trim() || "General"
+            })
             setState((prev) => {
                 if (!prev.question) return prev
-                const nextBookmarked = !currentlyBookmarked
                 return {
                     ...prev,
                     question: {
                         ...prev.question,
-                        bookmarkedByCurrentUser: nextBookmarked,
-                        bookmarkCount:
-                            (prev.question.bookmarkCount ?? 0) +
-                            (nextBookmarked ? 1 : -1),
+                        bookmarkedByCurrentUser: true,
+                        bookmarkCount: (prev.question.bookmarkCount ?? 0) + 1,
                     },
                 }
             })
+            toast.success(collectionName ? `Đã lưu vào "${collectionName}"` : "Đã lưu vào General")
+            setIsBookmarkPopoverOpen(false)
+        } catch (error) {
+            console.error("Lỗi bookmark:", error)
+            toast.error("Có lỗi xảy ra, vui lòng thử lại")
+        } finally {
+            setIsBookmarking(false)
+        }
+    }
+
+    const handleUnbookmark = async () => {
+        if (!user || !state.question) return
+        if (isBookmarking) return
+
+        setIsBookmarking(true)
+        try {
+            await interactionService.unbookmark(state.question.id)
+            setState((prev) => {
+                if (!prev.question) return prev
+                return {
+                    ...prev,
+                    question: {
+                        ...prev.question,
+                        bookmarkedByCurrentUser: false,
+                        bookmarkCount: Math.max((prev.question.bookmarkCount ?? 0) - 1, 0),
+                    },
+                }
+            })
+            toast.success("Đã bỏ lưu câu hỏi")
+            setIsBookmarkPopoverOpen(false)
+        } catch (error) {
+            console.error("Lỗi unbookmark:", error)
+            toast.error("Có lỗi xảy ra")
         } finally {
             setIsBookmarking(false)
         }
@@ -784,7 +802,7 @@ export default function QuestionDetailPage() {
 
     if (state.status === "loading") {
         return (
-            <div className="mx-auto w-full max-w-6xl space-y-6 pb-12">
+            <div className="mx-auto w-full max-w-5xl space-y-6 pb-12 px-4 md:px-6 lg:px-8">
                 <div className="flex items-center gap-2">
                     <Button variant="ghost" size="sm" disabled>
                         <Loader2 className="mr-2 size-4 animate-spin" />
@@ -808,7 +826,7 @@ export default function QuestionDetailPage() {
 
     if (state.status === "error") {
         return (
-            <div className="mx-auto w-full max-w-6xl space-y-6 pb-12">
+            <div className="mx-auto w-full max-w-5xl space-y-6 pb-12 px-4 md:px-6 lg:px-8">
                 <Button
                     type="button"
                     variant="ghost"
@@ -844,7 +862,7 @@ export default function QuestionDetailPage() {
     const formattedVoteScore = formatMetric(question.voteScore ?? 0)
 
     return (
-        <div className="mx-auto w-full max-w-6xl space-y-8 pb-16">
+        <div className="mx-auto w-full max-w-5xl space-y-8 pb-16 px-4 md:px-6 lg:px-8">
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <Button
                     type="button"
@@ -857,31 +875,78 @@ export default function QuestionDetailPage() {
                     Quay lại
                 </Button>
                 <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className={cn(
-                            "h-9 w-9 border border-transparent transition-colors",
-                            question.bookmarkedByCurrentUser &&
-                                "bg-amber-50 text-amber-600 hover:bg-amber-100 hover:text-amber-700"
-                        )}
-                        disabled={isBookmarking}
-                        onClick={handleBookmarkToggle}
-                        title={
-                            question.bookmarkedByCurrentUser
-                                ? "Bỏ lưu câu hỏi"
-                                : "Lưu câu hỏi"
-                        }
-                        aria-pressed={question.bookmarkedByCurrentUser}
-                    >
-                        <Bookmark
-                            className={cn(
-                                "size-4",
-                                question.bookmarkedByCurrentUser &&
-                                    "fill-current"
-                            )}
-                        />
-                    </Button>
+                    <Popover open={isBookmarkPopoverOpen} onOpenChange={setIsBookmarkPopoverOpen}>
+                        <PopoverTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className={cn(
+                                    "h-9 w-9 border border-transparent transition-colors",
+                                    question.bookmarkedByCurrentUser &&
+                                        "bg-amber-50 text-amber-600 hover:bg-amber-100 hover:text-amber-700"
+                                )}
+                                disabled={isBookmarking}
+                                title={
+                                    question.bookmarkedByCurrentUser
+                                        ? "Đã lưu"
+                                        : "Lưu câu hỏi"
+                                }
+                            >
+                                <Bookmark
+                                    className={cn(
+                                        "size-4",
+                                        question.bookmarkedByCurrentUser &&
+                                            "fill-current"
+                                    )}
+                                />
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80" align="end">
+                            <div className="grid gap-4">
+                                <div className="space-y-2">
+                                    <h4 className="font-medium leading-none">
+                                        {question.bookmarkedByCurrentUser ? "Đã lưu câu hỏi" : "Lưu vào bộ sưu tập"}
+                                    </h4>
+                                    <p className="text-sm text-muted-foreground">
+                                        {question.bookmarkedByCurrentUser 
+                                            ? "Quản lý câu hỏi đã lưu của bạn." 
+                                            : "Nhập tên bộ sưu tập để dễ dàng tìm kiếm sau này."}
+                                    </p>
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="collection">Tên bộ sưu tập</Label>
+                                    <Input
+                                        id="collection"
+                                        placeholder="Ví dụ: Toán học, Tips, Đọc sau..."
+                                        className="h-9"
+                                        value={collectionName}
+                                        onChange={(e) => setCollectionName(e.target.value)}
+                                    />
+                                </div>
+                                <div className="flex justify-between gap-2 mt-2">
+                                    {question.bookmarkedByCurrentUser && (
+                                        <Button 
+                                            variant="outline" 
+                                            size="sm" 
+                                            onClick={handleUnbookmark}
+                                            disabled={isBookmarking}
+                                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        >
+                                            Bỏ lưu
+                                        </Button>
+                                    )}
+                                    <Button 
+                                        size="sm" 
+                                        onClick={handleSaveBookmark}
+                                        disabled={isBookmarking}
+                                        className={question.bookmarkedByCurrentUser ? "ml-auto" : "w-full"}
+                                    >
+                                        {question.bookmarkedByCurrentUser ? "Cập nhật" : "Lưu câu hỏi"}
+                                    </Button>
+                                </div>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
                     {isAuthor && (
                         <>
                             <Button
@@ -1104,6 +1169,76 @@ export default function QuestionDetailPage() {
                     </Alert>
                 ) : null}
 
+                {question.attachments?.length ? (
+                    <div className="mt-8 space-y-4">
+                        {attachments.images.length > 0 && (
+                            <div>
+                                <p className="mb-2 text-sm font-medium text-foreground">
+                                    Hình ảnh đính kèm
+                                </p>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                    {attachments.images.map((attachment) => (
+                                        <div
+                                            key={attachment.id}
+                                            className="group relative overflow-hidden rounded-lg border bg-muted cursor-pointer"
+                                            onClick={() => setImagePreview({ url: attachment.storageUrl, fileName: attachment.fileName })}
+                                        >
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img
+                                                src={attachment.storageUrl}
+                                                alt={attachment.fileName}
+                                                className="h-60 w-full object-contain transition-opacity group-hover:opacity-80"
+                                            />
+                                            <div className="absolute right-2 top-2 inline-flex items-center justify-center rounded-full bg-black/60 p-2 text-white shadow opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <ZoomIn className="size-4" />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {attachments.documents.length > 0 && (
+                            <div>
+                                <p className="mb-2 text-sm font-medium text-foreground">
+                                    Tài liệu đính kèm
+                                </p>
+                                <div className="flex flex-wrap gap-3">
+                                    {attachments.documents.map((attachment) => (
+                                        <div
+                                            key={attachment.id}
+                                            className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2"
+                                        >
+                                            <FileText className="size-5 text-primary" />
+                                            <span className="text-sm font-medium text-foreground max-w-[200px] truncate">
+                                                {attachment.fileName}
+                                            </span>
+                                            <div className="flex items-center gap-1 ml-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setPdfPreview({ url: attachment.storageUrl, fileName: attachment.fileName })}
+                                                    className="p-1.5 rounded-md hover:bg-primary/10 text-primary transition-colors"
+                                                    title="Xem trước"
+                                                >
+                                                    <Eye className="size-4" />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => downloadFile(attachment.storageUrl, attachment.fileName)}
+                                                    className="p-1.5 rounded-md hover:bg-primary/10 text-primary transition-colors"
+                                                    title="Tải xuống"
+                                                >
+                                                    <Download className="size-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                ) : null}
+
                 <div className="mt-8 space-y-6">
                     {question.body ? (
                         <ReactMarkdown
@@ -1122,53 +1257,6 @@ export default function QuestionDetailPage() {
                         </p>
                     )}
                 </div>
-
-                {question.attachments?.length ? (
-                    <div className="mt-8 space-y-4">
-                        {attachments.images.length > 0 && (
-                            <div>
-                                <div className="grid gap-3 sm:grid-cols-2">
-                                    {attachments.images.map((attachment) => (
-                                        <div
-                                            key={attachment.id}
-                                            className="overflow-hidden rounded-lg border"
-                                        >
-                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img
-                                                src={attachment.storageUrl}
-                                                alt={attachment.fileName}
-                                                className="h-52 w-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {attachments.documents.length > 0 && (
-                            <div>
-                                <p className="mb-2 text-sm font-medium text-foreground">
-                                    Tài liệu đính kèm
-                                </p>
-                                <div className="flex flex-wrap gap-3">
-                                    {attachments.documents.map((attachment) => (
-                                        <div
-                                            key={attachment.id}
-                                            className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 cursor-pointer hover:bg-muted/50 transition-colors"
-                                            onClick={() => downloadFile(attachment.storageUrl, attachment.fileName)}
-                                        >
-                                            <FileText className="size-5 text-primary" />
-                                            <span className="text-sm font-medium text-foreground max-w-[200px] truncate">
-                                                {attachment.fileName}
-                                            </span>
-                                            <Download className="size-4 ml-auto text-muted-foreground" />
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                ) : null}
 
                 <section className="mt-10 space-y-6 border-t pt-6">
                     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1221,28 +1309,150 @@ export default function QuestionDetailPage() {
                                             </CardDescription>
                                         </CardHeader>
                                         <CardContent className="space-y-4 pt-4">
-                                            <Textarea
-                                                ref={answerTextareaRef}
-                                                value={answerBody}
-                                                onChange={(event) =>
-                                                    setAnswerBody(
-                                                        event.target.value.slice(
-                                                            0,
-                                                            ANSWER_MAX_LENGTH
-                                                        )
+                                            <input
+                                                ref={answerFileInputRef}
+                                                type="file"
+                                                multiple
+                                                accept="image/*,application/pdf"
+                                                className="hidden"
+                                                onChange={handleAnswerFileChange}
+                                            />
+
+                                            <Tabs
+                                                value={answerTab}
+                                                onValueChange={(value) =>
+                                                    setAnswerTab(
+                                                        value as
+                                                            | "write"
+                                                            | "preview"
                                                     )
                                                 }
-                                                placeholder="Trình bày rõ ràng lời giải hoặc hướng dẫn của bạn..."
-                                                rows={6}
-                                            />
-                                            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                                                <span>
-                                                    Tối thiểu {ANSWER_MIN_LENGTH} ký tự. Hiện tại: {answerLength}
-                                                </span>
-                                                <span>
-                                                    {answerLength}/{ANSWER_MAX_LENGTH}
-                                                </span>
-                                            </div>
+                                                className="space-y-3"
+                                            >
+                                                <TabsList>
+                                                    <TabsTrigger value="write">
+                                                        Soạn thảo
+                                                    </TabsTrigger>
+                                                    <TabsTrigger value="preview">
+                                                        Xem trước
+                                                    </TabsTrigger>
+                                                </TabsList>
+
+                                                <TabsContent
+                                                    value="write"
+                                                    className="space-y-3"
+                                                >
+                                                    <Textarea
+                                                        ref={answerTextareaRef}
+                                                        value={answerBody}
+                                                        onChange={(event) =>
+                                                            setAnswerBody(
+                                                                event.target.value.slice(
+                                                                    0,
+                                                                    ANSWER_MAX_LENGTH
+                                                                )
+                                                            )
+                                                        }
+                                                        placeholder="Trình bày rõ ràng lời giải hoặc hướng dẫn của bạn."
+                                                        rows={6}
+                                                    />
+                                                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                                                        <span>
+                                                            Tối thiểu {ANSWER_MIN_LENGTH} ký tự. Hiện tại: {answerLength}
+                                                        </span>
+                                                        <span>
+                                                            {answerLength}/{ANSWER_MAX_LENGTH}
+                                                        </span>
+                                                    </div>
+
+                                                    <div className="space-y-2">
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() =>
+                                                                    answerFileInputRef.current?.click()
+                                                                }
+                                                            >
+                                                                Thêm tệp đính kèm
+                                                            </Button>
+                                                            <span className="text-xs text-muted-foreground">
+                                                                Ảnh/PDF, tối đa {MAX_ANSWER_FILES} tệp, {MAX_ANSWER_FILE_SIZE_MB}MB mỗi tệp.
+                                                            </span>
+                                                        </div>
+                                                        {answerFiles.length ? (
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {answerFiles.map((file, index) => (
+                                                                    <Badge
+                                                                        key={`${file.name}-${index}`}
+                                                                        variant="secondary"
+                                                                        className="flex items-center gap-2"
+                                                                    >
+                                                                        <FileText className="size-3" />
+                                                                        <span className="text-xs font-medium max-w-[140px] truncate">
+                                                                            {file.name}
+                                                                        </span>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() =>
+                                                                                handleRemoveAnswerFile(index)
+                                                                            }
+                                                                            className="ml-1 text-xs text-muted-foreground hover:text-foreground"
+                                                                            aria-label={`Xóa tệp ${file.name}`}
+                                                                        >
+                                                                            ×
+                                                                        </button>
+                                                                    </Badge>
+                                                                ))}
+                                                            </div>
+                                                        ) : (
+                                                            <p className="text-xs text-muted-foreground">
+                                                                Chưa chọn tệp đính kèm nào.
+                                                            </p>
+                                                        )}
+                                                        {answerAttachmentError && (
+                                                            <p className="text-xs text-destructive">
+                                                                {answerAttachmentError}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </TabsContent>
+
+                                                <TabsContent
+                                                    value="preview"
+                                                    className="space-y-3"
+                                                >
+                                                    <div className="min-h-[160px] rounded-md border bg-muted/30 p-4 text-sm leading-relaxed text-foreground">
+                                                        {answerBody.trim() ? (
+                                                            <ReactMarkdown
+                                                                remarkPlugins={[remarkGfm]}
+                                                                components={markdownComponents}
+                                                            >
+                                                                {answerBody}
+                                                            </ReactMarkdown>
+                                                        ) : (
+                                                            <p className="text-muted-foreground">
+                                                                Nhập nội dung để xem trước định dạng Markdown.
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                    {answerFiles.length ? (
+                                                        <div className="space-y-1 text-xs text-muted-foreground">
+                                                            <p className="font-medium text-foreground">
+                                                                Tệp sẽ gửi kèm:
+                                                            </p>
+                                                            <ul className="list-disc space-y-1 pl-5">
+                                                                {answerFiles.map((file) => (
+                                                                    <li key={`preview-${file.name}`} className="text-foreground">
+                                                                        {file.name}
+                                                                    </li>
+                                                                ))}
+                                                            </ul>
+                                                        </div>
+                                                    ) : null}
+                                                </TabsContent>
+                                            </Tabs>
 
                                             {answerError && (
                                                 <p className="text-xs text-destructive">
@@ -1257,6 +1467,9 @@ export default function QuestionDetailPage() {
                                                 onClick={() => {
                                                     setAnswerBody("")
                                                     setAnswerError(null)
+                                                    setAnswerFiles([])
+                                                    setAnswerAttachmentError(null)
+                                                    setAnswerTab("write")
                                                     setIsAnswerFormOpen(false)
                                                 }}
                                                 disabled={isSubmittingAnswer}
@@ -1319,9 +1532,11 @@ export default function QuestionDetailPage() {
                                 const isAccepted =
                                     answer.isAccepted ||
                                     question.acceptedAnswerId === answer.id
-                                const isAnswerAuthor = user?.id === answer.author?.id
-                                const canEditAnswer = isAnswerAuthor && isAnswerEditable(answer.createdAt)
-                                const isEditingThis = editingAnswerId === answer.id
+                                const answerAttachments =
+                                    answer.attachments ?? []
+                                const splitted = splitAttachments(
+                                    answerAttachments
+                                )
 
                                 return (
                                     <article
@@ -1443,121 +1658,110 @@ export default function QuestionDetailPage() {
                                                             : "Chấp nhận"}
                                                     </Button>
                                                 )}
-                                                {/* Edit/Delete buttons for answer author */}
-                                                {isAnswerAuthor && !isEditingThis && (
-                                                    <>
-                                                        {canEditAnswer && (
-                                                            <Button
-                                                                type="button"
-                                                                size="icon"
-                                                                variant="ghost"
-                                                                className="h-8 w-8"
-                                                                onClick={() => handleStartEditAnswer(answer)}
-                                                                title="Chỉnh sửa câu trả lời"
-                                                            >
-                                                                <Edit2 className="size-4" />
-                                                            </Button>
-                                                        )}
-                                                        <AlertDialog
-                                                            open={showDeleteAnswerDialog === answer.id}
-                                                            onOpenChange={(open) => setShowDeleteAnswerDialog(open ? answer.id : null)}
-                                                        >
-                                                            <AlertDialogTrigger asChild>
-                                                                <Button
-                                                                    type="button"
-                                                                    size="sm"
-                                                                    variant="ghost"
-                                                                    className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                                                    disabled={isDeletingAnswer[answer.id]}
-                                                                >
-                                                                    Xóa
-                                                                </Button>
-                                                            </AlertDialogTrigger>
-                                                            <AlertDialogContent>
-                                                                <AlertDialogHeader>
-                                                                    <AlertDialogTitle>
-                                                                        Xóa câu trả lời này?
-                                                                    </AlertDialogTitle>
-                                                                    <AlertDialogDescription>
-                                                                        Hành động này sẽ xóa câu trả lời của bạn. Bạn không thể hoàn tác.
-                                                                    </AlertDialogDescription>
-                                                                </AlertDialogHeader>
-                                                                <AlertDialogFooter>
-                                                                    <AlertDialogCancel disabled={isDeletingAnswer[answer.id]}>
-                                                                        Hủy
-                                                                    </AlertDialogCancel>
-                                                                    <AlertDialogAction
-                                                                        onClick={() => handleDeleteAnswer(answer.id)}
-                                                                        disabled={isDeletingAnswer[answer.id]}
-                                                                    >
-                                                                        {isDeletingAnswer[answer.id] && (
-                                                                            <Loader2 className="mr-2 size-4 animate-spin" />
-                                                                        )}
-                                                                        Xóa câu trả lời
-                                                                    </AlertDialogAction>
-                                                                </AlertDialogFooter>
-                                                            </AlertDialogContent>
-                                                        </AlertDialog>
-                                                    </>
-                                                )}
                                             </div>
                                         </div>
 
-                                        {/* Edit mode or display mode */}
-                                        {isEditingThis ? (
+                                        <div className="mt-4 text-sm leading-relaxed text-foreground">
+                                            {answer.body ? (
+                                                <ReactMarkdown
+                                                    remarkPlugins={[remarkGfm]}
+                                                    components={
+                                                        markdownComponents
+                                                    }
+                                                >
+                                                    {answer.body}
+                                                </ReactMarkdown>
+                                            ) : (
+                                                <p className="text-muted-foreground">
+                                                    Câu trả lời này chưa có nội
+                                                    dung hiển thị.
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        {answerAttachments.length ? (
                                             <div className="mt-4 space-y-3">
-                                                <Textarea
-                                                    value={editAnswerBody}
-                                                    onChange={(e) => setEditAnswerBody(e.target.value.slice(0, ANSWER_MAX_LENGTH))}
-                                                    placeholder="Nhập nội dung câu trả lời..."
-                                                    rows={5}
-                                                />
-                                                <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                                                    <span>Tối thiểu {ANSWER_MIN_LENGTH} ký tự</span>
-                                                    <span>{editAnswerBody.length}/{ANSWER_MAX_LENGTH}</span>
-                                                </div>
-                                                <div className="flex justify-end gap-2">
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={handleCancelEditAnswer}
-                                                        disabled={isUpdatingAnswer}
-                                                    >
-                                                        Hủy
-                                                    </Button>
-                                                    <Button
-                                                        type="button"
-                                                        size="sm"
-                                                        onClick={() => handleUpdateAnswer(answer.id)}
-                                                        disabled={isUpdatingAnswer || editAnswerBody.trim().length < ANSWER_MIN_LENGTH}
-                                                    >
-                                                        {isUpdatingAnswer && (
-                                                            <Loader2 className="mr-2 size-3 animate-spin" />
-                                                        )}
-                                                        Lưu thay đổi
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div className="mt-4 text-sm leading-relaxed text-foreground">
-                                                {answer.body ? (
-                                                    <ReactMarkdown
-                                                        remarkPlugins={[remarkGfm]}
-                                                        components={
-                                                            markdownComponents
-                                                        }
-                                                    >
-                                                        {answer.body}
-                                                    </ReactMarkdown>
-                                                ) : (
-                                                    <p className="text-muted-foreground">
-                                                        Câu trả lời này chưa có nội
-                                                        dung hiển thị.
-                                                    </p>
+                                                {splitted.images.length > 0 && (
+                                                    <div className="space-y-2">
+                                                        <p className="text-xs font-semibold text-foreground">
+                                                            Hình ảnh đính kèm
+                                                        </p>
+                                                        <div className="grid gap-3 sm:grid-cols-2">
+                                                            {splitted.images.map((attachment) => (
+                                                                <div
+                                                                    key={attachment.id}
+                                                                    className="relative overflow-hidden rounded-lg border bg-muted"
+                                                                >
+                                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                                    <img
+                                                                        src={attachment.storageUrl}
+                                                                        alt={attachment.fileName}
+                                                                        className="h-44 w-full object-contain"
+                                                                    />
+                                                                    <button
+                                                                        type="button"
+                                                                        className="absolute right-2 top-2 inline-flex items-center justify-center rounded-full bg-black/60 p-2 text-white shadow hover:bg-black/80"
+                                                                        onClick={() => setImagePreview({ url: attachment.storageUrl, fileName: attachment.fileName })}
+                                                                        title="Xem ảnh lớn"
+                                                                    >
+                                                                        <ZoomIn className="size-4" />
+                                                                    </button>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {splitted.documents.length > 0 && (
+                                                    <div className="space-y-2">
+                                                        <p className="text-xs font-semibold text-foreground">
+                                                            Tài liệu đính kèm
+                                                        </p>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {splitted.documents.map((attachment) => (
+                                                                <div
+                                                                    key={attachment.id}
+                                                                    className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-1.5"
+                                                                >
+                                                                    <FileText className="size-4 text-primary" />
+                                                                    <span className="text-xs font-medium max-w-[180px] truncate">
+                                                                        {attachment.fileName}
+                                                                    </span>
+                                                                    <div className="flex items-center gap-1 ml-1">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() =>
+                                                                                setPdfPreview({
+                                                                                    url: attachment.storageUrl,
+                                                                                    fileName: attachment.fileName,
+                                                                                })
+                                                                            }
+                                                                            className="p-1 rounded-md hover:bg-primary/10 text-primary transition-colors"
+                                                                            title="Xem trước"
+                                                                        >
+                                                                            <Eye className="size-3.5" />
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() =>
+                                                                                downloadFile(
+                                                                                    attachment.storageUrl,
+                                                                                    attachment.fileName
+                                                                                )
+                                                                            }
+                                                                            className="p-1 rounded-md hover:bg-primary/10 text-primary transition-colors"
+                                                                            title="Tải xuống"
+                                                                        >
+                                                                            <Download className="size-3.5" />
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
                                                 )}
                                             </div>
-                                        )}
+                                        ) : null}
                                     </article>
                                 )
                             })}
@@ -1570,6 +1774,96 @@ export default function QuestionDetailPage() {
                     )}
                 </section>
             </article>
+
+            {/* PDF Preview Modal */}
+            {pdfPreview && (
+                <div 
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+                    onClick={() => setPdfPreview(null)}
+                >
+                    <div 
+                        className="relative w-full max-w-5xl h-[90vh] bg-white rounded-xl shadow-2xl overflow-hidden m-4"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/50">
+                            <div className="flex items-center gap-2">
+                                <FileText className="size-5 text-primary" />
+                                <span className="font-medium text-foreground truncate max-w-[300px]">
+                                    {pdfPreview.fileName}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => window.open(pdfPreview.url, '_blank')}
+                                    className="gap-1.5"
+                                >
+                                    <Eye className="size-4" />
+                                    Mở tab mới
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => downloadFile(pdfPreview.url, pdfPreview.fileName)}
+                                    className="gap-1.5"
+                                >
+                                    <Download className="size-4" />
+                                    Tải xuống
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setPdfPreview(null)}
+                                    className="text-muted-foreground hover:text-foreground"
+                                >
+                                    ✕
+                                </Button>
+                            </div>
+                        </div>
+                        {/* PDF iframe */}
+                        <iframe
+                            src={pdfPreview.url}
+                            className="w-full h-[calc(90vh-60px)]"
+                            title={pdfPreview.fileName}
+                        />
+                    </div>
+                </div>
+            )}
+
+            {/* Image Preview Modal */}
+            {imagePreview && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
+                    onClick={() => setImagePreview(null)}
+                >
+                    <div
+                        className="relative w-[92vw] max-w-5xl max-h-[88vh]"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <button
+                            type="button"
+                            className="absolute right-3 top-3 inline-flex items-center justify-center rounded-full bg-black/70 p-2 text-white hover:bg-black/90"
+                            onClick={() => setImagePreview(null)}
+                            aria-label="Đóng xem ảnh"
+                        >
+                            <X className="size-5" />
+                        </button>
+                        <div className="flex items-center justify-center bg-black/60 rounded-xl overflow-hidden shadow-2xl">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                                src={imagePreview.url}
+                                alt={imagePreview.fileName}
+                                className="max-h-[80vh] w-full object-contain"
+                            />
+                        </div>
+                        <div className="mt-2 text-center text-sm text-white/80 truncate px-10">
+                            {imagePreview.fileName}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

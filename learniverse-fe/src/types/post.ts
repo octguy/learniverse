@@ -75,4 +75,5 @@ export type Post = {
   groupName?: string;
   groupSlug?: string;
   originalPost?: Post;
+  groupAvatarUrl?: string;
 };

@@ -10,9 +10,6 @@ export interface QuestionQuery {
     page?: number
     size?: number
     sort?: string
-    answerFilter?: "unanswered" | "answered" | "accepted"
-    tagIds?: string[]
-    query?: string
 }
 
 export interface CreateQuestionPayload {
@@ -59,9 +56,6 @@ export const questionService = {
                 page: params.page,
                 size: params.size,
                 sort: params.sort,
-                answerFilter: params.answerFilter,
-                tagIds: params.tagIds,
-                query: params.query,
             },
         })
         return unwrap(response.data)
@@ -110,33 +104,13 @@ export const questionService = {
         return unwrap(response.data)
     },
     /**
-     * Update an existing question using multipart/form-data
-     * Backend expects: @RequestPart("question") + @RequestPart("files") optional
+     * Update an existing question
+     * Backend expects: @RequestBody UpdateQuestionRequest (JSON)
      */
-    async update(id: string, payload: UpdateQuestionPayload, files?: File[]) {
-        const formData = new FormData()
-        
-        // Append the question JSON as a Blob with application/json type
-        const questionBlob = new Blob([JSON.stringify(payload)], {
-            type: "application/json",
-        })
-        formData.append("question", questionBlob)
-        
-        // Append files if provided
-        if (files && files.length > 0) {
-            files.forEach((file) => {
-                formData.append("files", file)
-            })
-        }
-        
+    async update(id: string, payload: UpdateQuestionPayload) {
         const response = await apiService.put<ApiResponse<QuestionDetail>>(
             `${BASE_PATH}/${id}`,
-            formData,
-            {
-                headers: {
-                    "Content-Type": "multipart/form-data",
-                },
-            }
+            payload
         )
         return unwrap(response.data)
     },
@@ -181,6 +155,37 @@ export const questionService = {
         >(`${BASE_PATH}/author/${authorId}`, {
             params: { page, size },
         })
+        return unwrap(response.data)
+    },
+    /**
+     * Add attachments to an existing question
+     * Backend endpoint: POST /questions/{questionId}/attachments (multipart)
+     */
+    async addAttachments(questionId: string, files: File[]) {
+        const formData = new FormData()
+        files.forEach((file) => {
+            formData.append("files", file)
+        })
+        
+        const response = await apiService.post<ApiResponse<QuestionDetail>>(
+            `${BASE_PATH}/${questionId}/attachments`,
+            formData,
+            {
+                headers: {
+                    "Content-Type": "multipart/form-data",
+                },
+            }
+        )
+        return unwrap(response.data)
+    },
+    /**
+     * Remove an attachment from a question
+     * Backend endpoint: DELETE /questions/{questionId}/attachments/{attachmentId}
+     */
+    async removeAttachment(questionId: string, attachmentId: string) {
+        const response = await apiService.delete<ApiResponse<void>>(
+            `${BASE_PATH}/${questionId}/attachments/${attachmentId}`
+        )
         return unwrap(response.data)
     },
 }

@@ -308,15 +308,22 @@ export default function CreatePostModalContent({
                         </Avatar>
                         <div className="flex flex-col">
                             <span className="font-semibold text-sm">{user?.username}</span>
-                            <Select defaultValue="anyone">
-                                <SelectTrigger className="h-7 px-2 py-1 text-xs w-fit">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="anyone">Mọi người</SelectItem>
-                                    <SelectItem value="connections">Bạn bè</SelectItem>
-                                </SelectContent>
-                            </Select>
+                            {groupName ? (
+                                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                    <span>Đăng trong</span>
+                                    <span className="font-medium text-primary">{groupName}</span>
+                                </span>
+                            ) : (
+                                <Select defaultValue="anyone">
+                                    <SelectTrigger className="h-7 px-2 py-1 text-xs w-fit">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="anyone">Mọi người</SelectItem>
+                                        <SelectItem value="connections">Bạn bè</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            )}
                         </div>
                     </div>
                     <div className="space-y-1.5">

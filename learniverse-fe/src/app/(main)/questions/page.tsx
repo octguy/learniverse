@@ -67,10 +67,10 @@ export default function QuestionsPage() {
     }
 
     return (
-        <div className="mx-auto w-full max-w-6xl space-y-8 pb-12">
+        <div className="w-full space-y-8 pb-12 py-6 px-4 md:px-6 lg:px-8 mx-auto">
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="space-y-1">
-                    <h1 className="text-3xl font-semibold tracking-tight">
+                    <h1 className="text-2xl font-semibold tracking-tight">
                         Câu hỏi
                     </h1>
                     <p className="text-sm text-muted-foreground">
