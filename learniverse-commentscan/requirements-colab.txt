@@ -1,0 +1,9 @@
+# Additional requirements for Google Colab training
+# These are pre-installed in Colab but listed for reference
+
+# Already in requirements.txt:
+# torch, numpy, pandas, scikit-learn, tqdm, matplotlib, seaborn
+
+# Colab-specific (usually pre-installed):
+# google-colab
+# gdown  # For downloading from Google Drive

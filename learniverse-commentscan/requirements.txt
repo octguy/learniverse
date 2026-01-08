@@ -1,0 +1,14 @@
+# FastAPI Server
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.0.0
+
+# ML/Deep Learning (Inference)
+torch>=2.1.0
+
+# Vietnamese NLP
+underthesea>=6.8.0
+pyvi>=0.1.1
+
+# Optional: PhoBERT support (uncomment if using MODEL_TYPE=phobert)
+# transformers>=4.36.0
