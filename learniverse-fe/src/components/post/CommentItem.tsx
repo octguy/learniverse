@@ -13,13 +13,19 @@ import { toast } from "sonner";
 
 import { useAuth } from "@/context/AuthContext";
 
+import { cn } from "@/lib/utils";
+
+import { PostAuthor } from "@/types/post";
+
 interface CommentItemProps {
     comment: Comment;
     postId: string;
     commentableType: "POST" | "QUESTION" | "ANSWER";
+    depth?: number;
+    parentAuthor?: PostAuthor;
 }
 
-export function CommentItem({ comment, postId, commentableType }: CommentItemProps) {
+export function CommentItem({ comment, postId, commentableType, depth = 0, parentAuthor }: CommentItemProps) {
     const { user } = useAuth();
     const [isReplying, setIsReplying] = useState(false);
     const [showReplies, setShowReplies] = useState(false);
@@ -36,6 +42,13 @@ export function CommentItem({ comment, postId, commentableType }: CommentItemPro
         if (newShowReplies && replies.length === 0 && replyCount > 0) {
             await fetchReplies();
         }
+    };
+
+    const handleReplyClick = () => {
+        if (!isReplying) {
+            setReplyText(`@${comment.author.username} `);
+        }
+        setIsReplying(!isReplying);
     };
 
     const fetchReplies = async () => {
@@ -95,13 +108,39 @@ export function CommentItem({ comment, postId, commentableType }: CommentItemPro
                     </span>
                 </div>
                 <div className="text-sm text-foreground/90 whitespace-pre-line">
-                    {comment.body}
+                    {comment.body.split(/(@[\w._@]+)/g).map((part, index) => {
+                        if (part.startsWith("@") && part.length > 1) {
+                            const username = part.slice(1);
+
+                            let link = `/profile/${username}`;
+
+
+                            if (parentAuthor && parentAuthor.username === username) {
+                                link = `/profile/${parentAuthor.id}`;
+                            }
+                            else if (user && user.username === username) {
+                                link = `/profile/${user.id}`;
+                            }
+
+                            return (
+                                <a
+                                    key={index}
+                                    href={link}
+                                    className="text-blue-600 hover:underline font-medium"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    {part}
+                                </a>
+                            );
+                        }
+                        return part;
+                    })}
                 </div>
                 <div className="flex gap-4 mt-1 items-center">
                     <button className="text-xs font-medium text-muted-foreground hover:text-foreground">Thích</button>
                     <button
                         className="text-xs font-medium text-muted-foreground hover:text-foreground"
-                        onClick={() => setIsReplying(!isReplying)}
+                        onClick={handleReplyClick}
                     >
                         Phản hồi
                     </button>
@@ -144,12 +183,19 @@ export function CommentItem({ comment, postId, commentableType }: CommentItemPro
                 )}
 
                 {showReplies && (
-                    <div className="mt-4 space-y-4 pt-2">
+                    <div className={cn("mt-4 space-y-4 pt-2", depth >= 2 && "-ml-11")}>
                         {isLoadingReplies ? (
                             <div className="text-xs text-muted-foreground pl-4">Đang tải...</div>
                         ) : (
                             replies.map((reply) => (
-                                <CommentItem key={reply.id} comment={reply} postId={postId} commentableType={commentableType} />
+                                <CommentItem
+                                    key={reply.id}
+                                    comment={reply}
+                                    postId={postId}
+                                    commentableType={commentableType}
+                                    depth={depth + 1}
+                                    parentAuthor={comment.author}
+                                />
                             ))
                         )}
                     </div>

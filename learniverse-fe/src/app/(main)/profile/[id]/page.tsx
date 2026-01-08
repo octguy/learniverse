@@ -98,9 +98,10 @@ export default function UserProfilePage() {
     const fetchFriends = async () => {
         setLoadingTab(true);
         try {
-            const res = await friendService.getFriendsByUser(userId);
+            const targetId = profile?.user?.id || userId;
+            const res = await friendService.getFriendsByUser(targetId);
             // @ts-ignore
-            setFriends(res.data || res || []);
+            setFriends(res.data.data || []);
         } catch (error) {
             console.error("Error loading friends:", error);
         } finally {
@@ -154,6 +155,7 @@ export default function UserProfilePage() {
                 profile={profile}
                 isOwnProfile={isMe}
                 onRefresh={fetchProfile}
+                customPostCount={postCount}
             />
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -238,19 +240,19 @@ export default function UserProfilePage() {
                                     {friends.map(friend => (
                                         <div key={friend.id} className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 rounded-lg border shadow-sm">
                                             <div className="flex items-center gap-3">
-                                                <Avatar className="h-12 w-12 cursor-pointer" onClick={() => window.location.href = `/profile/${friend.id}`}>
+                                                <Avatar className="h-12 w-12 cursor-pointer" onClick={() => window.location.href = `/profile/${friend.userId}`}>
                                                     <AvatarImage src={friend.avatarUrl || ""} />
                                                     <AvatarFallback>{friend.username?.[0]?.toUpperCase()}</AvatarFallback>
                                                 </Avatar>
                                                 <div>
-                                                    <h3 className="font-semibold text-lg cursor-pointer hover:underline" onClick={() => window.location.href = `/profile/${friend.id}`}>
+                                                    <h3 className="font-semibold text-lg cursor-pointer hover:underline" onClick={() => window.location.href = `/profile/${friend.userId}`}>
                                                         {friend.displayName || friend.username}
                                                     </h3>
                                                     {friend.bio && <p className="text-sm text-gray-500 line-clamp-1">{friend.bio}</p>}
                                                 </div>
                                             </div>
                                             <Button asChild variant="outline" size="sm">
-                                                <a href={`/profile/${friend.id}`}>Xem</a>
+                                                <a href={`/profile/${friend.userId}`}>Xem</a>
                                             </Button>
                                         </div>
                                     ))}
