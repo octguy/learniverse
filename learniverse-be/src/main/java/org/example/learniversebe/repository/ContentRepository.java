@@ -164,6 +164,18 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
     Page<Content> findByContentType(ContentType contentType, Pageable pageable);
 
     /**
+     * Find posts in a group feed, sorted by pinned status and published date
+     */
+    @Query("SELECT c FROM Content c WHERE c.group.id = :groupId " +
+            "AND c.status = :status " +
+            "AND c.deletedAt IS NULL " +
+            "ORDER BY c.isPinned DESC, c.publishedAt DESC")
+    Page<Content> findByGroupIdAndStatusOrderByIsPinnedDescPublishedAtDesc(
+            @Param("groupId") UUID groupId,
+            @Param("status") ContentStatus status,
+            Pageable pageable);
+
+    /**
      * Check if content exists (exclude soft deleted)
      */
     @Query("SELECT COUNT(c) > 0 FROM Content c WHERE c.id = :id AND c.deletedAt IS NULL")
@@ -280,6 +292,11 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
     @Query("UPDATE Content c SET c.deletedAt = CURRENT_TIMESTAMP, c.updatedAt = CURRENT_TIMESTAMP " +
             "WHERE c.originalContent.id = :originalId AND c.deletedAt IS NULL")
     void softDeleteSharedPosts(@Param("originalId") UUID originalId);
+
+    @Modifying
+    @Query("UPDATE Content c SET c.deletedAt = CURRENT_TIMESTAMP, c.updatedAt = CURRENT_TIMESTAMP " +
+            "WHERE c.group.id = :groupId AND c.deletedAt IS NULL")
+    int softDeleteByGroupId(@Param("groupId") UUID groupId);
 
     // ==================== STATISTICS ====================
 

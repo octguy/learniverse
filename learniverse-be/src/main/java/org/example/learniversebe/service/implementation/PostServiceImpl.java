@@ -18,7 +18,6 @@ import org.example.learniversebe.service.IPostService;
 import org.example.learniversebe.service.IStorageService;
 import org.example.learniversebe.util.ServiceHelper;
 import org.example.learniversebe.util.SlugGenerator;
-import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -50,6 +49,7 @@ public class PostServiceImpl implements IPostService {
     private final ShareRepository shareRepository;
     private final IStorageService storageService;
     private final AttachmentRepository attachmentRepository;
+    private final GroupRepository groupRepository;
 
     @Value("${app.content.edit.limit-hours:24}") // Lấy từ application.properties, mặc định 24h
     private long editLimitHours;
@@ -69,7 +69,8 @@ public class PostServiceImpl implements IPostService {
                            ReactionRepository reactionRepository,
                            BookmarkRepository bookmarkRepository,
                            ShareRepository shareRepository, IStorageService storageService,
-                           AttachmentRepository attachmentRepository
+                           AttachmentRepository attachmentRepository,
+                           GroupRepository groupRepository
     ) {
         this.contentRepository = contentRepository;
         this.userRepository = userRepository;
@@ -86,6 +87,7 @@ public class PostServiceImpl implements IPostService {
         this.shareRepository = shareRepository;
         this.storageService = storageService;
         this.attachmentRepository = attachmentRepository;
+        this.groupRepository = groupRepository;
     }
 
     @Override
@@ -103,6 +105,13 @@ public class PostServiceImpl implements IPostService {
             content.setPublishedAt(LocalDateTime.now());
         }
         content.setSlug(slugGenerator.generateSlug(request.getTitle() != null ? request.getTitle() : request.getBody().substring(0, Math.min(request.getBody().length(), 50)))); // Tạo slug
+
+        // Bind group if posting in a group
+        if (request.getGroupId() != null) {
+            Group group = groupRepository.findById(request.getGroupId())
+                .orElseThrow(() -> new ResourceNotFoundException("Group not found with id: " + request.getGroupId()));
+            content.setGroup(group);
+        }
 
         associateTags(content, request.getTagIds());
 
@@ -161,39 +170,26 @@ public class PostServiceImpl implements IPostService {
     @Transactional
     @Override
     public PostResponse updatePostStatus(UUID postId, ContentStatus newStatus) {
+        if (newStatus == null) {
+            throw new BadRequestException("Status must not be null");
+        }
+
         User currentUser = serviceHelper.getCurrentUser();
 
         Content content = contentRepository.findByIdAndContentType(postId, ContentType.POST)
-                .orElseThrow(() -> new ResourceNotFoundException("Post not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Post not found with id: " + postId));
 
         if (!content.getAuthor().getId().equals(currentUser.getId())) {
             throw new UnauthorizedException("Not authorized to update status of this post");
         }
 
-        if (newStatus == ContentStatus.DELETED) {
-            throw new BadRequestException("Use delete API to delete content");
-        }
-
-        if (newStatus == ContentStatus.DRAFT) {
-            throw new BadRequestException("Cannot change status of a published post to draft");
-        }
-
-        ContentStatus oldStatus = content.getStatus();
-
-        if (oldStatus == newStatus) {
+        if (content.getStatus() == newStatus) {
             return getPostResponseWithInteraction(content);
         }
 
         content.setStatus(newStatus);
-        content.setLastEditedAt(LocalDateTime.now());
-
         if (newStatus == ContentStatus.PUBLISHED) {
-            if (content.getPublishedAt() == null) {
-                content.setPublishedAt(LocalDateTime.now());
-            } else {
-                content.setPublishedAt(content.getPublishedAt());
-                content.setUpdatedAt(LocalDateTime.now());
-            }
+            content.setPublishedAt(LocalDateTime.now());
         }
 
         Content saved = contentRepository.save(content);
@@ -201,21 +197,39 @@ public class PostServiceImpl implements IPostService {
     }
 
     @Override
-    public PageResponse<PostSummaryResponse> getNewsfeedPosts(Pageable pageable) {
-        List<ContentType> types = List.of(ContentType.POST, ContentType.SHARED_POST);
-        Page<Content> page = contentRepository.findByContentTypeInAndStatus(
-                types, ContentStatus.PUBLISHED, pageable);
+    @Transactional
+    public PostResponse publishPost(UUID postId) {
+        User currentUser = serviceHelper.getCurrentUser();
 
-        page.getContent().forEach(content -> {
-            if (content.getAuthor() != null) {
-                Hibernate.initialize(content.getAuthor().getUserProfile());
-            }
-        });
+        Content content = contentRepository.findByIdAndContentType(postId, ContentType.POST)
+                .orElseThrow(() -> new ResourceNotFoundException("Post not found"));
+
+        if (!content.getAuthor().getId().equals(currentUser.getId())) {
+            throw new UnauthorizedException("Not authorized to publish this post");
+        }
+
+        if (content.getStatus() == ContentStatus.PUBLISHED) {
+            throw new BadRequestException("Post is already published");
+        }
+
+        content.setStatus(ContentStatus.PUBLISHED);
+        content.setPublishedAt(LocalDateTime.now());
+        Content saved = contentRepository.save(content);
+        return getPostResponseWithInteraction(saved);
+    }
+
+    @Override
+    public PageResponse<PostSummaryResponse> getNewsfeedPosts(Pageable pageable) {
+        Page<Content> page = contentRepository.findByContentTypeAndStatus(
+                ContentType.POST, ContentStatus.PUBLISHED, pageable);
 
         PageResponse<PostSummaryResponse> response = contentMapper.contentPageToPostSummaryPage(page);
 
         UUID currentUserId = serviceHelper.getCurrentUserId();
         if (currentUserId != null && response.getContent() != null) {
+            List<UUID> postIds = response.getContent().stream()
+                    .map(PostSummaryResponse::getId).toList();
+
             for (PostSummaryResponse post : response.getContent()) {
                 post.setBookmarkedByCurrentUser(
                         interactionService.isContentBookmarkedByUser(post.getId()));
@@ -234,15 +248,36 @@ public class PostServiceImpl implements IPostService {
         if (!userRepository.existsById(authorId)) {
             throw new ResourceNotFoundException("Author not found with id: " + authorId);
         }
-        List<ContentType> types = List.of(ContentType.POST, ContentType.SHARED_POST);
-        Page<Content> postPage = contentRepository.findByAuthorIdAndContentTypeInAndStatusOrderByPublishedAtDesc(
-                authorId, types, ContentStatus.PUBLISHED, pageable);
+        Page<Content> postPage = contentRepository.findByAuthorIdAndContentTypeAndStatusOrderByPublishedAtDesc(authorId, ContentType.POST, ContentStatus.PUBLISHED, pageable);
+        return contentMapper.contentPageToPostSummaryPage(postPage);
+    }
 
-        postPage.getContent().forEach(content -> {
-            if (content.getAuthor() != null) {
-                Hibernate.initialize(content.getAuthor().getUserProfile());
-            }
-        });
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<PostSummaryResponse> getMyArchivedPosts(Pageable pageable) {
+        UUID currentUserId = serviceHelper.getCurrentUser().getId();
+        Page<Content> postPage = contentRepository.findByAuthorIdAndContentTypeAndStatusOrderByPublishedAtDesc(
+                currentUserId,
+                ContentType.POST,
+                ContentStatus.ARCHIVED,
+                pageable
+        );
+        return contentMapper.contentPageToPostSummaryPage(postPage);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<PostSummaryResponse> getMyPosts(ContentStatus status, Pageable pageable) {
+        UUID currentUserId = serviceHelper.getCurrentUser().getId();
+        ContentStatus effectiveStatus = status != null ? status : ContentStatus.PUBLISHED;
+
+        Page<Content> postPage = contentRepository.findByAuthorIdAndContentTypeAndStatusOrderByPublishedAtDesc(
+                currentUserId,
+                ContentType.POST,
+                effectiveStatus,
+                pageable
+        );
+
         return contentMapper.contentPageToPostSummaryPage(postPage);
     }
 
@@ -253,11 +288,6 @@ public class PostServiceImpl implements IPostService {
             throw new ResourceNotFoundException("Tag not found with id: " + tagId);
         }
         Page<Content> postPage = contentRepository.findPublishedPostsByTagId(tagId, pageable);
-        postPage.getContent().forEach(content -> {
-            if (content.getAuthor() != null) {
-                Hibernate.initialize(content.getAuthor().getUserProfile());
-            }
-        });
         return contentMapper.contentPageToPostSummaryPage(postPage);
     }
 
@@ -265,96 +295,25 @@ public class PostServiceImpl implements IPostService {
     @Override
     @Transactional
     public PostResponse getPostById(UUID postId) {
-        Content content = contentRepository.findById(postId)
-                .orElseThrow(() -> new ResourceNotFoundException("Post not found"));
+        Content content = contentRepository.findByIdAndContentTypeAndStatus(postId, ContentType.POST, ContentStatus.PUBLISHED)
+                .orElseThrow(() -> new ResourceNotFoundException("Post not found with id: " + postId));
 
-        if (content.getContentType() != ContentType.POST && content.getContentType() != ContentType.SHARED_POST) {
-            throw new ResourceNotFoundException("Post not found");
-        }
-
-        User currentUser = serviceHelper.getCurrentUser();
-
-        if (content.getAuthor() != null) {
-            Hibernate.initialize(content.getAuthor().getUserProfile());
-        }
-
-        boolean isAuthor = currentUser != null && content.getAuthor().getId().equals(currentUser.getId());
-        boolean isPublished = content.getStatus() == ContentStatus.PUBLISHED;
-
-        if (!isPublished && !isAuthor) {
-            throw new ResourceNotFoundException("Post not found or not accessible");
-        }
-
-        if (isPublished && !isAuthor) {
-            content.setViewCount(content.getViewCount() + 1);
-            contentRepository.save(content);
-        }
+        content.setViewCount(content.getViewCount() + 1);
+        contentRepository.save(content);
 
         return getPostResponseWithInteraction(content);
     }
 
     @Override
-    public PageResponse<PostSummaryResponse> getMyDraftPosts(Pageable pageable) {
-        User currentUser = serviceHelper.getCurrentUser();
-
-        Page<Content> draftPage = contentRepository.findByAuthorIdAndContentTypeAndStatusOrderByUpdatedAtDesc(
-                currentUser.getId(), ContentType.POST, ContentStatus.DRAFT, pageable);
-
-        draftPage.getContent().forEach(content -> {
-            if (content.getAuthor() != null) {
-                Hibernate.initialize(content.getAuthor().getUserProfile());
-            }
-        });
-
-        return contentMapper.contentPageToPostSummaryPage(draftPage);
-    }
-
     @Transactional(readOnly = true)
-    @Override
-    public PageResponse<PostSummaryResponse> getMyArchivedPosts(Pageable pageable) {
-        User currentUser = serviceHelper.getCurrentUser();
-
-        Page<Content> archivedPage = contentRepository.findByAuthorIdAndContentTypeAndStatusOrderByUpdatedAtDesc(
-                currentUser.getId(),
+    public PageResponse<PostSummaryResponse> getMyDraftPosts(Pageable pageable) {
+        UUID currentUserId = serviceHelper.getCurrentUser().getId();
+        Page<Content> postPage = contentRepository.findByAuthorIdAndContentTypeAndStatusOrderByPublishedAtDesc(
+                currentUserId,
                 ContentType.POST,
-                ContentStatus.ARCHIVED,
+                ContentStatus.DRAFT,
                 pageable
         );
-
-        archivedPage.getContent().forEach(content -> {
-            if (content.getAuthor() != null) {
-                Hibernate.initialize(content.getAuthor().getUserProfile());
-            }
-        });
-
-        return contentMapper.contentPageToPostSummaryPage(archivedPage);
-    }
-
-    @Transactional(readOnly = true)
-    @Override
-    public PageResponse<PostSummaryResponse> getMyPosts(ContentStatus status, Pageable pageable) {
-        User currentUser = serviceHelper.getCurrentUser();
-
-        ContentStatus searchStatus = (status != null) ? status : ContentStatus.PUBLISHED;
-
-        List<ContentType> types = List.of(ContentType.POST, ContentType.SHARED_POST);
-
-        Page<Content> postPage;
-
-        if (searchStatus == ContentStatus.DRAFT || searchStatus == ContentStatus.ARCHIVED) {
-            postPage = contentRepository.findByAuthorIdAndContentTypeInAndStatusOrderByUpdatedAtDesc(
-                    currentUser.getId(), types, searchStatus, pageable);
-        } else {
-            postPage = contentRepository.findByAuthorIdAndContentTypeInAndStatusOrderByPublishedAtDesc(
-                    currentUser.getId(), types, searchStatus, pageable);
-        }
-
-        postPage.getContent().forEach(content -> {
-            if (content.getAuthor() != null) {
-                Hibernate.initialize(content.getAuthor().getUserProfile());
-            }
-        });
-
         return contentMapper.contentPageToPostSummaryPage(postPage);
     }
 
@@ -363,10 +322,6 @@ public class PostServiceImpl implements IPostService {
     public PostResponse getPostBySlug(String slug) {
         Content content = contentRepository.findBySlugAndContentTypeAndStatus(slug, ContentType.POST, ContentStatus.PUBLISHED)
                 .orElseThrow(() -> new ResourceNotFoundException("Post not found with slug: " + slug));
-
-        if (content.getAuthor() != null) {
-            Hibernate.initialize(content.getAuthor().getUserProfile());
-        }
 
         content.setViewCount(content.getViewCount() + 1);
         contentRepository.save(content);
@@ -407,24 +362,16 @@ public class PostServiceImpl implements IPostService {
             content.setSlug(slugGenerator.generateSlug(request.getTitle()));
         }
 
-        contentTagRepository.deleteAll(content.getContentTags());
+        // Fix cascade issue: delete old tags, flush to DB, then create new ones
+        Set<ContentTag> oldTags = new HashSet<>(content.getContentTags());
         content.getContentTags().clear();
+        contentRepository.saveAndFlush(content); // Flush để xóa associations trong DB
+        contentTagRepository.deleteAll(oldTags);  // Xóa các ContentTag cũ
+        contentTagRepository.flush();             // Đảm bảo delete hoàn tất trước khi insert
+
         associateTags(content, request.getTagIds());
 
-        if (request.getAttachmentsToDelete() != null && !request.getAttachmentsToDelete().isEmpty()) {
-            List<Attachment> attachmentsToDelete = attachmentRepository.findAllById(request.getAttachmentsToDelete());
-
-            attachmentsToDelete.removeIf(att -> !att.getContent().getId().equals(postId));
-
-            // Xóa file trên Cloud
-            // for (Attachment att : attachmentsToDelete) {
-            //      storageService.deleteFile(att.getStorageKey());
-            // }
-
-            attachmentsToDelete.forEach(content.getAttachments()::remove);
-            attachmentRepository.deleteAll(attachmentsToDelete);
-        }
-
+        // Append new attachments if provided
         if (files != null && !files.isEmpty()) {
             List<Attachment> newAttachments = new ArrayList<>();
             for (MultipartFile file : files) {
@@ -539,12 +486,6 @@ public class PostServiceImpl implements IPostService {
             return PageResponse.<PostSummaryResponse>builder().content(List.of()).build(); // Trả về trang rỗng nếu query trống
         }
         Page<Content> postPage = contentRepository.searchPublishedPosts(query, pageable);
-
-        postPage.getContent().forEach(content -> {
-            if (content.getAuthor() != null) {
-                Hibernate.initialize(content.getAuthor().getUserProfile());
-            }
-        });
         return contentMapper.contentPageToPostSummaryPage(postPage);
     }
 

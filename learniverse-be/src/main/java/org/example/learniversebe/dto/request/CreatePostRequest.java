@@ -28,5 +28,8 @@ public class CreatePostRequest {
 
     @Schema(description = "Trạng thái bài viết (DRAFT hoặc PUBLISHED). Mặc định là PUBLISHED nếu null")
     private ContentStatus status;
+
+    @Schema(description = "ID nhóm (nếu đăng bài trong nhóm)")
+    private UUID groupId;
 }
 

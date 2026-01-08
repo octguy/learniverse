@@ -5,6 +5,7 @@ import org.example.learniversebe.dto.request.CreateAnswerRequest;
 import org.example.learniversebe.dto.request.UpdateAnswerRequest;
 import org.example.learniversebe.dto.response.AnswerResponse;
 import org.example.learniversebe.dto.response.PageResponse;
+import org.example.learniversebe.enums.AttachmentType;
 import org.example.learniversebe.enums.ContentType;
 import org.example.learniversebe.enums.ReactableType;
 import org.example.learniversebe.enums.VotableType;
@@ -16,6 +17,7 @@ import org.example.learniversebe.model.*;
 import org.example.learniversebe.repository.*;
 import org.example.learniversebe.service.IAnswerService;
 import org.example.learniversebe.service.IInteractionService;
+import org.example.learniversebe.service.INotificationService;
 import org.example.learniversebe.util.ServiceHelper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
@@ -24,9 +26,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.Optional;
-import java.util.UUID;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -42,7 +45,7 @@ public class AnswerServiceImpl implements IAnswerService {
     private final VoteRepository voteRepository;
     private final ReactionRepository reactionRepository;
 
-    @Value("${app.answer.edit.limit-minutes:60}")
+    @Value("${app.answer.edit.limit-minutes:30}")
     private long answerEditLimitMinutes;
 
     public AnswerServiceImpl(AnswerRepository answerRepository,
@@ -50,13 +53,15 @@ public class AnswerServiceImpl implements IAnswerService {
                              UserRepository userRepository,
                              AnswerMapper answerMapper,
                              ServiceHelper serviceHelper,
-                             @Lazy IInteractionService interactionService, VoteRepository voteRepository, ReactionRepository reactionRepository) {
+                             @Lazy IInteractionService interactionService, VoteRepository voteRepository, ReactionRepository reactionRepository
+            /*, INotificationService notificationService */) {
         this.answerRepository = answerRepository;
         this.contentRepository = contentRepository;
         this.userRepository = userRepository;
         this.answerMapper = answerMapper;
         this.serviceHelper = serviceHelper;
         this.interactionService = interactionService;
+        // this.notificationService = notificationService;
         this.voteRepository = voteRepository;
         this.reactionRepository = reactionRepository;
     }

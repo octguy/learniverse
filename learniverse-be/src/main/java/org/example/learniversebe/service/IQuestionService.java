@@ -99,6 +99,7 @@ public interface IQuestionService {
      *
      * @param questionId The UUID of the question to update.
      * @param request    Data transfer object containing updated details and edit reason.
+     * @param files      Optional new attachments to add.
      * @return DTO representing the updated question.
      * @throws org.example.learniversebe.exception.ResourceNotFoundException if the question is not found.
      * @throws org.example.learniversebe.exception.UnauthorizedException if the user is not the author or edit time limit exceeded.

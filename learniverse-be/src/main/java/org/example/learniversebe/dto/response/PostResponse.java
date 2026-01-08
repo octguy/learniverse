@@ -74,6 +74,18 @@ public class PostResponse {
     @Schema(description = "Bài đăng gốc")
     private PostSummaryResponse originalPost;
 
+    @Schema(description = "ID nhóm (nếu đăng trong nhóm)")
+    private UUID groupId;
+
+    @Schema(description = "Tên nhóm (nếu đăng trong nhóm)")
+    private String groupName;
+
+    @Schema(description = "Slug nhóm (nếu đăng trong nhóm)")
+    private String groupSlug;
+
+    @Schema(description = "Ảnh đại diện nhóm (nếu đăng trong nhóm)")
+    private String groupAvatarUrl;
+
     // Trạng thái của người dùng hiện tại đối với post này
     @Schema(description = "Đã được người dùng lưu lại hay chưa")
     private boolean bookmarkedByCurrentUser;

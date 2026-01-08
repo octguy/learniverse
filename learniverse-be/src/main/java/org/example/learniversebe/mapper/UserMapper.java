@@ -44,6 +44,9 @@ public interface UserMapper {
     Set<UserResponse> toUserResponseSet(Set<User> users);
     @Mapping(source = "user.id", target = "userId")
     @Mapping(source = "user.username", target = "username")
+    @Mapping(target = "interestTags", ignore = true)
+    @Mapping(target = "skillTags", ignore = true)
+    @Mapping(target = "role", ignore = true)
     UserProfileResponse toProfileResponse(UserProfile userProfile);
 
     @Named("mapAvatarUrl")

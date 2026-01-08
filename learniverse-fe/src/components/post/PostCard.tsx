@@ -35,6 +35,11 @@ import {
   CheckCircle,
   HelpCircle,
   Bookmark,
+  Edit,
+  Trash2,
+  Flag,
+  Copy,
+  Send as SendIcon,
 } from "lucide-react"
 import { MarkdownRenderer } from "./MarkdownRenderer"
 import type { Post } from "@/types/post"
@@ -45,10 +50,10 @@ import { toast } from "sonner"
 import { useAuth } from "@/context/AuthContext"
 import { Dialog } from "@/components/ui/dialog"
 import CreatePostModal from "./CreatePostModal"
-import { Edit, Trash2, Flag, Copy, Send as SendIcon } from "lucide-react"
 import { SharePostDialog } from "./SharePostDialog"
 import { postService } from "@/lib/api/postService"
 import { shareService } from "@/lib/api/shareService"
+
 const REACTIONS_CONFIG = [
   {
     type: "LIKE" as ReactionType,
@@ -86,9 +91,10 @@ interface PostCardProps {
   post: Post
   onDelete?: (postId: string) => void
   initialCollectionName?: string
+  showGroupName?: boolean
 }
 
-export function PostCard({ post, onDelete, initialCollectionName }: PostCardProps) {
+export function PostCard({ post, onDelete, initialCollectionName, showGroupName = true }: PostCardProps) {
   const { user } = useAuth()
   const { author, title, body, tags = [], attachments = [], createdAt, lastEditedAt } = post
 
@@ -258,59 +264,112 @@ export function PostCard({ post, onDelete, initialCollectionName }: PostCardProp
     <Card className="w-full max-w-2xl mx-auto overflow-visible">
       <CardHeader className="p-4 pb-1 space-y-3">
         <div className="flex items-center gap-3">
-          <div
-            className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => window.location.href = `/profile/${author.id}`}
-          >
-            <Avatar className="h-10 w-10">
-              <AvatarImage src={author.avatarUrl || author.avatar || ""} />
-              <AvatarFallback>{author.username?.charAt(0)?.toUpperCase()}</AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 flex-1">
-              <p className="font-semibold text-sm leading-none truncate hover:underline">
-                {author.username}
-              </p>
-              <div className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
-                <span>
-                  {!isNaN(postDate.getTime()) ? (
-                    formatDistanceToNow(postDate, { addSuffix: true, locale: vi })
-                  ) : (
-                    "Vừa xong"
-                  )}
-                </span>
-                {(() => {
-                  if (!lastEditedAt) return null;
-
-                  const created = new Date(createdAt).getTime();
-                  const edited = new Date(lastEditedAt).getTime();
-
-
-                  const normalize = (d: string) => {
-                    try {
-                      return d.split('.')[0].replace('Z', '').replace(/[+-]\d{2}:\d{2}$/, '');
-                    } catch (e) { return d; }
-                  };
-
-                  const isSameWallClock = normalize(createdAt) === normalize(lastEditedAt);
-
-                  if (isSameWallClock || edited <= created + 60 * 1000) {
-                    return null;
-                  }
-                  const diff = Math.abs(edited - created);
-                  if (diff > 60000 && diff % 3600000 === 0) {
-                    return null;
-                  }
-
-                  return (
+          {/* Group post header - Facebook style */}
+          {showGroupName && post.groupName ? (
+            <>
+              {/* Group avatar with nested user avatar */}
+              <a href={`/groups/${post.groupSlug}`} className="relative shrink-0">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={post.groupAvatarUrl} />
+                  <AvatarFallback className="bg-primary/10 text-primary">
+                    {post.groupName.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                {/* User avatar nested */}
+                <Avatar className="h-6 w-6 absolute -bottom-1 -right-1 border-2 border-background">
+                  <AvatarImage src={author.avatarUrl || (author as any).avatar || ""} />
+                  <AvatarFallback className="text-xs">{author.username?.charAt(0)}</AvatarFallback>
+                </Avatar>
+              </a>
+              <div className="min-w-0 flex-1">
+                {/* Group name */}
+                <a 
+                  href={`/groups/${post.groupSlug}`}
+                  className="font-semibold text-sm leading-none hover:underline"
+                >
+                  {post.groupName}
+                </a>
+                {/* User name + time */}
+                <div className="mt-1 text-xs text-muted-foreground flex items-center gap-1 flex-wrap">
+                  <span 
+                    className="font-medium text-foreground cursor-pointer hover:underline"
+                    onClick={() => window.location.href = `/profile/${author.id}`}
+                  >
+                    {author.username}
+                  </span>
+                  <span>•</span>
+                  <span>
+                    {!isNaN(postDate.getTime()) ? (
+                      formatDistanceToNow(postDate, { addSuffix: true, locale: vi })
+                    ) : (
+                      "Vừa xong"
+                    )}
+                  </span>
+                  {(
                     <>
                       <span>•</span>
                       <span className="italic">Đã chỉnh sửa</span>
                     </>
-                  );
-                })()}
+                  )}
+                </div>
+              </div>
+            </>
+          ) : (
+            /* Personal post header */
+            <div
+              className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => window.location.href = `/profile/${author.id}`}
+            >
+              <Avatar className="h-10 w-10">
+                <AvatarImage src={author.avatarUrl || (author as any).avatar || ""} />
+                <AvatarFallback>{author.username?.charAt(0)?.toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-sm leading-none truncate hover:underline">
+                  {author.username}
+                </p>
+                <div className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
+                  <span>
+                    {!isNaN(postDate.getTime()) ? (
+                      formatDistanceToNow(postDate, { addSuffix: true, locale: vi })
+                    ) : (
+                      "Vừa xong"
+                    )}
+                  </span>
+                  {(() => {
+                    if (!lastEditedAt) return null;
+
+                    const created = new Date(createdAt).getTime();
+                    const edited = new Date(lastEditedAt).getTime();
+
+
+                    const normalize = (d: string) => {
+                      try {
+                        return d.split('.')[0].replace('Z', '').replace(/[+-]\d{2}:\d{2}$/, '');
+                      } catch (e) { return d; }
+                    };
+
+                    const isSameWallClock = normalize(createdAt) === normalize(lastEditedAt);
+
+                    if (isSameWallClock || edited <= created + 60 * 1000) {
+                      return null;
+                    }
+                    const diff = Math.abs(edited - created);
+                    if (diff > 60000 && diff % 3600000 === 0) {
+                      return null;
+                    }
+
+                    return (
+                      <>
+                        <span>•</span>
+                        <span className="italic">Đã chỉnh sửa</span>
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
             </div>
-          </div>
+          )}
           <div className="ml-auto flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -403,7 +462,11 @@ export function PostCard({ post, onDelete, initialCollectionName }: PostCardProp
 
       <CardContent className="p-4 pt-0">
         <div className="mb-4">
-          <MarkdownRenderer content={body} />
+          {body ? (
+            <MarkdownRenderer content={body} />
+          ) : (
+            <p className="text-muted-foreground">Nội dung bài viết...</p>
+          )}
         </div>
 
         {displayOriginalPost && (

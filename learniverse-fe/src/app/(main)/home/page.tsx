@@ -38,28 +38,39 @@ export default function MainPage() {
       }
     } */
   //hot fix "bodyExcerpt": null from /api/v1/posts/feed
+  // Lấy toàn bộ post (cá nhân + nhóm) rồi render UI tuỳ theo groupId
   const fetchPosts = async () => {
     setLoading(true)
     setError("")
     try {
       const feedRes = await postService.getNewsfeed(0, 20)
-      if (!feedRes.data || !feedRes.data.content) {
+      const summaries = (feedRes.data?.content ?? []).filter(
+        (item: any) => item.contentType === "POST",
+      )
+
+      if (summaries.length === 0) {
         setPosts([])
         return
       }
 
-      const detailPromises = feedRes.data.content.map((summary: any) =>
-        postService.getPostById(summary.id),
+      const detailResponses = await Promise.all(
+        summaries.map((summary: any) => postService.getPostById(summary.id)),
       )
 
-      const detailResponses = await Promise.all(detailPromises)
-
-      const fullPosts = detailResponses.map((response) => {
-        console.log("getPostById response:", response)
-        return response.data
-      })
-
-      console.log("fullPosts:", fullPosts)
+      const fullPosts = detailResponses
+        .map((response, idx) => {
+          const summary = summaries[idx]
+          const data = response.data
+          // preserve group context from summary when detail omits it
+          return {
+            ...data,
+            groupId: data.groupId ?? summary.groupId,
+            groupName: data.groupName ?? summary.groupName,
+            groupSlug: data.groupSlug ?? summary.groupSlug,
+            groupAvatarUrl: data.groupAvatarUrl ?? summary.groupAvatarUrl,
+          }
+        })
+        .filter((post) => post.contentType === "POST")
 
       setPosts(fullPosts)
     } catch (err) {

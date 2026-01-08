@@ -59,11 +59,15 @@ const MAX_PDF_SIZE_BYTES = MAX_PDF_SIZE_MB * 1024 * 1024
 export default function CreatePostModalContent({
     setOpen,
     onSuccess,
-    initialData
+    initialData,
+    groupId,
+    groupName
 }: {
     setOpen: (open: boolean) => void
     onSuccess: () => void
     initialData?: Post
+    groupId?: string
+    groupName?: string
 }) {
     const { user } = useAuth()
     const [title, setTitle] = useState("")
@@ -227,7 +231,8 @@ export default function CreatePostModalContent({
                 title: title,
                 body: content,
                 tagIds: selectedTags.map(tag => tag.id),
-                status: "PUBLISHED" as "PUBLISHED" | "DRAFT"
+                status: "PUBLISHED" as "PUBLISHED" | "DRAFT",
+                groupId: groupId || undefined
             };
             const filesToUpload = [...images, ...pdfs];
 
@@ -281,7 +286,7 @@ export default function CreatePostModalContent({
         <DialogContent className="max-w-5xl p-0">
             <DialogHeader className="p-6 pb-2">
                 <DialogTitle className="text-center text-xl font-bold">
-                    Tạo bài đăng mới
+                    {groupName ? `Đăng bài trong nhóm: ${groupName}` : "Tạo bài đăng mới"}
                 </DialogTitle>
             </DialogHeader>
 
@@ -303,15 +308,22 @@ export default function CreatePostModalContent({
                         </Avatar>
                         <div className="flex flex-col">
                             <span className="font-semibold text-sm">{user?.username}</span>
-                            <Select defaultValue="anyone">
-                                <SelectTrigger className="h-7 px-2 py-1 text-xs w-fit">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="anyone">Mọi người</SelectItem>
-                                    <SelectItem value="connections">Bạn bè</SelectItem>
-                                </SelectContent>
-                            </Select>
+                            {groupName ? (
+                                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                    <span>Đăng trong</span>
+                                    <span className="font-medium text-primary">{groupName}</span>
+                                </span>
+                            ) : (
+                                <Select defaultValue="anyone">
+                                    <SelectTrigger className="h-7 px-2 py-1 text-xs w-fit">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="anyone">Mọi người</SelectItem>
+                                        <SelectItem value="connections">Bạn bè</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            )}
                         </div>
                     </div>
                     <div className="space-y-1.5">

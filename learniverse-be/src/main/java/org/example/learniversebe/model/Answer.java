@@ -8,6 +8,8 @@ import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -50,6 +52,9 @@ public class Answer extends BaseEntity {
 
     @OneToOne(mappedBy = "acceptedAnswer")
     private Content acceptedInQuestion;
+
+    @OneToMany(mappedBy = "answer", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private Set<Attachment> attachments = new HashSet<>();
 
     @PrePersist
     protected void onCreate() {
