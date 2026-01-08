@@ -22,16 +22,7 @@ If you use Docker, add that to the end of step 1 build. I couldnt care enough to
 
 By default also, if it finds a NVIDIA GPU on your computer (with CUDA installed) and installed `torch` supports, it will try to run with `cuda` on your GPU. If you dont need it, pass `FORCE_CPU` into the env vars. The default `Dockerfile` already install a CPU-only version of torch.
 
-## 📋 Features
-
-- **Multi-label Classification**: Detects multiple categories simultaneously
-  - `toxic_offensive`: Toxic behavior or offensive language (bad words)
-  - `hate_speech`: Targeted hate speech against groups
-- **Vietnamese NLP**: Built-in Vietnamese text preprocessing and word segmentation
-- **REST API**: FastAPI service with automatic documentation
-- **Docker Ready**: Easy deployment with Docker/Podman
-
-## 🏗️ Project Structure
+## Project Structure
 
 ```
 learniverse-ai/
@@ -60,12 +51,12 @@ learniverse-ai/
 └── README.md
 ```
 
-## 🚀 Quick Start
+## Quick Start (for running it raw)
 
 ### 1. Install Dependencies
 
 ```bash
-# Activate conda (if using conda)
+# Activate conda (if using conda), replace with your conda command.
 source ~/miniconda3/bin/activate
 
 # Install dependencies
@@ -76,8 +67,8 @@ pip install -r requirements.txt
 
 Download the datasets and place them in `data/raw/`:
 
-- **ViHSD**: Contact [sonlt@uit.edu.vn](mailto:sonlt@uit.edu.vn)
-- **UIT-ViCTSD**: Contact [17520721@gm.uit.edu.vn](mailto:17520721@gm.uit.edu.vn)
+- **ViHSD**: https://github.com/sonlam1102/vihsd
+- **ViCTSD**: https://github.com/tarudesu/ViCTSD
 
 Expected files:
 ```
@@ -92,7 +83,8 @@ data/raw/
 
 ### 3. Train the Model
 
-**Option A: Local (if you have enough VRAM)**
+**Option A: Local**
+Ensure that you have installed the dependencies. For faster training, install CUDA too.
 ```bash
 cd notebooks
 jupyter notebook train_bilstm.ipynb
@@ -195,20 +187,9 @@ Edit in `src/preprocessing/text_preprocessor.py`:
 - `normalize_teencode`: Convert slang to standard Vietnamese
 - `word_segmentation`: Apply Vietnamese word segmentation
 
-## 📊 Model Performance
-
-*(Update after training)*
-
-| Metric | toxic_offensive | hate_speech |
-|--------|-----------------|-------------|
-| Precision | - | - |
-| Recall | - | - |
-| F1-score | - | - |
-
-## 🔜 Future Improvements
+## Future Improvements
 
 - [ ] Add spam detection
-- [ ] Upgrade to PhoBERT for better accuracy
 - [ ] Add confidence calibration
 - [ ] Implement model versioning
 - [ ] Add rate limiting
@@ -217,7 +198,7 @@ Edit in `src/preprocessing/text_preprocessor.py`:
 
 MIT License
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - [UIT NLP Group](https://nlp.uit.edu.vn/) for Vietnamese datasets
 - [VinAI](https://github.com/VinAIResearch) for PhoBERT
