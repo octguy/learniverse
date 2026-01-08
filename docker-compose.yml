@@ -1,0 +1,77 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: learniverse-postgres
+    environment:
+      POSTGRES_DB: learniverse
+      POSTGRES_USER: ${SPRING_DATASOURCE_USERNAME}
+      POSTGRES_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - learniverse_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SPRING_DATASOURCE_USERNAME} -d learniverse"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./learniverse-be
+      dockerfile: Dockerfile
+    container_name: learniverse-backend
+    environment:
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+      SPRING_JWT_SECRET_KEY: ${SPRING_JWT_SECRET_KEY}
+      SPRING_JWT_SECRET_KEY_EXPIRATION: ${SPRING_JWT_SECRET_KEY_EXPIRATION}
+      REFRESH_TOKEN_EXPIRATION: ${REFRESH_TOKEN_EXPIRATION}
+      RESET_PASSWORD_TOKEN_EXPIRATION: ${RESET_PASSWORD_TOKEN_EXPIRATION}
+      VERIFICATION_CODE_EXPIRATION: ${VERIFICATION_CODE_EXPIRATION}
+      SUPPORT_EMAIL: ${SUPPORT_EMAIL}
+      APP_PASSWORD: ${APP_PASSWORD}
+      CLOUD_NAME: ${CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+      CLOUDINARY_FOLDER: ${CLOUDINARY_FOLDER}
+    ports:
+      - "8030:8030"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - learniverse_network
+
+  frontend:
+    build:
+      context: ./learniverse-fe
+      dockerfile: Dockerfile
+    container_name: learniverse-frontend
+    ports:
+      - "8386:8386"
+    depends_on:
+      - backend
+    networks:
+      - learniverse_network
+
+  commentscan:
+    image: honguyenminh/learniverse-commentscan:latest
+    build:
+      context: ./learniverse-commentscan
+      dockerfile: Dockerfile
+
+    container_name: learniverse-commentscan
+    ports:
+      - "8000:8000"
+    networks:
+      - learniverse_network
+
+networks:
+  learniverse_network:
+
+volumes:
+  postgres_data:

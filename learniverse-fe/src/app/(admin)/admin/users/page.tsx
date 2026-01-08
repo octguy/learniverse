@@ -347,7 +347,7 @@ export default function UsersManagementPage() {
             <DialogTitle>Cập nhật trạng thái</DialogTitle>
             <DialogDescription>
               Kiểm soát trạng thái hoạt động của <b>{selectedUser?.username}</b>.<br/>
-              <span className="text-xs text-muted-foreground">Lưu ý: Để cấm người dùng, vui lòng sử dụng chức năng "Cấm người dùng".</span>
+              <span className="text-xs text-muted-foreground">Lưu ý: Để cấm người dùng, vui lòng sử dụng chức năng &quot;Cấm người dùng&quot;.</span>
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">

@@ -23,7 +23,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
             if (storedUserStr) {
                 try {
-                    let storedUser = JSON.parse(storedUserStr);
+                    const storedUser = JSON.parse(storedUserStr);
 
                     // Hydrate roles from token if missing in stored user
                     if ((!storedUser.role && !storedUser.roles) && storedToken) {
