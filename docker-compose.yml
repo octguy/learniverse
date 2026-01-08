@@ -1,11 +1,11 @@
-# Docker Compose for local development
-version: '3.8'
-
 services:
   api:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        # Change to empty string if want to use cuda
+        - FORCE_CPU=1
     container_name: learniverse-moderation
     ports:
       - "8000:8000"
@@ -21,20 +21,3 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
-
-  # Optional: Development mode with hot reload
-  api-dev:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: learniverse-moderation-dev
-    ports:
-      - "8001:8000"
-    volumes:
-      - ./src:/app/src
-      - ./data/models:/app/data/models:ro
-    environment:
-      - PYTHONUNBUFFERED=1
-    command: ["python", "-m", "uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
-    profiles:
-      - dev  # Only start with: docker-compose --profile dev up

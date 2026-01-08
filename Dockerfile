@@ -6,6 +6,8 @@
 # Stage 1: Builder
 FROM python:3.11-slim as builder
 
+ARG FORCE_CPU=1
+
 WORKDIR /app
 
 # Install build dependencies
@@ -14,8 +16,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
+# Install CPU-only torch
+RUN if [ -n "$FORCE_CPU" ]; then \
+        pip install --no-warn-script-location --no-cache-dir --user torch --index-url https://download.pytorch.org/whl/cpu; \
+        echo "CPU only"; \
+    fi
+# Install the rest
 COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+RUN pip install --no-warn-script-location --no-cache-dir --user -r requirements.txt
 
 # Stage 2: Runtime
 FROM python:3.11-slim as runtime

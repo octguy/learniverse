@@ -4,8 +4,23 @@ AI-powered service for detecting toxic, offensive, and hate speech in Vietnamese
 
 ## DISCLAIMER
 
-I vibed this. I vibed it so hard, I vibed my way out. Keep that in mind. Only thing human-made in this is the `docs` folder.
+I vibed this. I vibed it so hard, I vibed my way out. Keep that in mind. Only thing human-made in this is the `docs` folder and this disclaimer part.
 
+### About models used
+
+By default (with the default requirements.txt) this should run a (really lightweight and fast) BiLSTM model that I trained. Accuracy is... acceptable, but model file is 40MB, and it can run on CPU fine.
+
+If you want higher F1 macro accuracy, but only trained on ViHSD dataset (đồ người ta chứ tui không train con này), pass in `MODEL_TYPE=phobert` to use a pretrained model based on PhoBERT (SPhoBERT). This will download around 600MB. Also, it requires `transformers`. To use it, run:
+
+```bash
+pip install transformers
+```
+
+If you use Docker, add that to the end of step 1 build. I couldnt care enough to do so.
+
+### CPU only or CUDA
+
+By default also, if it finds a NVIDIA GPU on your computer (with CUDA installed) and installed `torch` supports, it will try to run with `cuda` on your GPU. If you dont need it, pass `FORCE_CPU` into the env vars. The default `Dockerfile` already install a CPU-only version of torch.
 
 ## 📋 Features
 
