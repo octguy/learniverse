@@ -88,8 +88,12 @@ export const authService = {
   },
 
   async logout() {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
     const res = await fetch(`${API_URL}/auth/logout`, {
       method: "POST",
+      headers: {
+        ...(token ? { "Authorization": `Bearer ${token}` } : {})
+      }
     });
     return handleResponse<ApiResponse<string>>(res);
   },

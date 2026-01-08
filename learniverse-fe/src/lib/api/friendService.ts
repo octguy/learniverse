@@ -47,4 +47,8 @@ export const friendService = {
             params: { keyword }
         });
     },
+
+    getFriendsByUser: async (userId: string) => {
+        return apiService.get<ApiResponse<SuggestedFriend[]>>(`${BASE_URL}/user/${userId}`);
+    },
 };

@@ -9,7 +9,8 @@ export const AUTH_ERROR_MESSAGES: { [key: string]: string } = {
     'INVALID_CREDENTIALS': 'Email hoặc mật khẩu không đúng', // 401
     'EMAIL_NOT_VERIFIED': 'Email chưa được xác thực.', // 402
     'BAD_CREDENTIALS': 'Email hoặc mật khẩu không đúng',
-
+    'USER_SUSPENDED': 'Tài khoản bị đình chỉ vô thời hạn',
+    'ACCOUNT_NOT_ACTIVATED': 'Tài khoản chưa được kích hoạt',
 
     // === Verify user (POST /api/v1/auth/verify) ===
     'INVALID_VERIFICATION_CODE': 'Mã xác thực không hợp lệ hoặc đã hết hạn', // 400
