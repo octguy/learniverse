@@ -150,7 +150,7 @@ public class QuestionServiceImpl implements IQuestionService {
     public QuestionResponse publishQuestion(UUID questionId) {
         User currentUser = serviceHelper.getCurrentUser();
 
-        Content content = contentRepository.findByIdAndContentType(questionId, ContentType.POST)
+        Content content = contentRepository.findByIdAndContentType(questionId, ContentType.QUESTION)
                 .orElseThrow(() -> new ResourceNotFoundException("Question not found"));
 
         if (!content.getAuthor().getId().equals(currentUser.getId())) {
@@ -259,6 +259,22 @@ public class QuestionServiceImpl implements IQuestionService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public PageResponse<QuestionSummaryResponse> getMyQuestions(ContentStatus status, Pageable pageable) {
+        UUID currentUserId = serviceHelper.getCurrentUser().getId();
+        ContentStatus effectiveStatus = status != null ? status : ContentStatus.PUBLISHED;
+
+        Page<Content> questionPage = contentRepository.findByAuthorIdAndContentTypeAndStatusOrderByPublishedAtDesc(
+                currentUserId,
+                ContentType.QUESTION,
+                effectiveStatus,
+                pageable
+        );
+
+        return contentMapper.contentPageToQuestionSummaryPage(questionPage);
+    }
+
+    @Override
     @Transactional // Cần update view count
     public QuestionResponse getQuestionById(UUID questionId, Pageable answerPageable) {
         Content content = findQuestionByIdOrFail(questionId);
@@ -300,44 +316,9 @@ public class QuestionServiceImpl implements IQuestionService {
         // Lấy danh sách câu trả lời phân trang
         Page<Answer> answerPage = answerRepository.findByQuestionIdOrderByIsAcceptedDescVoteScoreDescCreatedAtAsc(content.getId(), answerPageable);
         PageResponse<AnswerResponse> answerPageResponse = answerMapper.answerPageToAnswerPageResponse(answerPage);
-        
-        // Set interaction status for each answer
-        UUID currentUserId = serviceHelper.getCurrentUserId();
-        if (currentUserId != null && answerPageResponse.getContent() != null) {
-            answerPageResponse.getContent().forEach(answerDto -> setAnswerInteractionStatus(answerDto, currentUserId));
-        }
-        
         response.setAnswers(answerPageResponse.getContent());
 
         return response;
-    }
-
-    @Transactional(readOnly = true)
-    @Override
-    public PageResponse<QuestionSummaryResponse> getMyQuestions(ContentStatus status, Pageable pageable) {
-        User currentUser = serviceHelper.getCurrentUser();
-
-        ContentStatus searchStatus = (status != null) ? status : ContentStatus.PUBLISHED;
-
-        Page<Content> questionPage;
-
-        if (searchStatus == ContentStatus.DRAFT || searchStatus == ContentStatus.ARCHIVED) {
-            questionPage = contentRepository.findByAuthorIdAndContentTypeAndStatusOrderByUpdatedAtDesc(
-                    currentUser.getId(),
-                    ContentType.QUESTION,
-                    searchStatus,
-                    pageable
-            );
-        } else {
-            questionPage = contentRepository.findByAuthorIdAndContentTypeAndStatusOrderByPublishedAtDesc(
-                    currentUser.getId(),
-                    ContentType.QUESTION,
-                    searchStatus,
-                    pageable
-            );
-        }
-
-        return contentMapper.contentPageToQuestionSummaryPage(questionPage);
     }
 
     @Override
@@ -647,21 +628,6 @@ public class QuestionServiceImpl implements IQuestionService {
             response.setCurrentUserVote(null);
             response.setCurrentUserReaction(null);
         }
-    }
-
-    /**
-     * Helper to set user-specific interaction status on an AnswerResponse DTO.
-     */
-    private void setAnswerInteractionStatus(AnswerResponse answerDto, UUID currentUserId) {
-        if (currentUserId == null) return;
-
-        Optional<Vote> voteOpt = voteRepository.findByUserIdAndVotableTypeAndVotableId(
-                currentUserId, VotableType.ANSWER, answerDto.getId());
-        answerDto.setCurrentUserVote(voteOpt.map(Vote::getVoteType).orElse(null));
-
-        Optional<Reaction> reactionOpt = reactionRepository.findByUserIdAndReactableTypeAndReactableId(
-                currentUserId, ReactableType.ANSWER, answerDto.getId());
-        answerDto.setCurrentUserReaction(reactionOpt.map(Reaction::getReactionType).orElse(null));
     }
 
     @Override

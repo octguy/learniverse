@@ -31,6 +31,9 @@ public class PostSummaryResponse {
     @Schema(description = "Đoạn trích nội dung (preview)")
     private String bodyExcerpt;
 
+    @Schema(description = "Nội dung đầy đủ")
+    private String body;
+
     @Schema(description = "Slug của bài post")
     private String slug;
 
@@ -66,6 +69,9 @@ public class PostSummaryResponse {
 
     @Schema(description = "Slug nhóm (nếu đăng trong nhóm)")
     private String groupSlug;
+
+    @Schema(description = "Ảnh đại diện nhóm (nếu đăng trong nhóm)")
+    private String groupAvatarUrl;
 
     @Schema(description = "Bài đăng gốc")
     private PostSummaryResponse originalPost;

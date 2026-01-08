@@ -293,6 +293,11 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
             "WHERE c.originalContent.id = :originalId AND c.deletedAt IS NULL")
     void softDeleteSharedPosts(@Param("originalId") UUID originalId);
 
+    @Modifying
+    @Query("UPDATE Content c SET c.deletedAt = CURRENT_TIMESTAMP, c.updatedAt = CURRENT_TIMESTAMP " +
+            "WHERE c.group.id = :groupId AND c.deletedAt IS NULL")
+    int softDeleteByGroupId(@Param("groupId") UUID groupId);
+
     // ==================== STATISTICS ====================
 
     /**

@@ -57,6 +57,7 @@ import {
 import { Label } from "@/components/ui/label"
 
 import { groupService } from "@/lib/api/groupService"
+import { postService } from "@/lib/api/postService"
 import type { Group, GroupMember, GroupMemberRole } from "@/types/group"
 import type { Post } from "@/types/post"
 import { useAuth } from "@/context/AuthContext"
@@ -132,7 +133,21 @@ export default function GroupDetailPage() {
         if (!id) return
         try {
             const response = await groupService.getFeed(id)
-            setPosts(response.content || [])
+            const summaries = response.content || []
+            
+            // Fetch full PostResponse for each post to get attachments, shareCount, etc.
+            const fullPosts = await Promise.all(
+                summaries.map(async (summary: Post) => {
+                    try {
+                        const fullPost = await postService.getPostById(summary.id)
+                        return fullPost.data || summary
+                    } catch (e) {
+                        console.error("Failed to load full post:", summary.id)
+                        return summary
+                    }
+                })
+            )
+            setPosts(fullPosts)
         } catch (error) {
             console.error("Failed to load feed:", error)
         }

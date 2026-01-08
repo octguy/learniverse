@@ -450,7 +450,7 @@ function GroupList({
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {groups.map((group) => (
                 <Card key={group.id} className="overflow-hidden transition-shadow hover:shadow-md bg-transparent border">
-                    <CardContent className="py-2 px-4 flex h-full flex-col gap-2">
+                    <CardContent className="py-0 px-4 flex h-full flex-col gap-2">
                         <div className="flex items-start gap-3">
                             <Avatar className="size-12">
                                 <AvatarImage src={group.avatarUrl || undefined} />

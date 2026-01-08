@@ -82,6 +82,9 @@ public interface IPostService {
     @Transactional(readOnly = true)
     PageResponse<PostSummaryResponse> getMyPosts(ContentStatus status, Pageable pageable);
 
+    @Transactional
+    PostResponse publishPost(UUID postId);
+
     /**
      * Retrieves a single post by its unique slug. Includes detailed information.
      * Increments the view count (implementing throttling logic recommended).

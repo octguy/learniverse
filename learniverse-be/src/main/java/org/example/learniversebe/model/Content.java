@@ -97,6 +97,7 @@ public class Content extends BaseEntity {
     // Group post support
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "group_id")
+    @NotFound(action = NotFoundAction.IGNORE)
     private Group group;
 
     @Column(name = "is_pinned", nullable = false, columnDefinition = "boolean default false")
@@ -116,7 +117,8 @@ public class Content extends BaseEntity {
     @PreUpdate
     protected void onUpdate() {
         this.setUpdatedAt(LocalDateTime.now());
-        this.lastEditedAt = LocalDateTime.now();
+        // Note: lastEditedAt should only be set manually in PostService when user explicitly edits the post
+        // Not here, because @PreUpdate fires on every DB update (viewCount, reactionCount, etc.)
     }
 
     // Helper method để thêm attachment

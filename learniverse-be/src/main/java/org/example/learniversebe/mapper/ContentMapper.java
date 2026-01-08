@@ -44,6 +44,8 @@ public interface ContentMapper {
     @Mapping(target = "searchVector", ignore = true)
     @Mapping(target = "contentTags", ignore = true)
     @Mapping(target = "attachments", ignore = true)
+    @Mapping(target = "group", ignore = true)
+    @Mapping(target = "isPinned", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "deletedAt", ignore = true)
@@ -73,6 +75,8 @@ public interface ContentMapper {
     @Mapping(target = "searchVector", ignore = true)
     @Mapping(target = "contentTags", ignore = true)
     @Mapping(target = "attachments", ignore = true)
+    @Mapping(target = "group", ignore = true)
+    @Mapping(target = "isPinned", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "deletedAt", ignore = true)
@@ -88,6 +92,10 @@ public interface ContentMapper {
     @Mapping(target = "bookmarkedByCurrentUser", ignore = true)
     @Mapping(target = "currentUserReaction", ignore = true)
     @Mapping(source = "originalContent", target = "originalPost", qualifiedByName = "mapOriginalPost")
+    @Mapping(source = "group.id", target = "groupId")
+    @Mapping(source = "group.name", target = "groupName")
+    @Mapping(source = "group.slug", target = "groupSlug")
+    @Mapping(source = "group.avatarUrl", target = "groupAvatarUrl")
     PostResponse contentToPostResponse(Content content);
 
     /**
@@ -96,12 +104,14 @@ public interface ContentMapper {
      */
     @Mapping(source = "contentTags", target = "tags", qualifiedByName = "contentTagsToTagResponses")
     @Mapping(source = "body", target = "bodyExcerpt", qualifiedByName = "generateExcerpt")
+    @Mapping(source = "body", target = "body")
     @Mapping(target = "bookmarkedByCurrentUser", ignore = true)
     @Mapping(target = "currentUserReaction", ignore = true)
     @Mapping(source = "originalContent", target = "originalPost", qualifiedByName = "mapOriginalPost")
     @Mapping(source = "group.id", target = "groupId")
     @Mapping(source = "group.name", target = "groupName")
     @Mapping(source = "group.slug", target = "groupSlug")
+    @Mapping(source = "group.avatarUrl", target = "groupAvatarUrl")
     PostSummaryResponse contentToPostSummaryResponse(Content content);
 
     /**
