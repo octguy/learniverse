@@ -28,5 +28,14 @@ export const adminUserService = {
     updateUserRole: async (userId: string, role: string) => {
         const response = await apiService.put<UserAdmin>(`${DASHBOARD_URL}/${userId}/role`, { role });
         return response.data;
+    },
+
+    registerAdmin: async (payload: { email: string; username: string }) => {
+        const dummyPayload = {
+            ...payload,
+            password: "TempPassword123@" 
+        };
+        const response = await apiService.post<any>(`/auth/register-admin`, dummyPayload);
+        return response.data;
     }
 };

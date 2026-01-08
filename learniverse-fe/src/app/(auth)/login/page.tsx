@@ -56,7 +56,16 @@ export default function LoginPage() {
             }
         } catch (err: any) {
             let errMsg = getErrorMessage(err);
-            const isUnverified = err.httpStatus === 403 || err.errorCode === "EMAIL_NOT_VERIFIED";
+            const errorCode = err.errorCode;
+            
+            // Handle specific status codes/errors from backend
+            if (errorCode === "USER_SUSPENDED") {
+                setError("Tài khoản bị đình chỉ vô thời hạn");
+                return;
+            }
+
+            // PENDING_VERIFICATION (ACCOUNT_NOT_ACTIVATED) -> Show OTP dialog
+            const isUnverified = err.httpStatus === 403 || errorCode === "EMAIL_NOT_VERIFIED" || errorCode === "ACCOUNT_NOT_ACTIVATED";
 
             if (isUnverified) {
                 errMsg = AUTH_ERROR_MESSAGES.USER_NOT_VERIFIED;
