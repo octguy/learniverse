@@ -48,6 +48,9 @@ data/processed/*.pkl
 *.onnx
 *.h5
 
+# EXCEPT the deployment models
+!data/models/deployment/*.pt
+
 # Logs
 *.log
 logs/

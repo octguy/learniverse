@@ -325,19 +325,19 @@ def get_model_config(model_size: str = 'base') -> Dict[str, Any]:
             'embedding_dim': 128,
             'hidden_dim': 64,
             'num_layers': 1,
-            'dropout': 0.3,
+            'dropout': 0.5,
         },
         'base': {
             'embedding_dim': 256,
             'hidden_dim': 128,
             'num_layers': 2,
-            'dropout': 0.3,
+            'dropout': 0.5,
         },
         'large': {
             'embedding_dim': 512,
             'hidden_dim': 256,
             'num_layers': 3,
-            'dropout': 0.4,
+            'dropout': 0.5,
         },
     }
     return configs.get(model_size, configs['base'])
@@ -357,7 +357,7 @@ if __name__ == "__main__":
     )
     
     # Print model summary
-    print(f"\nModel architecture:")
+    print("\nModel architecture:")
     print(model)
     
     # Count parameters

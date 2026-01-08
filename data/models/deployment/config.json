@@ -1,0 +1,17 @@
+{
+  "model_type": "BiLSTMClassifier",
+  "vocab_size": 12552,
+  "num_labels": 3,
+  "label_names": [
+    "CLEAN",
+    "OFFENSIVE",
+    "HATE"
+  ],
+  "max_seq_length": 128,
+  "padding_idx": 0,
+  "task": "3-class classification",
+  "embedding_dim": 512,
+  "hidden_dim": 256,
+  "num_layers": 3,
+  "dropout": 0.5
+}
