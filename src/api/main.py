@@ -44,16 +44,16 @@ class Settings:
     API_DESCRIPTION = """
     AI service for detecting toxic, offensive, and hate speech in Vietnamese comments.
     
-    ## Labels
-    - **toxic_offensive**: Toxic behavior or offensive language (bad words)
-    - **hate_speech**: Targeted hate speech
+    ## Classes
+    - **CLEAN**: Normal, non-toxic comment
+    - **OFFENSIVE**: Toxic behavior or offensive language (bad words)
+    - **HATE**: Targeted hate speech against groups
     
     ## Usage
     Send a POST request to `/predict` with a comment or list of comments.
     """
     
     # Inference settings
-    DEFAULT_THRESHOLD = 0.5
     MAX_BATCH_SIZE = 64
     MAX_TEXT_LENGTH = 1000  # characters
 
@@ -68,18 +68,12 @@ settings = Settings()
 class CommentRequest(BaseModel):
     """Request model for single comment."""
     text: str = Field(..., min_length=1, max_length=settings.MAX_TEXT_LENGTH)
-    threshold: Optional[float] = Field(
-        default=settings.DEFAULT_THRESHOLD,
-        ge=0.0, le=1.0,
-        description="Classification threshold (0-1)"
-    )
     
     model_config = {
         "json_schema_extra": {
             "examples": [
                 {
-                    "text": "Sản phẩm này tốt lắm!",
-                    "threshold": 0.5
+                    "text": "Sản phẩm này tốt lắm!"
                 }
             ]
         }
@@ -89,19 +83,16 @@ class CommentRequest(BaseModel):
 class BatchCommentRequest(BaseModel):
     """Request model for batch comments."""
     texts: List[str] = Field(..., min_length=1, max_length=settings.MAX_BATCH_SIZE)
-    threshold: Optional[float] = Field(
-        default=settings.DEFAULT_THRESHOLD,
-        ge=0.0, le=1.0
-    )
 
 
 class PredictionResult(BaseModel):
     """Prediction result for a single comment."""
     text: str
-    toxic_offensive: bool
-    hate_speech: bool
-    probabilities: dict
-    is_flagged: bool  # True if any label is positive
+    predicted_class: str  # CLEAN, OFFENSIVE, or HATE
+    predicted_label: int  # 0, 1, or 2
+    probabilities: dict  # {"CLEAN": 0.x, "OFFENSIVE": 0.x, "HATE": 0.x}
+    confidence: float  # Confidence of predicted class
+    is_flagged: bool  # True if OFFENSIVE or HATE
 
 
 class PredictionResponse(BaseModel):
@@ -198,7 +189,7 @@ class ModelManager:
         self.is_loaded = True
         print("Model loading complete!")
     
-    def predict(self, text: str, threshold: float = 0.5) -> PredictionResult:
+    def predict(self, text: str) -> PredictionResult:
         """Make prediction for a single text."""
         if not self.is_loaded:
             raise RuntimeError("Model not loaded")
@@ -226,30 +217,31 @@ class ModelManager:
         # Inference
         with torch.no_grad():
             outputs = self.model(input_ids, mask)
-            probs = outputs["probabilities"][0].cpu().numpy()
+            logits = outputs["logits"][0]
+            probs = torch.softmax(logits, dim=0).cpu().numpy()
+        
+        # Get prediction
+        label_names = self.config.get("label_names", ["CLEAN", "OFFENSIVE", "HATE"])
+        pred_label = int(probs.argmax())
+        pred_class = label_names[pred_label]
+        confidence = float(probs[pred_label])
         
         # Create result
-        toxic_offensive = bool(probs[0] >= threshold)
-        hate_speech = bool(probs[1] >= threshold)
-        
         return PredictionResult(
             text=text,
-            toxic_offensive=toxic_offensive,
-            hate_speech=hate_speech,
+            predicted_class=pred_class,
+            predicted_label=pred_label,
             probabilities={
-                "toxic_offensive": float(probs[0]),
-                "hate_speech": float(probs[1]),
+                label_names[i]: float(probs[i]) 
+                for i in range(len(label_names))
             },
-            is_flagged=toxic_offensive or hate_speech
+            confidence=confidence,
+            is_flagged=(pred_label > 0)  # OFFENSIVE or HATE
         )
     
-    def predict_batch(
-        self, 
-        texts: List[str], 
-        threshold: float = 0.5
-    ) -> List[PredictionResult]:
+    def predict_batch(self, texts: List[str]) -> List[PredictionResult]:
         """Make predictions for a batch of texts."""
-        return [self.predict(text, threshold) for text in texts]
+        return [self.predict(text) for text in texts]
 
 
 # Global model manager
@@ -332,7 +324,7 @@ async def predict(request: CommentRequest):
         )
     
     try:
-        result = model_manager.predict(request.text, request.threshold)
+        result = model_manager.predict(request.text)
         return PredictionResponse(success=True, result=result)
     except Exception as e:
         raise HTTPException(
@@ -356,20 +348,22 @@ async def predict_batch(request: BatchCommentRequest):
         )
     
     try:
-        results = model_manager.predict_batch(request.texts, request.threshold)
+        results = model_manager.predict_batch(request.texts)
         
         # Calculate summary
         total = len(results)
         flagged = sum(1 for r in results if r.is_flagged)
-        toxic_offensive = sum(1 for r in results if r.toxic_offensive)
-        hate_speech = sum(1 for r in results if r.hate_speech)
+        clean = sum(1 for r in results if r.predicted_class == "CLEAN")
+        offensive = sum(1 for r in results if r.predicted_class == "OFFENSIVE")
+        hate = sum(1 for r in results if r.predicted_class == "HATE")
         
         summary = {
             "total": total,
             "flagged": flagged,
             "flagged_percentage": flagged / total * 100 if total > 0 else 0,
-            "toxic_offensive_count": toxic_offensive,
-            "hate_speech_count": hate_speech,
+            "clean_count": clean,
+            "offensive_count": offensive,
+            "hate_count": hate,
         }
         
         return BatchPredictionResponse(
@@ -386,19 +380,27 @@ async def predict_batch(request: BatchCommentRequest):
 
 @app.get("/labels", tags=["Info"])
 async def get_labels():
-    """Get information about prediction labels."""
+    """Get information about prediction classes."""
     return {
-        "labels": [
+        "task": "3-class classification",
+        "classes": [
             {
-                "name": "toxic_offensive",
-                "description": "Toxic behavior or offensive language (including bad words like đụ, vl, etc.)",
+                "label": 0,
+                "name": "CLEAN",
+                "description": "Normal, non-toxic comment",
             },
             {
-                "name": "hate_speech", 
-                "description": "Targeted hate speech against groups (based on ethnicity, religion, etc.)",
+                "label": 1,
+                "name": "OFFENSIVE",
+                "description": "Toxic behavior or offensive language (bad words like đụ, vl, etc.)",
+            },
+            {
+                "label": 2,
+                "name": "HATE",
+                "description": "Targeted hate speech against groups (ethnicity, religion, etc.)",
             },
         ],
-        "note": "A comment can have multiple labels (multi-label classification)."
+        "note": "Each comment is assigned exactly one class. OFFENSIVE and HATE are considered flagged."
     }
 
 
