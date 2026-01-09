@@ -568,7 +568,7 @@ public class PostServiceImpl implements IPostService {
     @Transactional(readOnly = true)
     public PageResponse<PostSummaryResponse> searchPosts(String query, Pageable pageable) {
         if (query == null || query.isBlank()) {
-            return PageResponse.<PostSummaryResponse>builder().content(List.of()).build(); // Trả về trang rỗng nếu query trống
+            return PageResponse.<PostSummaryResponse>builder().content(List.of()).build();
         }
         Page<Content> postPage = contentRepository.searchPublishedPosts(query, pageable);
         postPage.getContent().forEach(content -> {
