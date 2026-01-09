@@ -17,6 +17,10 @@ public interface UserProfileTagRepository extends JpaRepository<UserProfileTag, 
 
     void deleteAllByUserProfile(UserProfile profile);
 
+    // Count how many user profiles are using this tag
+    @Query("SELECT COUNT(upt) FROM UserProfileTag upt WHERE upt.userProfileTagId.tagId = :tagId AND upt.deletedAt IS NULL")
+    long countByTagId(@Param("tagId") UUID tagId);
+
     // Soft delete all UserProfileTag records by tag ID
     @Modifying
     @Query("UPDATE UserProfileTag upt SET upt.deletedAt = CURRENT_TIMESTAMP WHERE upt.userProfileTagId.tagId = :tagId AND upt.deletedAt IS NULL")
