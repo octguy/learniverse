@@ -261,15 +261,27 @@ public class QuestionServiceImpl implements IQuestionService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<QuestionSummaryResponse> getMyQuestions(ContentStatus status, Pageable pageable) {
-        UUID currentUserId = serviceHelper.getCurrentUser().getId();
-        ContentStatus effectiveStatus = status != null ? status : ContentStatus.PUBLISHED;
+        User currentUser = serviceHelper.getCurrentUser();
 
-        Page<Content> questionPage = contentRepository.findByAuthorIdAndContentTypeAndStatusOrderByPublishedAtDesc(
-                currentUserId,
-                ContentType.QUESTION,
-                effectiveStatus,
-                pageable
-        );
+        ContentStatus searchStatus = (status != null) ? status : ContentStatus.PUBLISHED;
+
+        Page<Content> questionPage;
+
+        if (searchStatus == ContentStatus.DRAFT || searchStatus == ContentStatus.ARCHIVED) {
+            questionPage = contentRepository.findByAuthorIdAndContentTypeAndStatusOrderByUpdatedAtDesc(
+                    currentUser.getId(),
+                    ContentType.QUESTION,
+                    searchStatus,
+                    pageable
+            );
+        } else {
+            questionPage = contentRepository.findByAuthorIdAndContentTypeAndStatusOrderByPublishedAtDesc(
+                    currentUser.getId(),
+                    ContentType.QUESTION,
+                    searchStatus,
+                    pageable
+            );
+        }
 
         return contentMapper.contentPageToQuestionSummaryPage(questionPage);
     }
@@ -316,6 +328,11 @@ public class QuestionServiceImpl implements IQuestionService {
         // Lấy danh sách câu trả lời phân trang
         Page<Answer> answerPage = answerRepository.findByQuestionIdOrderByIsAcceptedDescVoteScoreDescCreatedAtAsc(content.getId(), answerPageable);
         PageResponse<AnswerResponse> answerPageResponse = answerMapper.answerPageToAnswerPageResponse(answerPage);
+        // Set interaction status for each answer
+        UUID currentUserId = serviceHelper.getCurrentUserId();
+        if (currentUserId != null && answerPageResponse.getContent() != null) {
+            answerPageResponse.getContent().forEach(answerDto -> setAnswerInteractionStatus(answerDto, currentUserId));
+        }
         response.setAnswers(answerPageResponse.getContent());
 
         return response;
@@ -438,7 +455,6 @@ public class QuestionServiceImpl implements IQuestionService {
     @Override
     @Transactional
     public void markAnswerAsAccepted(UUID questionId, UUID answerId) {
-        User currentUser = serviceHelper.getCurrentUser();
         Content question = findQuestionByIdOrFail(questionId);
 
         // Chỉ tác giả câu hỏi mới được accept
@@ -473,7 +489,6 @@ public class QuestionServiceImpl implements IQuestionService {
     @Override
     @Transactional
     public void unmarkAnswerAsAccepted(UUID questionId, UUID answerId) {
-        User currentUser = serviceHelper.getCurrentUser();
         Content question = findQuestionByIdOrFail(questionId);
 
         // Chỉ tác giả câu hỏi mới được un-accept
@@ -698,4 +713,20 @@ public class QuestionServiceImpl implements IQuestionService {
         question.getAttachments().remove(attachment);
         attachmentRepository.delete(attachment);
     }
+
+    /**
+     * Helper to set user-specific interaction status on an AnswerResponse DTO.
+     */
+    private void setAnswerInteractionStatus(AnswerResponse answerDto, UUID currentUserId) {
+        if (currentUserId == null) return;
+
+        Optional<Vote> voteOpt = voteRepository.findByUserIdAndVotableTypeAndVotableId(
+                currentUserId, VotableType.ANSWER, answerDto.getId());
+        answerDto.setCurrentUserVote(voteOpt.map(Vote::getVoteType).orElse(null));
+
+        Optional<Reaction> reactionOpt = reactionRepository.findByUserIdAndReactableTypeAndReactableId(
+                currentUserId, ReactableType.ANSWER, answerDto.getId());
+        answerDto.setCurrentUserReaction(reactionOpt.map(Reaction::getReactionType).orElse(null));
+    }
+
 }
