@@ -26,8 +26,9 @@ public interface ContentTagRepository extends JpaRepository<ContentTag, ContentT
     @Query("DELETE FROM ContentTag ct WHERE ct.contentTagId.contentId = :contentId")
     void deleteByContentId(@Param("contentId") UUID contentId);
 
-    // Đếm số lượng bài viết cho một tag (ví dụ)
-    long countByTagId(UUID tagId);
+    // Count how many contents are using this tag (excluding soft-deleted)
+    @Query("SELECT COUNT(ct) FROM ContentTag ct WHERE ct.contentTagId.tagId = :tagId AND ct.deletedAt IS NULL")
+    long countByTagId(@Param("tagId") UUID tagId);
 
     // Soft delete all ContentTag records by tag ID
     @Modifying

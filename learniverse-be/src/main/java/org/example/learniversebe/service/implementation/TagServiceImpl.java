@@ -138,17 +138,26 @@ public class TagServiceImpl implements ITagService {
         log.info("Deleting tag with ID: {}", tagId);
 
         // Check if tag exists
-        if (!tagRepository.existsById(tagId)) {
-            throw new ResourceNotFoundException("Tag", "id", tagId.toString());
+        Tag tag = tagRepository.findById(tagId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tag", "id", tagId.toString()));
+
+        // Check if tag is being used in any posts/questions
+        long contentUsageCount = contentTagRepository.countByTagId(tagId);
+        if (contentUsageCount > 0) {
+            log.warn("Cannot delete tag {} - it is being used by {} posts/questions", tagId, contentUsageCount);
+            throw new BadRequestException(
+                    "Cannot delete tag '" + tag.getName() + "' because it is being used by " + contentUsageCount + " post(s)/question(s). " +
+                    "Please remove the tag from all content before deleting.");
         }
 
-        // Soft delete all ContentTag records that reference this tag
-        contentTagRepository.softDeleteByTagId(tagId);
-        log.info("Soft deleted all ContentTag records for tag ID: {}", tagId);
-
-        // Soft delete all UserProfileTag records that reference this tag
-        userProfileTagRepository.softDeleteByTagId(tagId);
-        log.info("Soft deleted all UserProfileTag records for tag ID: {}", tagId);
+        // Check if tag is being used in any user profiles (onboarding)
+        long userProfileUsageCount = userProfileTagRepository.countByTagId(tagId);
+        if (userProfileUsageCount > 0) {
+            log.warn("Cannot delete tag {} - it is being used by {} user profiles", tagId, userProfileUsageCount);
+            throw new BadRequestException(
+                    "Cannot delete tag '" + tag.getName() + "' because it is being used by " + userProfileUsageCount + " user profile(s). " +
+                    "Please remove the tag from all user profiles before deleting.");
+        }
 
         // Soft delete the tag (handled by @SQLDelete annotation in Tag entity)
         tagRepository.deleteById(tagId);

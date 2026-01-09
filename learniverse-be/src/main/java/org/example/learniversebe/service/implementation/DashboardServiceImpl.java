@@ -10,9 +10,10 @@ import org.example.learniversebe.dto.request.UpdateUserStatusRequest;
 import org.example.learniversebe.dto.request.BroadcastNotificationRequest;
 import org.example.learniversebe.dto.response.*;
 import org.example.learniversebe.enums.*;
-import org.example.learniversebe.mapper.NotificationMapper;
-import org.example.learniversebe.model.Notification;
 import org.example.learniversebe.exception.ResourceNotFoundException;
+import org.example.learniversebe.mapper.ContentMapper;
+import org.example.learniversebe.mapper.NotificationMapper;
+import org.example.learniversebe.model.Content;
 import org.example.learniversebe.mapper.NotificationMapper;
 import org.example.learniversebe.model.Notification;
 import org.example.learniversebe.model.Role;
@@ -30,6 +31,8 @@ import org.example.learniversebe.repository.TagRepository;
 import org.example.learniversebe.repository.UserRepository;
 import org.example.learniversebe.service.IDashboardService;
 import org.example.learniversebe.service.INotificationService;
+import org.example.learniversebe.service.IPostService;
+import org.example.learniversebe.service.IQuestionService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -55,8 +58,11 @@ public class DashboardServiceImpl implements IDashboardService {
     private final RoleUserRepository roleUserRepository;
     private final NotificationRepository notificationRepository;
     private final NotificationMapper notificationMapper;
+    private final ContentMapper contentMapper;
 
     private final INotificationService notificationService;
+    private final IPostService postService;
+    private final IQuestionService questionService;
     private static final int PAGE_SIZE = 20;
 
     @Override
@@ -368,4 +374,131 @@ public class DashboardServiceImpl implements IDashboardService {
         return allUsers.size();
     }
 
+    @Override
+    public PageResponse<PostSummaryResponse> getAllPosts(ContentStatus status, UUID ownerId, String keyword, Pageable pageable) {
+        log.info("Getting all posts with filters - status: {}, ownerId: {}, keyword: {}", status, ownerId, keyword);
+        
+        Page<Content> contentPage = contentRepository.findAllByContentTypeWithFilters(
+                ContentType.POST,
+                status,
+                ownerId,
+                keyword,
+                pageable
+        );
+        
+        List<PostSummaryResponse> posts = contentPage.getContent().stream()
+                .map(contentMapper::contentToPostSummaryResponse)
+                .collect(Collectors.toList());
+        
+        return PageResponse.<PostSummaryResponse>builder()
+                .content(posts)
+                .totalElements(contentPage.getTotalElements())
+                .totalPages(contentPage.getTotalPages())
+                .currentPage(contentPage.getNumber())
+                .pageSize(contentPage.getSize())
+                .last(contentPage.isLast())
+                .first(contentPage.isFirst())
+                .numberOfElements(contentPage.getNumberOfElements())
+                .build();
+    }
+
+    @Override
+    public PageResponse<QuestionSummaryResponse> getAllQuestions(ContentStatus status, UUID ownerId, String keyword, Pageable pageable) {
+        log.info("Getting all questions with filters - status: {}, ownerId: {}, keyword: {}", status, ownerId, keyword);
+        
+        Page<Content> contentPage = contentRepository.findAllByContentTypeWithFilters(
+                ContentType.QUESTION,
+                status,
+                ownerId,
+                keyword,
+                pageable
+        );
+        
+        List<QuestionSummaryResponse> questions = contentPage.getContent().stream()
+                .map(contentMapper::contentToQuestionSummaryResponse)
+                .collect(Collectors.toList());
+        
+        return PageResponse.<QuestionSummaryResponse>builder()
+                .content(questions)
+                .totalElements(contentPage.getTotalElements())
+                .totalPages(contentPage.getTotalPages())
+                .currentPage(contentPage.getNumber())
+                .pageSize(contentPage.getSize())
+                .last(contentPage.isLast())
+                .first(contentPage.isFirst())
+                .numberOfElements(contentPage.getNumberOfElements())
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public int deleteMultiplePosts(List<UUID> postIds) {
+        log.info("Deleting {} posts", postIds.size());
+        int deletedCount = 0;
+        for (UUID postId : postIds) {
+            try {
+                postService.deletePost(postId);
+                deletedCount++;
+            } catch (Exception e) {
+                log.warn("Failed to delete post {}: {}", postId, e.getMessage());
+            }
+        }
+        log.info("Successfully deleted {} out of {} posts", deletedCount, postIds.size());
+        return deletedCount;
+    }
+
+    @Override
+    @Transactional
+    public int deleteMultipleQuestions(List<UUID> questionIds) {
+        log.info("Deleting {} questions", questionIds.size());
+        int deletedCount = 0;
+        for (UUID questionId : questionIds) {
+            try {
+                questionService.deleteQuestion(questionId);
+                deletedCount++;
+            } catch (Exception e) {
+                log.warn("Failed to delete question {}: {}", questionId, e.getMessage());
+            }
+        }
+        log.info("Successfully deleted {} out of {} questions", deletedCount, questionIds.size());
+        return deletedCount;
+    }
+
+    @Override
+    @Transactional
+    public PostSummaryResponse updatePostStatus(UUID postId, ContentStatus newStatus) {
+        log.info("Admin updating post {} status to {}", postId, newStatus);
+        
+        Content content = contentRepository.findByIdAndContentType(postId, ContentType.POST)
+                .orElseThrow(() -> new ResourceNotFoundException("Post not found with id: " + postId));
+        
+        content.setStatus(newStatus);
+        content.setUpdatedAt(LocalDateTime.now());
+        
+        if (newStatus == ContentStatus.PUBLISHED && content.getPublishedAt() == null) {
+            content.setPublishedAt(LocalDateTime.now());
+        }
+        
+        Content saved = contentRepository.save(content);
+        return contentMapper.contentToPostSummaryResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public QuestionSummaryResponse updateQuestionStatus(UUID questionId, ContentStatus newStatus) {
+        log.info("Admin updating question {} status to {}", questionId, newStatus);
+        
+        Content content = contentRepository.findByIdAndContentType(questionId, ContentType.QUESTION)
+                .orElseThrow(() -> new ResourceNotFoundException("Question not found with id: " + questionId));
+        
+        content.setStatus(newStatus);
+        content.setUpdatedAt(LocalDateTime.now());
+        
+        if (newStatus == ContentStatus.PUBLISHED && content.getPublishedAt() == null) {
+            content.setPublishedAt(LocalDateTime.now());
+        }
+        
+        Content saved = contentRepository.save(content);
+        return contentMapper.contentToQuestionSummaryResponse(saved);
+    }
 }
