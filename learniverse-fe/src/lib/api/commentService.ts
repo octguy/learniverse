@@ -35,6 +35,7 @@ export const commentService = {
     commentableId: string;
     body: string;
     parentId?: string;
+    mentionedUserIds?: string[];
   }) => {
     const backendPayload = {
       ...payload,
