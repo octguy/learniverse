@@ -38,6 +38,7 @@ services:
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
       CLOUDINARY_FOLDER: ${CLOUDINARY_FOLDER}
+      AI_SERVICE_URL: http://learniverse-commentscan:8000
     ports:
       - "8030:8030"
     depends_on:
