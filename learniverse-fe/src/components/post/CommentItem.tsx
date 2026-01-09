@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
-import { Loader2 } from "lucide-react";
+import { Loader2, Flag } from "lucide-react";
 import { commentService } from "@/lib/api/commentService";
 import type { Comment } from "@/types/comment";
 import { toast } from "sonner";
+import { ReportDialog } from "@/components/common/ReportDialog";
 
 import { useAuth } from "@/context/AuthContext";
 
@@ -34,6 +35,9 @@ export function CommentItem({ comment, postId, commentableType, depth = 0, paren
     const [replyText, setReplyText] = useState("");
     const [isSubmittingReply, setIsSubmittingReply] = useState(false);
     const [replyCount, setReplyCount] = useState(comment.replyCount);
+    const [isReportOpen, setIsReportOpen] = useState(false);
+
+    const isAuthor = user?.id === comment.author.id;
 
     const handleToggleReplies = async () => {
         const newShowReplies = !showReplies;
@@ -144,6 +148,14 @@ export function CommentItem({ comment, postId, commentableType, depth = 0, paren
                     >
                         Phản hồi
                     </button>
+                    {!isAuthor && (
+                        <button
+                            className="text-xs font-medium text-muted-foreground hover:text-destructive"
+                            onClick={() => setIsReportOpen(true)}
+                        >
+                            Báo cáo
+                        </button>
+                    )}
 
                     {replyCount > 0 && (
                         <button
@@ -201,6 +213,11 @@ export function CommentItem({ comment, postId, commentableType, depth = 0, paren
                     </div>
                 )}
             </div>
-        </div>
+            <ReportDialog 
+                open={isReportOpen} 
+                onOpenChange={setIsReportOpen}
+                reportableType="COMMENT" 
+                reportableId={comment.id} 
+            />        </div>
     );
 }

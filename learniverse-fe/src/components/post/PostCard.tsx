@@ -53,6 +53,7 @@ import CreatePostModal from "./CreatePostModal"
 import { SharePostDialog } from "./SharePostDialog"
 import { postService } from "@/lib/api/postService"
 import { shareService } from "@/lib/api/shareService"
+import { ReportDialog } from "@/components/common/ReportDialog"
 
 const REACTIONS_CONFIG = [
   {
@@ -110,6 +111,7 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
   
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
+  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false)
 
   const [commentCount, setCommentCount] = useState(post.commentCount)
   const [shareCount, setShareCount] = useState(post.shareCount)
@@ -390,10 +392,12 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
                     </DropdownMenuItem>
                   </>
                 )}
-                <DropdownMenuItem>
-                  <Flag className="mr-2 h-4 w-4" />
-                  Báo cáo
-                </DropdownMenuItem>
+                {!isAuthor && (
+                  <DropdownMenuItem onClick={() => setIsReportDialogOpen(true)}>
+                    <Flag className="mr-2 h-4 w-4" />
+                    Báo cáo vi phạm
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
             <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
@@ -656,6 +660,13 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
           }}
         />
       </Dialog>
+
+      <ReportDialog 
+        open={isReportDialogOpen} 
+        onOpenChange={setIsReportDialogOpen}
+        reportableType="POST"
+        reportableId={post.id}
+      />
     </Card>
   )
 }

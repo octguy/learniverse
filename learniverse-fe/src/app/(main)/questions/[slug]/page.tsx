@@ -30,12 +30,14 @@ import {
     ThumbsUp,
     ZoomIn,
     X,
+    Flag,
 } from "lucide-react"
 
 import { questionService } from "@/lib/api/questionService"
 import { answerService } from "@/lib/api/answerService"
 import { interactionService } from "../../../../lib/api/interactionService"
 import { useAuth } from "@/context/AuthContext"
+import { ReportDialog } from "@/components/common/ReportDialog"
 import type { QuestionAttachment, QuestionDetail } from "@/types/question"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -281,6 +283,8 @@ export default function QuestionDetailPage() {
         error: null,
     })
     const [answerBody, setAnswerBody] = useState("")
+    const [isReportQuestionOpen, setIsReportQuestionOpen] = useState(false);
+    const [reportAnswerId, setReportAnswerId] = useState<string | null>(null);
     const [answerFiles, setAnswerFiles] = useState<File[]>([])
     const [answerAttachmentError, setAnswerAttachmentError] = useState<string | null>(null)
     const [answerTab, setAnswerTab] = useState<"write" | "preview">("write")
@@ -947,6 +951,17 @@ export default function QuestionDetailPage() {
                             </div>
                         </PopoverContent>
                     </Popover>
+                    {!isAuthor && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-9 w-9 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                            title="Báo cáo vi phạm"
+                            onClick={() => setIsReportQuestionOpen(true)}
+                        >
+                            <Flag className="size-4" />
+                        </Button>
+                    )}
                     {isAuthor && (
                         <>
                             <Button
@@ -1627,6 +1642,18 @@ export default function QuestionDetailPage() {
                                                 >
                                                     <ThumbsDown className="size-4" />
                                                 </Button>
+                                                {user && user.id !== answer.author?.id && (
+                                                    <Button
+                                                        type="button"
+                                                        size="icon"
+                                                        variant="ghost"
+                                                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                        title="Báo cáo vi phạm"
+                                                        onClick={() => setReportAnswerId(answer.id)}
+                                                    >
+                                                        <Flag className="size-4" />
+                                                    </Button>
+                                                )}
                                                 {isAuthor && (
                                                     <Button
                                                         type="button"
@@ -1656,6 +1683,18 @@ export default function QuestionDetailPage() {
                                                         {isAccepted
                                                             ? "Bỏ chấp nhận"
                                                             : "Chấp nhận"}
+                                                    </Button>
+                                                )}
+                                                {user?.id !== answer.author?.id && (
+                                                    <Button
+                                                        type="button"
+                                                        size="icon"
+                                                        variant="ghost"
+                                                        className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                                        title="Báo cáo câu trả lời"
+                                                        onClick={() => setReportAnswerId(answer.id)}
+                                                    >
+                                                        <Flag className="size-4" />
                                                     </Button>
                                                 )}
                                             </div>
@@ -1774,6 +1813,22 @@ export default function QuestionDetailPage() {
                     )}
                 </section>
             </article>
+
+            <ReportDialog
+                open={isReportQuestionOpen}
+                onOpenChange={setIsReportQuestionOpen}
+                reportableType="QUESTION"
+                reportableId={question.id}
+            />
+
+            {reportAnswerId && (
+                <ReportDialog
+                    open={!!reportAnswerId}
+                    onOpenChange={(open) => !open && setReportAnswerId(null)}
+                    reportableType="ANSWER"
+                    reportableId={reportAnswerId}
+                />
+            )}
 
             {/* PDF Preview Modal */}
             {pdfPreview && (

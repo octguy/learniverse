@@ -43,7 +43,7 @@ export default function AdminTopbar({
       <div className="flex items-center gap-4">
         <div className="text-right hidden sm:block">
           <p className="text-sm font-medium leading-none">
-            {user?.fullName || "Admin"}
+            {user?.username || "Admin"}
           </p>
           <p className="text-xs text-muted-foreground">{user?.email}</p>
         </div>
