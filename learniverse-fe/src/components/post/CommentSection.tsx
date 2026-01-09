@@ -60,9 +60,14 @@ export function CommentSection({ postId, commentableType, onCommentAdded }: Comm
 
       toast.success("Đã gửi bình luận!");
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Lỗi gửi bình luận:", error);
-      toast.error("Gửi thất bại. Vui lòng thử lại.");
+      
+      if (error.response?.status === 400) {
+        toast.error(error.response.data?.message || "Bình luận không được đăng vì chứa ngôn từ không phù hợp.");
+      } else {
+        toast.error("Gửi thất bại. Vui lòng thử lại.");
+      }
     } finally {
       setIsSubmitting(false);
     }
