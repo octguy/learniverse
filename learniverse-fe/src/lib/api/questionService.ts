@@ -11,6 +11,8 @@ export interface QuestionQuery {
     page?: number
     size?: number
     sort?: string
+    answerFilter?: string
+    tagIds?: string[]
 }
 
 export interface CreateQuestionPayload {

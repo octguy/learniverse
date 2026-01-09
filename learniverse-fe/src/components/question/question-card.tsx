@@ -1,12 +1,17 @@
 "use client"
 
 import Link from "next/link"
+import { useState } from "react"
 import { formatDistanceToNow } from "date-fns"
 import { vi } from "date-fns/locale"
+import { Flag } from "lucide-react"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/context/AuthContext"
+import { ReportDialog } from "@/components/common/ReportDialog"
 import type { QuestionSummary } from "@/types/question"
 
 interface QuestionCardProps {
@@ -39,6 +44,9 @@ function formatCount(value: number) {
 }
 
 export function QuestionCard({ question }: QuestionCardProps) {
+    const { user } = useAuth()
+    const [isReportOpen, setIsReportOpen] = useState(false)
+
     const voteScore = question.voteScore ?? 0
     const userVoteState = question.currentUserVote
     const voteActive =
@@ -127,8 +135,30 @@ export function QuestionCard({ question }: QuestionCardProps) {
                             </p>
                         </div>
                     </div>
+                
+                    {user && user.id !== (question.author as any)?.id && user.id !== question.author?.id && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            onClick={(e) => {
+                                e.preventDefault()
+                                setIsReportOpen(true)
+                            }}
+                            title="Báo cáo vi phạm"
+                        >
+                            <Flag className="h-4 w-4" />
+                        </Button>
+                    )}
                 </div>
             </div>
+
+            <ReportDialog
+                open={isReportOpen}
+                onOpenChange={setIsReportOpen}
+                reportableType="QUESTION"
+                reportableId={question.id}
+            />
         </article>
     )
 }
