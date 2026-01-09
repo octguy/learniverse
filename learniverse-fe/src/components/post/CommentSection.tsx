@@ -15,7 +15,7 @@ import { CommentItem } from "./CommentItem";
 
 interface CommentSectionProps {
   postId: string;
-  commentableType: "POST" | "QUESTION" | "ANSWER";
+  commentableType: "POST" | "QUESTION" | "ANSWER" | "SHARED_POST";
   onCommentAdded?: () => void;
 }
 

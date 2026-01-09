@@ -53,7 +53,7 @@ export type PostAttachment = {
 export type Post = {
   id: string;
   author: PostAuthor;
-  contentType: "POST" | "QUESTION";
+  contentType: "POST" | "QUESTION" | "SHARED_POST";
   status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
   title: string;
   body: string;
