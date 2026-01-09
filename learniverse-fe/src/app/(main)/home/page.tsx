@@ -45,7 +45,7 @@ export default function MainPage() {
     try {
       const feedRes = await postService.getNewsfeed(0, 20)
       const summaries = (feedRes.data?.content ?? []).filter(
-        (item: any) => item.contentType === "POST",
+        (item: any) => item.contentType === "POST" || item.contentType === "SHARED_POST",
       )
 
       if (summaries.length === 0) {
@@ -70,7 +70,7 @@ export default function MainPage() {
             groupAvatarUrl: data.groupAvatarUrl ?? summary.groupAvatarUrl,
           }
         })
-        .filter((post) => post.contentType === "POST")
+        .filter((post) => post.contentType === "POST" || post.contentType === "SHARED_POST")
 
       setPosts(fullPosts)
     } catch (err) {

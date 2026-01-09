@@ -20,7 +20,7 @@ import { PostAuthor } from "@/types/post";
 interface CommentItemProps {
     comment: Comment;
     postId: string;
-    commentableType: "POST" | "QUESTION" | "ANSWER";
+    commentableType: "POST" | "QUESTION" | "ANSWER" | "SHARED_POST";
     depth?: number;
     parentAuthor?: PostAuthor;
 }
