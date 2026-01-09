@@ -24,6 +24,7 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
     @Query("SELECT DISTINCT c FROM Content c " +
             "LEFT JOIN FETCH c.author a " +
             "LEFT JOIN FETCH a.userProfile " +
+            "LEFT JOIN FETCH c.attachments " +
             "WHERE c.contentType IN :types " +
             "AND c.status = :status " +
             "AND c.deletedAt IS NULL " +
@@ -61,6 +62,7 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
     @Query("SELECT DISTINCT c FROM Content c " +
             "LEFT JOIN FETCH c.author a " +
             "LEFT JOIN FETCH a.userProfile " +
+            "LEFT JOIN FETCH c.attachments " +
             "JOIN c.contentTags ct " +
             "WHERE ct.tag.id = :tagId " +
             "AND c.contentType = 'POST' " +
@@ -77,9 +79,10 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
     @Query("SELECT DISTINCT c FROM Content c " +
             "LEFT JOIN FETCH c.author a " +
             "LEFT JOIN FETCH a.userProfile " +
+            "LEFT JOIN FETCH c.attachments " +
             "WHERE (LOWER(c.title) LIKE LOWER(CONCAT('%', :query, '%')) " +
             "OR LOWER(c.body) LIKE LOWER(CONCAT('%', :query, '%'))) " +
-            "AND c.contentType = 'POST' " +
+            "AND c.contentType IN ('POST', 'SHARED_POST') " +
             "AND c.status = 'PUBLISHED' " +
             "AND c.deletedAt IS NULL " +
             "ORDER BY c.publishedAt DESC")
