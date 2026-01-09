@@ -9,4 +9,14 @@ export interface Comment {
   replyCount: number;
   parentId?: string;
   isEdited: boolean;
+  reactionCount: number;
+  currentUserReaction: string | null;
+}
+
+export enum ReactionType {
+  LIKE = 'LIKE',
+  LOVE = 'LOVE',
+  INSIGHTFUL = 'INSIGHTFUL',
+  HELPFUL = 'HELPFUL',
+  CURIOUS = 'CURIOUS'
 }

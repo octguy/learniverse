@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
-import { Loader2, Flag } from "lucide-react";
+import { Loader2, Heart, ThumbsUp, Lightbulb, CheckCircle, HelpCircle, Flag } from "lucide-react";
 import { commentService } from "@/lib/api/commentService";
+import { interactionService } from "@/lib/api/interactionService";
+import { ReactionType } from "@/types/comment";
 import type { Comment } from "@/types/comment";
 import { toast } from "sonner";
 import { ReportDialog } from "@/components/common/ReportDialog";
@@ -21,7 +23,7 @@ import { PostAuthor } from "@/types/post";
 interface CommentItemProps {
     comment: Comment;
     postId: string;
-    commentableType: "POST" | "QUESTION" | "ANSWER";
+    commentableType: "POST" | "QUESTION" | "ANSWER" | "SHARED_POST";
     depth?: number;
     parentAuthor?: PostAuthor;
 }
@@ -38,6 +40,76 @@ export function CommentItem({ comment, postId, commentableType, depth = 0, paren
     const [isReportOpen, setIsReportOpen] = useState(false);
 
     const isAuthor = user?.id === comment.author.id;
+    
+    // Reaction state
+    const [reactionCount, setReactionCount] = useState(comment.reactionCount || 0);
+    const [userReaction, setUserReaction] = useState<string | null>(comment.currentUserReaction || null);
+
+    const reactionConfig = {
+        [ReactionType.LIKE]: { icon: ThumbsUp, color: "text-blue-600", label: "Thích" },
+        [ReactionType.LOVE]: { icon: Heart, color: "text-red-500", label: "Yêu thích" },
+        [ReactionType.INSIGHTFUL]: { icon: Lightbulb, color: "text-yellow-600", label: "Sâu sắc" },
+        [ReactionType.HELPFUL]: { icon: CheckCircle, color: "text-green-600", label: "Hữu ích" },
+        [ReactionType.CURIOUS]: { icon: HelpCircle, color: "text-purple-600", label: "Tò mò" },
+    };
+
+    const handleReaction = async (type: string = "LIKE") => {
+        if (!user) {
+             toast.error("Vui lòng đăng nhập để thực hiện chức năng này");
+             return;
+        }
+
+        const previousReaction = userReaction;
+        const previousCount = reactionCount;
+        
+        let newReaction: string | null = type;
+        let newCount = previousCount;
+
+        if (previousReaction === type) {
+            newReaction = null; 
+            newCount = previousCount - 1;
+        } else if (previousReaction) {
+            newReaction = type;
+            newCount = previousCount; 
+        } else {
+            // New reaction
+            newReaction = type;
+            newCount = previousCount + 1;
+        }
+        
+        // Optimistic update
+        setUserReaction(newReaction);
+        setReactionCount(newCount);
+        
+        try {
+            await interactionService.react({
+                reactableType: "COMMENT",
+                reactableId: comment.id,
+                reactionType: type as any
+            });
+        } catch (error) {
+            // Rollback
+            setUserReaction(previousReaction);
+            setReactionCount(previousCount);
+            toast.error("Có lỗi xảy ra khi thả cảm xúc");
+        }
+    };
+
+    const getReactionIcon = () => {
+        if (userReaction && reactionConfig[userReaction as ReactionType]) {
+            const config = reactionConfig[userReaction as ReactionType];
+            const Icon = config.icon;
+            return <Icon className={cn("w-3.5 h-3.5", config.color)} />;
+        }
+        return <ThumbsUp className="w-3.5 h-3.5" />; // Default icon
+    };
+
+    const getReactionLabel = () => {
+         if (userReaction && reactionConfig[userReaction as ReactionType]) {
+            return reactionConfig[userReaction as ReactionType].label;
+         }
+         return "Thích";
+    };
 
     const handleToggleReplies = async () => {
         const newShowReplies = !showReplies;
@@ -90,9 +162,13 @@ export function CommentItem({ comment, postId, commentableType, depth = 0, paren
             }
 
             toast.success("Đã phản hồi!");
-        } catch (error) {
+        } catch (error: any) {
             console.error("Lỗi gửi phản hồi:", error);
-            toast.error("Gửi thất bại. Vui lòng thử lại.");
+            if (error.response?.status === 400) {
+                toast.error(error.response.data?.message || "Bình luận không được đăng vì chứa ngôn từ không phù hợp.");
+            } else {
+                 toast.error("Gửi thất bại. Vui lòng thử lại.");
+            }
         } finally {
             setIsSubmittingReply(false);
         }
@@ -141,7 +217,44 @@ export function CommentItem({ comment, postId, commentableType, depth = 0, paren
                     })}
                 </div>
                 <div className="flex gap-4 mt-1 items-center">
-                    <button className="text-xs font-medium text-muted-foreground hover:text-foreground">Thích</button>
+                    <div className="relative group/reaction">
+                        <div className="absolute bottom-full left-0 pb-4 hidden group-hover/reaction:block z-50">
+                             <div className="flex items-center gap-1 bg-white dark:bg-slate-950 border shadow-lg rounded-full p-1 animate-in fade-in zoom-in duration-200">
+                                {Object.entries(reactionConfig).map(([type, config]) => {
+                                    const Icon = config.icon;
+                                    return (
+                                        <button
+                                            key={type}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleReaction(type);
+                                            }}
+                                            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-transform hover:scale-125 relative focus:outline-none"
+                                            title={config.label}
+                                        >
+                                            <Icon className={cn("w-5 h-5", config.color)} />
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        <button 
+                            className={cn(
+                                "text-xs font-medium flex items-center gap-1 transition-colors py-1",
+                                userReaction && reactionConfig[userReaction as ReactionType]
+                                    ? reactionConfig[userReaction as ReactionType].color
+                                    : "text-muted-foreground hover:text-foreground"
+                            )}
+                            onClick={() => handleReaction(userReaction || "LIKE")}
+                        >
+                           {getReactionIcon()}
+                           <span>
+                                {reactionCount > 0 ? reactionCount : "Thích"}
+                            </span>
+                        </button>
+                    </div>
+
                     <button
                         className="text-xs font-medium text-muted-foreground hover:text-foreground"
                         onClick={handleReplyClick}

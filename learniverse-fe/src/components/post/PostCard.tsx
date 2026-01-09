@@ -630,7 +630,7 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
           <div className="w-full animate-in slide-in-from-top-2 duration-200">
             <CommentSection
               postId={post.id}
-              commentableType={post.contentType}
+              commentableType={post.contentType as any}
               onCommentAdded={() => setCommentCount(prev => prev + 1)}
             />
           </div>

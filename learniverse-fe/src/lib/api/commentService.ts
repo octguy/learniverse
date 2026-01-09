@@ -5,8 +5,8 @@ import { Comment } from "@/types/comment";
 const BASE_URL = "/comments";
 
 export const commentService = {
-  getComments: async (type: "POST" | "QUESTION" | "ANSWER", id: string, page = 0, size = 10) => {
-    const backendType = (type === "POST" || type === "QUESTION") ? "CONTENT" : type;
+  getComments: async (type: "POST" | "QUESTION" | "ANSWER" | "SHARED_POST", id: string, page = 0, size = 10) => {
+    const backendType = (type === "POST" || type === "QUESTION" || type === "SHARED_POST") ? "CONTENT" : type;
     const response = await apiService.get<ApiResponse<PageResponse<Comment>>>(BASE_URL, {
       params: {
         type: backendType,
@@ -31,14 +31,15 @@ export const commentService = {
   },
 
   createComment: async (payload: {
-    commentableType: "POST" | "QUESTION" | "ANSWER";
+    commentableType: "POST" | "QUESTION" | "ANSWER" | "SHARED_POST";
     commentableId: string;
     body: string;
     parentId?: string;
+    mentionedUserIds?: string[];
   }) => {
     const backendPayload = {
       ...payload,
-      commentableType: (payload.commentableType === "POST" || payload.commentableType === "QUESTION")
+      commentableType: (payload.commentableType === "POST" || payload.commentableType === "QUESTION" || payload.commentableType === "SHARED_POST")
         ? "CONTENT"
         : payload.commentableType
     };

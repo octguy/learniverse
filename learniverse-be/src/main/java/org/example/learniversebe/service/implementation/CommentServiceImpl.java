@@ -13,6 +13,7 @@ import org.example.learniversebe.exception.UnauthorizedException;
 import org.example.learniversebe.mapper.CommentMapper;
 import org.example.learniversebe.model.*;
 import org.example.learniversebe.repository.*;
+import org.example.learniversebe.service.ContentModerationService;
 import org.example.learniversebe.service.ICommentService;
 import org.example.learniversebe.util.ServiceHelper;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,6 +38,7 @@ public class CommentServiceImpl implements ICommentService {
     private final CommentMapper commentMapper;
     private final ServiceHelper serviceHelper;
     private final ReactionRepository reactionRepository;
+    private final ContentModerationService moderationService;
 //    private final IInteractionService interactionService; // Inject InteractionService
     // private final INotificationService notificationService;
 
@@ -54,7 +56,7 @@ public class CommentServiceImpl implements ICommentService {
                               CommentMapper commentMapper,
                               ServiceHelper serviceHelper,
 //                              @Lazy IInteractionService interactionService,
-                              ReactionRepository reactionRepository
+                              ReactionRepository reactionRepository, ContentModerationService moderationService
 
             /*, INotificationService notificationService */) {
         this.commentRepository = commentRepository;
@@ -68,6 +70,7 @@ public class CommentServiceImpl implements ICommentService {
 //        this.interactionService = interactionService;
         // this.notificationService = notificationService;
         this.reactionRepository = reactionRepository;
+        this.moderationService = moderationService;
     }
 
     @Override
@@ -75,6 +78,11 @@ public class CommentServiceImpl implements ICommentService {
     public CommentResponse addComment(CreateCommentRequest request) {
         log.info("Adding comment to {} with ID: {}", request.getCommentableType(), request.getCommentableId());
         User author = serviceHelper.getCurrentUser();
+        if (!moderationService.isContentSafe(request.getBody())) {
+            log.info(request.getBody());
+            throw new BadRequestException("Bình luận của bạn chứa ngôn từ không phù hợp hoặc vi phạm tiêu chuẩn cộng đồng.");
+        }
+
         Comment parentComment = null;
         int depth;
 
@@ -217,6 +225,12 @@ public class CommentServiceImpl implements ICommentService {
         if (comment.getCreatedAt() != null &&
                 LocalDateTime.now().isAfter(comment.getCreatedAt().plusMinutes(commentEditLimitMinutes))) {
             throw new BadRequestException("Edit time limit exceeded (" + commentEditLimitMinutes + " minutes)");
+        }
+
+        if (!comment.getBody().equals(request.getBody())) {
+            if (!moderationService.isContentSafe(request.getBody())) {
+                throw new BadRequestException("Nội dung chỉnh sửa chứa ngôn từ không phù hợp.");
+            }
         }
 
         // Cập nhật nội dung

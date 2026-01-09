@@ -75,4 +75,7 @@ public class PostSummaryResponse {
 
     @Schema(description = "Bài đăng gốc")
     private PostSummaryResponse originalPost;
+
+    @Schema(description = "Danh sách file đính kèm (Ảnh/PDF)")
+    private Set<AttachmentResponse> attachments;
 }

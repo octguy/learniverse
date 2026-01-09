@@ -24,6 +24,7 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
     @Query("SELECT DISTINCT c FROM Content c " +
             "LEFT JOIN FETCH c.author a " +
             "LEFT JOIN FETCH a.userProfile " +
+            "LEFT JOIN FETCH c.attachments " +
             "WHERE c.contentType IN :types " +
             "AND c.status = :status " +
             "AND c.deletedAt IS NULL " +
@@ -61,6 +62,7 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
     @Query("SELECT DISTINCT c FROM Content c " +
             "LEFT JOIN FETCH c.author a " +
             "LEFT JOIN FETCH a.userProfile " +
+            "LEFT JOIN FETCH c.attachments " +
             "JOIN c.contentTags ct " +
             "WHERE ct.tag.id = :tagId " +
             "AND c.contentType = 'POST' " +
@@ -77,9 +79,10 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
     @Query("SELECT DISTINCT c FROM Content c " +
             "LEFT JOIN FETCH c.author a " +
             "LEFT JOIN FETCH a.userProfile " +
+            "LEFT JOIN FETCH c.attachments " +
             "WHERE (LOWER(c.title) LIKE LOWER(CONCAT('%', :query, '%')) " +
             "OR LOWER(c.body) LIKE LOWER(CONCAT('%', :query, '%'))) " +
-            "AND c.contentType = 'POST' " +
+            "AND c.contentType IN ('POST', 'SHARED_POST') " +
             "AND c.status = 'PUBLISHED' " +
             "AND c.deletedAt IS NULL " +
             "ORDER BY c.publishedAt DESC")
@@ -319,4 +322,27 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
     long countByContentTypeAndStatus(
             @Param("type") ContentType type,
             @Param("status") ContentStatus status);
+
+    // ==================== DASHBOARD CONTENT FILTERING ====================
+
+    /**
+     * Find all content by type with optional filtering by status, author, and keyword search
+     * Used for admin dashboard to manage all posts/questions
+     */
+    @Query("SELECT DISTINCT c FROM Content c " +
+            "LEFT JOIN FETCH c.author a " +
+            "LEFT JOIN FETCH a.userProfile " +
+            "WHERE c.contentType = :contentType " +
+            "AND c.deletedAt IS NULL " +
+            "AND (:status IS NULL OR c.status = :status) " +
+            "AND (:authorId IS NULL OR c.author.id = :authorId) " +
+            "AND (:keyword IS NULL OR :keyword = '' OR " +
+            "     LOWER(c.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+            "     LOWER(c.body) LIKE LOWER(CONCAT('%', :keyword, '%')))")
+    Page<Content> findAllByContentTypeWithFilters(
+            @Param("contentType") ContentType contentType,
+            @Param("status") ContentStatus status,
+            @Param("authorId") UUID authorId,
+            @Param("keyword") String keyword,
+            Pageable pageable);
 }

@@ -8,10 +8,12 @@ import lombok.RequiredArgsConstructor;
 import org.example.learniversebe.dto.request.BroadcastNotificationRequest;
 import org.example.learniversebe.dto.request.BroadcastNotificationRequest;
 import org.example.learniversebe.dto.request.SendNotificationRequest;
+import org.example.learniversebe.dto.request.UpdateStatusRequest;
 import org.example.learniversebe.dto.request.UpdateTagRequest;
 import org.example.learniversebe.dto.request.UpdateUserRoleRequest;
 import org.example.learniversebe.dto.request.UpdateUserStatusRequest;
 import org.example.learniversebe.dto.response.*;
+import org.example.learniversebe.enums.ContentStatus;
 import org.example.learniversebe.enums.DashboardPeriod;
 import org.example.learniversebe.model.ApiResponse;
 import org.example.learniversebe.service.IDashboardService;
@@ -20,6 +22,10 @@ import org.springframework.http.HttpStatus;
 import org.example.learniversebe.service.INotificationService;
 import org.springframework.http.HttpStatus;
 import org.example.learniversebe.service.ITagService;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -176,6 +182,116 @@ public class DashboardController {
             @Parameter(description = "Page size")
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(dashboardService.getAllNotifications(page, size));
+    }
+
+    // ==================== Content Management ====================
+
+    @Operation(summary = "Get all posts with filtering",
+            description = "Returns paginated list of all posts with optional filtering by status, owner, and keyword search")
+    @GetMapping("/posts")
+    public ResponseEntity<ApiResponse<PageResponse<PostSummaryResponse>>> getAllPosts(
+            @Parameter(description = "Filter by content status (DRAFT, PUBLISHED, ARCHIVED, DELETED)")
+            @RequestParam(required = false) ContentStatus status,
+            @Parameter(description = "Filter by author/owner ID")
+            @RequestParam(required = false) UUID ownerId,
+            @Parameter(description = "Search keyword in title and body")
+            @RequestParam(required = false) String keyword,
+            @ParameterObject @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        PageResponse<PostSummaryResponse> posts = dashboardService.getAllPosts(status, ownerId, keyword, pageable);
+        return ResponseEntity.ok(new ApiResponse<>(
+                HttpStatus.OK,
+                "Posts retrieved successfully",
+                posts,
+                null
+        ));
+    }
+
+    @Operation(summary = "Get all questions with filtering",
+            description = "Returns paginated list of all questions with optional filtering by status, owner, and keyword search")
+    @GetMapping("/questions")
+    public ResponseEntity<ApiResponse<PageResponse<QuestionSummaryResponse>>> getAllQuestions(
+            @Parameter(description = "Filter by content status (DRAFT, PUBLISHED, ARCHIVED, DELETED)")
+            @RequestParam(required = false) ContentStatus status,
+            @Parameter(description = "Filter by author/owner ID")
+            @RequestParam(required = false) UUID ownerId,
+            @Parameter(description = "Search keyword in title and body")
+            @RequestParam(required = false) String keyword,
+            @ParameterObject @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        PageResponse<QuestionSummaryResponse> questions = dashboardService.getAllQuestions(status, ownerId, keyword, pageable);
+        return ResponseEntity.ok(new ApiResponse<>(
+                HttpStatus.OK,
+                "Questions retrieved successfully",
+                questions,
+                null
+        ));
+    }
+
+    @Operation(summary = "Delete multiple posts",
+            description = "Deletes multiple posts at once by their IDs (soft delete)")
+    @DeleteMapping("/posts")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> deleteMultiplePosts(
+            @Parameter(description = "List of post IDs to delete")
+            @RequestBody List<UUID> postIds) {
+        int deletedCount = dashboardService.deleteMultiplePosts(postIds);
+        return ResponseEntity.ok(new ApiResponse<>(
+                HttpStatus.OK,
+                "Posts deleted successfully",
+                Map.of(
+                        "requestedCount", postIds.size(),
+                        "deletedCount", deletedCount
+                ),
+                null
+        ));
+    }
+
+    @Operation(summary = "Delete multiple questions",
+            description = "Deletes multiple questions at once by their IDs (soft delete)")
+    @DeleteMapping("/questions")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> deleteMultipleQuestions(
+            @Parameter(description = "List of question IDs to delete")
+            @RequestBody List<UUID> questionIds) {
+        int deletedCount = dashboardService.deleteMultipleQuestions(questionIds);
+        return ResponseEntity.ok(new ApiResponse<>(
+                HttpStatus.OK,
+                "Questions deleted successfully",
+                Map.of(
+                        "requestedCount", questionIds.size(),
+                        "deletedCount", deletedCount
+                ),
+                null
+        ));
+    }
+
+    @Operation(summary = "Update post status",
+            description = "Updates the status of a post (Admin only - DRAFT, PUBLISHED, ARCHIVED, DELETED)")
+    @PatchMapping("/posts/{postId}/status")
+    public ResponseEntity<ApiResponse<PostSummaryResponse>> updatePostStatus(
+            @Parameter(description = "Post ID")
+            @PathVariable UUID postId,
+            @Valid @RequestBody UpdateStatusRequest request) {
+        PostSummaryResponse post = dashboardService.updatePostStatus(postId, request.getStatus());
+        return ResponseEntity.ok(new ApiResponse<>(
+                HttpStatus.OK,
+                "Post status updated successfully",
+                post,
+                null
+        ));
+    }
+
+    @Operation(summary = "Update question status",
+            description = "Updates the status of a question (Admin only - DRAFT, PUBLISHED, ARCHIVED, DELETED)")
+    @PatchMapping("/questions/{questionId}/status")
+    public ResponseEntity<ApiResponse<QuestionSummaryResponse>> updateQuestionStatus(
+            @Parameter(description = "Question ID")
+            @PathVariable UUID questionId,
+            @Valid @RequestBody UpdateStatusRequest request) {
+        QuestionSummaryResponse question = dashboardService.updateQuestionStatus(questionId, request.getStatus());
+        return ResponseEntity.ok(new ApiResponse<>(
+                HttpStatus.OK,
+                "Question status updated successfully",
+                question,
+                null
+        ));
     }
 
 

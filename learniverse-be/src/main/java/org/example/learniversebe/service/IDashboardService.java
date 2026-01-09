@@ -5,7 +5,9 @@ import org.example.learniversebe.dto.request.SendNotificationRequest;
 import org.example.learniversebe.dto.request.UpdateUserRoleRequest;
 import org.example.learniversebe.dto.request.UpdateUserStatusRequest;
 import org.example.learniversebe.dto.response.*;
+import org.example.learniversebe.enums.ContentStatus;
 import org.example.learniversebe.enums.DashboardPeriod;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.UUID;
@@ -85,4 +87,54 @@ public interface IDashboardService {
      * @return number of notifications sent
      */
     int sendNotification(SendNotificationRequest request);
+
+    /**
+     * Get all posts with filtering and pagination
+     * @param status filter by content status (optional)
+     * @param ownerId filter by author/owner ID (optional)
+     * @param keyword search keyword in title and body (optional)
+     * @param pageable pagination parameters
+     * @return PageResponse of PostSummaryResponse
+     */
+    PageResponse<PostSummaryResponse> getAllPosts(ContentStatus status, UUID ownerId, String keyword, Pageable pageable);
+
+    /**
+     * Get all questions with filtering and pagination
+     * @param status filter by content status (optional)
+     * @param ownerId filter by author/owner ID (optional)
+     * @param keyword search keyword in title and body (optional)
+     * @param pageable pagination parameters
+     * @return PageResponse of QuestionSummaryResponse
+     */
+    PageResponse<QuestionSummaryResponse> getAllQuestions(ContentStatus status, UUID ownerId, String keyword, Pageable pageable);
+
+    /**
+     * Delete multiple posts at once
+     * @param postIds list of post IDs to delete
+     * @return number of posts successfully deleted
+     */
+    int deleteMultiplePosts(List<UUID> postIds);
+
+    /**
+     * Delete multiple questions at once
+     * @param questionIds list of question IDs to delete
+     * @return number of questions successfully deleted
+     */
+    int deleteMultipleQuestions(List<UUID> questionIds);
+
+    /**
+     * Update the status of a post (Admin only - bypasses author check)
+     * @param postId the post ID
+     * @param newStatus the new status to set
+     * @return updated PostSummaryResponse
+     */
+    PostSummaryResponse updatePostStatus(UUID postId, ContentStatus newStatus);
+
+    /**
+     * Update the status of a question (Admin only - bypasses author check)
+     * @param questionId the question ID
+     * @param newStatus the new status to set
+     * @return updated QuestionSummaryResponse
+     */
+    QuestionSummaryResponse updateQuestionStatus(UUID questionId, ContentStatus newStatus);
 }
