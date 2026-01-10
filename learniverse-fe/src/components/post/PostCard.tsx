@@ -97,7 +97,7 @@ interface PostCardProps {
 
 export function PostCard({ post, onDelete, initialCollectionName, showGroupName = true }: PostCardProps) {
   const { user } = useAuth()
-  const { author, title, body, tags = [], attachments = [], createdAt, lastEditedAt } = post
+  const { author, title, body, tags = [], attachments = [], createdAt, publishedAt, lastEditedAt } = post
 
   const [currentReaction, setCurrentReaction] = useState<ReactionType | null>(
     (post.currentUserReaction as ReactionType) || null
@@ -108,7 +108,7 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
   const [isBookmarkLoading, setIsBookmarkLoading] = useState(false);
   const [collectionName, setCollectionName] = useState(initialCollectionName || "");
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
-  
+
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false)
@@ -198,19 +198,19 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
       setIsApiLoading(false)
     }
   }
-  
+
   const handleSaveBookmark = async () => {
     if (isBookmarkLoading) return;
     setIsBookmarkLoading(true);
 
     try {
-        await interactionService.bookmark({ 
-            contentId: post.id, 
-            collectionName: collectionName.trim() || "General"
-        });
-        setIsBookmarked(true);
-        toast.success(collectionName ? `Đã lưu vào "${collectionName}"` : "Đã lưu vào General");
-        setIsPopoverOpen(false);
+      await interactionService.bookmark({
+        contentId: post.id,
+        collectionName: collectionName.trim() || "General"
+      });
+      setIsBookmarked(true);
+      toast.success(collectionName ? `Đã lưu vào "${collectionName}"` : "Đã lưu vào General");
+      setIsPopoverOpen(false);
     } catch (error) {
       console.error("Lỗi bookmark:", error);
       toast.error("Có lỗi xảy ra, vui lòng thử lại");
@@ -224,15 +224,15 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
     setIsBookmarkLoading(true);
 
     try {
-        await interactionService.unbookmark(post.id);
-        setIsBookmarked(false);
-        toast.success("Đã bỏ lưu bài viết");
-        setIsPopoverOpen(false);
+      await interactionService.unbookmark(post.id);
+      setIsBookmarked(false);
+      toast.success("Đã bỏ lưu bài viết");
+      setIsPopoverOpen(false);
     } catch (error) {
-        console.error("Lỗi unbookmark:", error);
-        toast.error("Có lỗi xảy ra");
+      console.error("Lỗi unbookmark:", error);
+      toast.error("Có lỗi xảy ra");
     } finally {
-        setIsBookmarkLoading(false);
+      setIsBookmarkLoading(false);
     }
   };
 
@@ -256,7 +256,16 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
   }
 
   const activeReactionConfig = REACTIONS_CONFIG.find(r => r.type === currentReaction)
-  const postDate = new Date(createdAt)
+
+  const parseDate = (dateString: string) => {
+    if (!dateString) return new Date();
+    const cleanDate = dateString.split('.')[0];
+    const date = new Date(cleanDate);
+    if (!isNaN(date.getTime())) return date;
+    return new Date();
+  }
+
+  const postDate = parseDate(publishedAt || createdAt)
 
   const images = attachments.filter((att) => att.fileType === "IMAGE")
   const pdfs = attachments.filter((att) => att.fileType === "PDF")
@@ -285,7 +294,7 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
               </a>
               <div className="min-w-0 flex-1">
                 {/* Group name */}
-                <a 
+                <a
                   href={`/groups/${post.groupSlug}`}
                   className="font-semibold text-sm leading-none hover:underline"
                 >
@@ -293,7 +302,7 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
                 </a>
                 {/* User name + time */}
                 <div className="mt-1 text-xs text-muted-foreground flex items-center gap-1 flex-wrap">
-                  <span 
+                  <span
                     className="font-medium text-foreground cursor-pointer hover:underline"
                     onClick={() => window.location.href = `/profile/${author.id}`}
                   >
@@ -439,18 +448,18 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
                     />
                   </div>
                   <div className="flex justify-between gap-2 mt-2">
-                     {isBookmarked && (
-                        <Button variant="outline" size="sm" onClick={handleUnbookmark} className="text-red-600 hover:text-red-700 hover:bg-red-50">
-                            Bỏ lưu
-                        </Button>
-                     )}
-                     <Button 
-                        size="sm" 
-                        onClick={handleSaveBookmark} 
-                        className={isBookmarked ? "ml-auto" : "w-full"}
+                    {isBookmarked && (
+                      <Button variant="outline" size="sm" onClick={handleUnbookmark} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                        Bỏ lưu
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      onClick={handleSaveBookmark}
+                      className={isBookmarked ? "ml-auto" : "w-full"}
                     >
-                        {isBookmarked ? "Cập nhật" : "Lưu bài viết"}
-                     </Button>
+                      {isBookmarked ? "Cập nhật" : "Lưu bài viết"}
+                    </Button>
                   </div>
                 </div>
               </PopoverContent>
@@ -483,8 +492,8 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
               <div className="flex flex-col">
                 <span className="font-semibold text-sm">{displayOriginalPost.author.username}</span>
                 <span className="text-xs text-muted-foreground">
-                  {!isNaN(new Date(displayOriginalPost.createdAt).getTime()) ? (
-                    formatDistanceToNow(new Date(displayOriginalPost.createdAt), { addSuffix: true, locale: vi })
+                  {!isNaN(parseDate(displayOriginalPost.publishedAt || displayOriginalPost.createdAt).getTime()) ? (
+                    formatDistanceToNow(parseDate(displayOriginalPost.publishedAt || displayOriginalPost.createdAt), { addSuffix: true, locale: vi })
                   ) : "Vừa xong"}
                 </span>
               </div>
@@ -639,14 +648,14 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
 
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         {isEditModalOpen && (
-            <CreatePostModal 
-              setOpen={setIsEditModalOpen} 
-              onSuccess={() => {
-                // Có thể thêm logic reload post hoặc update UI ở đây
-                window.location.reload(); // Tạm thời reload để thấy thay đổi
-              }}
-              initialData={post}
-            />
+          <CreatePostModal
+            setOpen={setIsEditModalOpen}
+            onSuccess={() => {
+              // Có thể thêm logic reload post hoặc update UI ở đây
+              window.location.reload(); // Tạm thời reload để thấy thay đổi
+            }}
+            initialData={post}
+          />
         )}
       </Dialog>
 
@@ -661,8 +670,8 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
         />
       </Dialog>
 
-      <ReportDialog 
-        open={isReportDialogOpen} 
+      <ReportDialog
+        open={isReportDialogOpen}
         onOpenChange={setIsReportDialogOpen}
         reportableType="POST"
         reportableId={post.id}
