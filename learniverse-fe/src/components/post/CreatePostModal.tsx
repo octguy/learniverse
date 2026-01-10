@@ -458,7 +458,7 @@ export default function CreatePostModalContent({
                                             key={img.id}
                                             src={img.storageUrl}
                                             alt={img.fileName}
-                                            className="max-h-96 w-full rounded-md border object-contain"
+                                            className="max-h-96 max-w-full h-auto mx-auto rounded-md border object-contain"
                                         />
                                     ))}
                                     {images.map((img, idx) => (
@@ -466,7 +466,7 @@ export default function CreatePostModalContent({
                                             key={`preview-new-img-${idx}`}
                                             src={URL.createObjectURL(img)}
                                             alt="Preview"
-                                            className="max-h-96 w-full rounded-md border object-contain"
+                                            className="max-h-96 max-w-full h-auto mx-auto rounded-md border object-contain"
                                         />
                                     ))}
                                 </div>

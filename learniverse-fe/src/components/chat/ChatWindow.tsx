@@ -365,7 +365,7 @@ const ChatWindow = ({
   const full = (iso: string) => format(new Date(iso), "HH:mm • dd/MM/yyyy");
 
   return (
-    <div className="flex-1 flex flex-col bg-gray-50 h-full max-h-full">
+    <div className="flex-1 w-full min-w-0 min-h-0 flex flex-col bg-gray-50 h-full max-h-full">
       <div className="p-3 border-b bg-white flex items-center justify-between shadow-sm flex-shrink-0">
         <div className="flex items-center">
           <Avatar className="w-10 h-10 mr-3">

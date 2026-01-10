@@ -147,7 +147,7 @@ export function SideBar() {
                             />
                         ))
                     ) : tags.length > 0 ? (
-                        tags.map((tag) => (
+                        tags.slice(0, 10).map((tag) => (
                             <Link key={tag.id} href={`/tags/${tag.slug}`}>
                                 <Badge
                                     variant="outline"
