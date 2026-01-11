@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PostCard } from "@/components/post/PostCard"
@@ -15,7 +15,7 @@ import { QuestionSummary } from "@/types/question"
 import { SuggestedFriend } from "@/types/friend"
 import { Loader2 } from "lucide-react"
 
-export default function SearchPage() {
+function SearchContent() {
     const searchParams = useSearchParams()
     const query = searchParams.get("query") || ""
 
@@ -145,5 +145,13 @@ export default function SearchPage() {
                 </TabsContent>
             </Tabs>
         </div>
+    )
+}
+
+export default function SearchPage() {
+    return (
+        <Suspense fallback={<div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>}>
+            <SearchContent />
+        </Suspense>
     )
 }

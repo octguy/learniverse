@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Data;
 import org.example.learniversebe.enums.ContentType;
+import org.example.learniversebe.enums.ContentStatus;
 import org.example.learniversebe.enums.ReactionType;
 
 import java.time.LocalDateTime;
@@ -24,6 +25,9 @@ public class PostSummaryResponse {
     @Schema(description = "Loại nội dung (sẽ luôn là POST)")
     @Builder.Default
     private ContentType contentType = ContentType.POST;
+
+    @Schema(description = "Trạng thái bài viết")
+    private ContentStatus status;
 
     @Schema(description = "Tiêu đề bài post")
     private String title;

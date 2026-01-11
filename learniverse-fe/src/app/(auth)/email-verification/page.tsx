@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -14,7 +14,7 @@ import {
 import { authService } from "@/lib/api/authService"
 import {OTPVerificationDialog} from "@/components/auth/OTP-verification-dialog";
 
-export default function VerifyEmailPage() {
+function VerifyEmailContent() {
     const searchParams = useSearchParams()
     const email = searchParams.get("email") || ""
     const [otp, setOtp] = useState("")
@@ -72,5 +72,13 @@ export default function VerifyEmailPage() {
                 )}
             </div>
         </div>
+    )
+}
+
+export default function VerifyEmailPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <VerifyEmailContent />
+        </Suspense>
     )
 }

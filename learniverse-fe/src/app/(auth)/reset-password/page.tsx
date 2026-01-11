@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Eye, EyeOff } from "lucide-react"
 import Link from "next/link"
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { authService } from "@/lib/api/authService"
-import { getErrorMessage, DEFAULT_ERROR_MESSAGE } from "@/lib/errorMap";
+import { getErrorMessage } from "@/lib/errorMap";
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
     const searchParams = useSearchParams()
     const router = useRouter()
     const token = searchParams.get("token") || ""
@@ -143,5 +143,13 @@ export default function ResetPasswordPage() {
                 )}
             </div>
         </div>
+    )
+}
+
+export default function ResetPasswordPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <ResetPasswordContent />
+        </Suspense>
     )
 }
