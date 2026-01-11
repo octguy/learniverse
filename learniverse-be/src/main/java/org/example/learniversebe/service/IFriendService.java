@@ -1,6 +1,7 @@
 package org.example.learniversebe.service;
 
 import org.example.learniversebe.dto.response.UserProfileResponse;
+import org.example.learniversebe.enums.FriendStatus;
 import org.example.learniversebe.model.Friend;
 import java.util.List;
 import java.util.UUID;
@@ -20,4 +21,6 @@ public interface IFriendService {
     List<UserProfileResponse> searchFriends(String keyword);
 
     List<UserProfileResponse> getOtherUserFriends(UUID userId);
+
+    FriendStatus getFriendStatus(UUID targetUserId);
 }

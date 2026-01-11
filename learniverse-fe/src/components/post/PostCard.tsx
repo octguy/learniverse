@@ -304,7 +304,10 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
                 <div className="mt-1 text-xs text-muted-foreground flex items-center gap-1 flex-wrap">
                   <span
                     className="font-medium text-foreground cursor-pointer hover:underline"
-                    onClick={() => window.location.href = `/profile/${author.id}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.location.href = isAuthor ? "/profile" : `/profile/${author.id}`;
+                    }}
                   >
                     {author.username}
                   </span>
@@ -329,7 +332,7 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
             /* Personal post header */
             <div
               className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
-              onClick={() => window.location.href = `/profile/${author.id}`}
+              onClick={() => window.location.href = isAuthor ? "/profile" : `/profile/${author.id}`}
             >
               <Avatar className="h-10 w-10">
                 <AvatarImage src={author.avatarUrl || (author as any).avatar || ""} />
