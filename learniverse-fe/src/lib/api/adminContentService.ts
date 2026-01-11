@@ -56,7 +56,6 @@ export const adminContentService = {
   },
 
   getPost: async (id: string) => {
-    // Use the public endpoint /posts/{id} as confirmed by documentation
     const res = await apiService.get<ApiResponse<Post>>(`/posts/${id}`);
     return res.data?.data;
   },
