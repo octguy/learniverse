@@ -35,7 +35,6 @@ export function ReportDialog({ open, onOpenChange, reportableType, reportableId 
   const [isChecking, setIsChecking] = useState(false);
   const [alreadyReported, setAlreadyReported] = useState(false);
 
-  // Check if already reported when dialog opens
   const checkStatus = async () => {
     if (!open) return;
     setIsChecking(true);
@@ -53,7 +52,6 @@ export function ReportDialog({ open, onOpenChange, reportableType, reportableId 
     }
   };
 
-  // Call checkStatus when open changes to true
   useEffect(() => {
     if (open) {
       checkStatus();

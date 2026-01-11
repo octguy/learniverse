@@ -153,6 +153,14 @@ export function Header() {
             <Home className="w-5 h-5" />
             <span className="text-xs">Home</span>
           </Link>
+          
+          {(user?.role === 'ROLE_ADMIN' || user?.roles?.includes('ROLE_ADMIN')) && (
+            <Link href="/admin/dashboard" className="flex flex-col items-center text-gray-600 hover:text-primary">
+              <Settings className="w-5 h-5" />
+              <span className="text-xs">Admin</span>
+            </Link>
+          )}
+
           <Link href="/friend" className="flex flex-col items-center text-gray-600 hover:text-primary">
             <div className="relative">
               <Users className="w-5 h-5" />

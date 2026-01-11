@@ -6,8 +6,10 @@ import { userProfileService } from "@/lib/api/userProfileService";
 import { postService } from "@/lib/api/postService";
 import { interactionService } from "@/lib/api/interactionService";
 import { friendService } from "@/lib/api/friendService";
+import { questionService } from "@/lib/api/questionService";
 import { UserProfileResponse } from "@/types/userProfile";
 import { PostResponse, BookmarkResponse } from "@/types/post";
+import { QuestionSummary } from "@/types/question";
 import { SuggestedFriend } from "@/types/friend";
 import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
 import {Dialog, DialogContent, DialogTitle} from "@/components/ui/dialog";
@@ -15,7 +17,7 @@ import {Button} from "@/components/ui/button";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import {ProfileEditForm} from "@/components/auth/profile-edit-form";
 import {PostCard} from "@/components/post/PostCard";
-import {Loader2, FileText, Bookmark, LayoutGrid, AlertCircle, Users, UserPlus} from "lucide-react";
+import {Loader2, FileText, Bookmark, LayoutGrid, AlertCircle, Users, UserPlus, HelpCircle} from "lucide-react";
 import {QuestionCard} from "@/components/question/question-card";
 import { CreatePostTrigger } from "@/components/post/CreatePostTrigger";
 import Link from "next/link";
@@ -28,6 +30,7 @@ export default function ProfilePage() {
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
     const [myPosts, setMyPosts] = useState<PostResponse[]>([]);
+    const [myQuestions, setMyQuestions] = useState<QuestionSummary[]>([]);
     const [savedContent, setSavedContent] = useState<BookmarkResponse[]>([]);
     const [savedTotalCount, setSavedTotalCount] = useState(0);
     const [loadingContent, setLoadingContent] = useState(false);
@@ -95,6 +98,25 @@ export default function ProfilePage() {
         }
     };
 
+    const fetchMyQuestions = async () => {
+        const targetUserId = user?.id;
+        if (!targetUserId) return;
+
+        setLoadingContent(true);
+        try {
+            const summaryPage = await questionService.getQuestionsByAuthor(targetUserId);
+            if (!summaryPage || !summaryPage.content) {
+                setMyQuestions([]);
+                return;
+            }
+            setMyQuestions(summaryPage.content);
+        } catch (error) {
+            console.error("Lỗi tải câu hỏi:", error);
+        } finally {
+            setLoadingContent(false);
+        }
+    };
+
     const fetchBookmarks = async () => {
         setLoadingContent(true);
         try {
@@ -134,6 +156,7 @@ export default function ProfilePage() {
     useEffect(() => {
         if (user?.id) {
             fetchMyPosts();
+            fetchMyQuestions();
             fetchBookmarks();
         }
     }, [user?.id, profile]);
@@ -224,6 +247,7 @@ export default function ProfilePage() {
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6"><div className="lg:col-span-4">
                     <Tabs defaultValue="posts" className="w-full" onValueChange={(val) => {
                         if (val === "posts" && myPosts.length === 0) fetchMyPosts();
+                        if (val === "questions" && myQuestions.length === 0) fetchMyQuestions();
                         if (val === "saved" && savedContent.length === 0) fetchBookmarks();
                     }}>
                         <div className="border-b border-gray-200 dark:border-gray-800 mb-6">
@@ -233,6 +257,12 @@ export default function ProfilePage() {
                                     className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 bg-transparent px-4 py-3 gap-2 text-base font-medium text-gray-500 hover:text-gray-700 transition-all shadow-none"
                                 >
                                     <FileText className="w-4 h-4" /> Bài viết ({myPosts.length || profile.postCount || 0})
+                                </TabsTrigger>
+                                <TabsTrigger
+                                    value="questions"
+                                    className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 bg-transparent px-4 py-3 gap-2 text-base font-medium text-gray-500 hover:text-gray-700 transition-all shadow-none"
+                                >
+                                    <HelpCircle className="w-4 h-4" /> Câu hỏi ({myQuestions.length})
                                 </TabsTrigger>
                                 <TabsTrigger
                                     value="saved"
@@ -265,6 +295,26 @@ export default function ProfilePage() {
                                 <div className="flex flex-col items-center justify-center py-16 text-gray-500 bg-white dark:bg-zinc-900 rounded-xl border border-dashed border-gray-300">
                                     <LayoutGrid className="w-12 h-12 mb-3 text-gray-300" />
                                     <p>Bạn chưa đăng bài viết nào.</p>
+                                </div>
+                            )}
+                        </TabsContent>
+
+                        <TabsContent value="questions" className="space-y-4 focus-visible:ring-0 outline-none w-full min-h-[500px]">
+                             {loadingContent ? (
+                                <div className="flex items-center justify-center w-full h-[300px]">
+                                    <Loader2 className="animate-spin text-blue-600 w-8 h-8" />
+                                </div>
+                            ) : myQuestions.length > 0 ? (
+                                myQuestions.map((question) => (
+                                    <QuestionCard 
+                                        key={question.id} 
+                                        question={question} 
+                                    />
+                                ))
+                            ) : (
+                                <div className="flex flex-col items-center justify-center py-16 text-gray-500 bg-white dark:bg-zinc-900 rounded-xl border border-dashed border-gray-300">
+                                    <HelpCircle className="w-12 h-12 mb-3 text-gray-300" />
+                                    <p>Bạn chưa đặt câu hỏi nào.</p>
                                 </div>
                             )}
                         </TabsContent>

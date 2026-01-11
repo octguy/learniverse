@@ -14,7 +14,7 @@ RUN java -Djarmode=tools -jar application.jar extract --layers --destination ext
 # RUN STAGE
 FROM eclipse-temurin:17.0.17_10-jre-alpine
 
-ENV SERVER_PORT=8030
+ENV SERVER_PORT=8080
 
 EXPOSE $SERVER_PORT
 

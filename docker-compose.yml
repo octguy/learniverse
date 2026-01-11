@@ -40,7 +40,7 @@ services:
       CLOUDINARY_FOLDER: ${CLOUDINARY_FOLDER}
       AI_SERVICE_URL: http://learniverse-commentscan:8000
     ports:
-      - "8030:8030"
+      - "8080:8080"
     depends_on:
       postgres:
         condition: service_healthy

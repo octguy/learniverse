@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Data;
 import org.example.learniversebe.enums.ContentType;
+import org.example.learniversebe.enums.ContentStatus;
 import org.example.learniversebe.enums.ReactionType;
 import org.example.learniversebe.enums.VoteType;
 
@@ -25,6 +26,9 @@ public class QuestionSummaryResponse {
     @Schema(description = "Loại nội dung (sẽ luôn là QUESTION)")
     @Builder.Default
     private ContentType contentType = ContentType.QUESTION;
+
+    @Schema(description = "Trạng thái câu hỏi")
+    private ContentStatus status;
 
     @Schema(description = "Tiêu đề câu hỏi")
     private String title;

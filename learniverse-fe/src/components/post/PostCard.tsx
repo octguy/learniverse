@@ -54,6 +54,16 @@ import { SharePostDialog } from "./SharePostDialog"
 import { postService } from "@/lib/api/postService"
 import { shareService } from "@/lib/api/shareService"
 import { ReportDialog } from "@/components/common/ReportDialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 const REACTIONS_CONFIG = [
   {
@@ -112,6 +122,7 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
   const [commentCount, setCommentCount] = useState(post.commentCount)
   const [shareCount, setShareCount] = useState(post.shareCount)
@@ -145,10 +156,11 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
 
   const displayOriginalPost = fetchedOriginalPost || post.originalPost;
 
+  const handleDeleteClick = () => {
+    setIsDeleteDialogOpen(true)
+  }
 
-  const handleDelete = async () => {
-    if (!confirm("Bạn có chắc chắn muốn xóa bài viết này không?")) return
-
+  const handleConfirmDelete = async () => {
     try {
       await postService.deletePost(post.id)
       toast.success("Đã xóa bài viết")
@@ -164,6 +176,8 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
       } else {
         toast.error("Không thể xóa bài viết")
       }
+    } finally {
+      setIsDeleteDialogOpen(false)
     }
   }
 
@@ -398,7 +412,7 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
                       <Edit className="mr-2 h-4 w-4" />
                       Chỉnh sửa bài viết
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="text-red-600" onClick={handleDelete}>
+                    <DropdownMenuItem className="text-red-600" onClick={handleDeleteClick}>
                       <Trash2 className="mr-2 h-4 w-4" />
                       Xóa bài viết
                     </DropdownMenuItem>
@@ -679,6 +693,23 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
         reportableType="POST"
         reportableId={post.id}
       />
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Bạn có chắc chắn muốn xóa bài viết này?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Hành động này không thể hoàn tác. Bài viết sẽ bị xóa vĩnh viễn khỏi hệ thống.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700">
+              Xóa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   )
 }
