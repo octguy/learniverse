@@ -3,6 +3,7 @@ package org.example.learniversebe.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import org.example.learniversebe.dto.response.UserProfileResponse;
+import org.example.learniversebe.enums.FriendStatus;
 import org.example.learniversebe.model.ApiResponse;
 import org.example.learniversebe.model.Friend;
 import org.example.learniversebe.service.IFriendService;
@@ -136,6 +137,15 @@ public class FriendController {
         List<UserProfileResponse> responses = friendService.getOtherUserFriends(userId);
         return ResponseEntity.ok(
                 new ApiResponse<>(HttpStatus.OK, "Friends list retrieved successfully. User ID: " + userId, responses, null)
+        );
+    }
+
+    @Operation(summary = "Get friend status with a user")
+    @GetMapping("/status/{userId}")
+    public ResponseEntity<ApiResponse<FriendStatus>> getFriendStatus(@PathVariable UUID userId) {
+        FriendStatus status = friendService.getFriendStatus(userId);
+        return ResponseEntity.ok(
+                new ApiResponse<>(HttpStatus.OK, "Friend status retrieved successfully.", status, null)
         );
     }
 }

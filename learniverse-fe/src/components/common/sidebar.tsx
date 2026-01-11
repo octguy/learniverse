@@ -147,7 +147,7 @@ export function SideBar() {
                             />
                         ))
                     ) : tags.length > 0 ? (
-                        tags.slice(0, 10).map((tag) => (
+                        tags.slice(0, 5).map((tag) => (
                             <Link key={tag.id} href={`/tags/${tag.slug}`}>
                                 <Badge
                                     variant="outline"
@@ -163,15 +163,6 @@ export function SideBar() {
                         </p>
                     )}
                 </div>
-
-                <Button
-                    variant="link"
-                    size="sm"
-                    className="px-0 mt-2 text-xs w-full text-muted-foreground"
-                    asChild
-                >
-                    <Link href="/tags">Xem tất cả Tags</Link>
-                </Button>
             </div>
         </aside>
     )

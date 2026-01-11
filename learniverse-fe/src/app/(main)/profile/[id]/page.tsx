@@ -10,7 +10,7 @@ import { friendService } from "@/lib/api/friendService";
 import { UserProfileResponse } from "@/types/userProfile";
 import { PostResponse, BookmarkResponse } from "@/types/post";
 import { QuestionResponse } from "@/types/question";
-import { SuggestedFriend } from "@/types/friend";
+import { FriendStatus, SuggestedFriend } from "@/types/friend";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import { PostCard } from "@/components/post/PostCard";
@@ -35,20 +35,52 @@ export default function UserProfilePage() {
     const [savedContent, setSavedContent] = useState<BookmarkResponse[]>([]);
     const [postCount, setPostCount] = useState(0);
 
+    const [friendStatus, setFriendStatus] = useState<FriendStatus>(FriendStatus.NONE);
+    const [isReceivedRequest, setIsReceivedRequest] = useState(false);
+
     const [loadingTab, setLoadingTab] = useState(false);
 
     const isMe = currentUser?.id === userId;
+
+    const fetchFriendStatus = async () => {
+        if (isMe) return;
+        try {
+            const res = await friendService.getFriendStatus(userId);
+            // @ts-ignore
+            const status = res.data?.data || FriendStatus.NONE;
+            setFriendStatus(status);
+
+            if (status === FriendStatus.PENDING) {
+                const requestsRes = await friendService.getFriendRequests();
+                // @ts-ignore
+                const requests = requestsRes.data?.data || [];
+                // @ts-ignore
+                const isReceived = requests.some((req: any) => req.user?.id === userId || req.id === userId || req.userId === userId);
+                setIsReceivedRequest(isReceived);
+            } else {
+                setIsReceivedRequest(false);
+            }
+        } catch (error) {
+            console.error("Error fetching friend status:", error);
+        }
+    };
 
     const fetchProfile = async () => {
         try {
             const data = await userProfileService.getUserProfile(userId);
             setProfile(data);
+            if (!isMe) fetchFriendStatus();
         } catch (error) {
             console.error("Error loading profile:", error);
         } finally {
             setLoading(false);
         }
     };
+
+    const refreshData = () => {
+        fetchProfile();
+        if (!isMe) fetchFriendStatus();
+    }
 
     const fetchPosts = async () => {
         setLoadingTab(true);
@@ -65,9 +97,6 @@ export default function UserProfilePage() {
                 return;
             }
 
-            // Fetch details for each post to satisfy PostResponse type usually required by PostCard
-            // Optimization: If PostCard accepts summary, we can skip this. 
-            // Assuming we need full details based on previous file viewing:
             const detailPromises = summaryPage.content.map((summary: PostResponse) =>
                 postService.getPostById(summary.id)
             );
@@ -154,8 +183,11 @@ export default function UserProfilePage() {
             <ProfileHeader
                 profile={profile}
                 isOwnProfile={isMe}
-                onRefresh={fetchProfile}
+                onRefresh={refreshData}
                 customPostCount={postCount}
+                friendStatus={friendStatus}
+                isReceivedRequest={isReceivedRequest}
+                userId={userId}
             />
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">

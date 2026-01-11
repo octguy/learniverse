@@ -577,7 +577,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex rounded-lg shadow-sm overflow-hidden bg-white h-[calc(100vh-120px)]">
+    <div className="flex rounded-lg shadow-sm overflow-hidden bg-white h-[calc(100vh-90px)]">
       {/* Left panel */}
       <div className="w-80 border-r bg-white flex flex-col">
         <div className="p-4 border-b">
