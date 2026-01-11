@@ -233,6 +233,23 @@ public class FriendServiceImpl implements IFriendService {
         return getUserProfileResponses(friendUserIds);
     }
 
+    @Override
+    public FriendStatus getFriendStatus(UUID targetUserId) {
+        UUID currentUserId = serviceHelper.getCurrentUserId();
+        if (currentUserId.equals(targetUserId)) {
+            return FriendStatus.NONE;
+        }
+
+        UUID[] ids = getNormalizedIds(currentUserId, targetUserId);
+        Optional<Friend> friendOpt = friendRepository.findByUserId1AndUserId2(ids[0], ids[1]);
+
+        if (friendOpt.isEmpty()) {
+            return FriendStatus.NONE;
+        }
+
+        return friendOpt.get().getStatus();
+    }
+
     // ==================== PRIVATE HELPER METHODS ====================
 
     private UUID[] getNormalizedIds(UUID id1, UUID id2) {

@@ -12,6 +12,7 @@ export interface UserProfile {
 
 export interface UserProfileResponse {
     id: string;
+    userId: string;
     displayName: string;
     bio: string;
     avatarUrl: string;
