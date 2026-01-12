@@ -87,6 +87,22 @@ export const authService = {
     return handleResponse<ApiResponse<string>>(res);
   },
 
+  async changePassword(payload: {
+    currentPassword: string;
+    newPassword: string;
+  }) {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+    const res = await fetch(`${API_URL}/auth/change-password`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { "Authorization": `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify(payload),
+    });
+    return handleResponse<ApiResponse<string>>(res);
+  },
+
   async logout() {
     const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
     const res = await fetch(`${API_URL}/auth/logout`, {
