@@ -54,7 +54,6 @@ function getStatusBadge(status?: ContentStatus) {
         case "DRAFT": return <Badge variant="secondary">Nháp</Badge>;
         case "ARCHIVED": return <Badge variant="outline">Lưu trữ</Badge>;
         case "DELETED": return <Badge variant="destructive">Đã xóa</Badge>;
-        case "HIDDEN": return <Badge variant="secondary" className="bg-gray-500 text-white hover:bg-gray-600">Đã ẩn (Lưu trữ/Xóa)</Badge>;
         default: return <Badge variant="outline">{status}</Badge>;
     }
 }
