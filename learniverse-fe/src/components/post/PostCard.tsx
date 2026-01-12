@@ -519,17 +519,53 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
             <div className="text-sm text-foreground/90">
               <MarkdownRenderer content={displayOriginalPost.body} />
             </div>
-            {displayOriginalPost.attachments && displayOriginalPost.attachments.length > 0 && (
-              <div className="mt-2 w-full bg-muted/20 rounded overflow-hidden flex items-center justify-center border">
-                {displayOriginalPost.attachments[0].fileType === "IMAGE" ? (
-                  <img src={displayOriginalPost.attachments[0].storageUrl} className="max-h-96 w-full object-contain" />
-                ) : (
-                  <div className="flex items-center gap-2 text-muted-foreground p-4">
-                    <FileText /> {displayOriginalPost.attachments.length} tệp đính kèm
+            
+            {displayOriginalPost.attachments && displayOriginalPost.attachments.filter(att => att.fileType === "IMAGE").length > 0 && (
+                <div className={cn(
+                    "mt-2 grid gap-1",
+                    displayOriginalPost.attachments.filter(att => att.fileType === "IMAGE").length === 1 ? "grid-cols-1" : 
+                    displayOriginalPost.attachments.filter(att => att.fileType === "IMAGE").length === 2 ? "grid-cols-2" : "grid-cols-2 md:grid-cols-3"
+                )}>
+                    {displayOriginalPost.attachments.filter(att => att.fileType === "IMAGE").map((img, index) => (
+                        <div key={index} className="relative aspect-video">
+                            <img 
+                                src={img.storageUrl} 
+                                alt={img.fileName}
+                                className="w-full h-full object-cover rounded-sm border" 
+                            />
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Display Shared Post PDFs */}
+            {displayOriginalPost.attachments && displayOriginalPost.attachments.filter(att => att.fileType === "PDF").length > 0 && (
+                <div className="mt-2 flex flex-col gap-1">
+                    {displayOriginalPost.attachments.filter(att => att.fileType === "PDF").map((pdf, index) => (
+                        <a 
+                            key={index} 
+                            href={pdf.storageUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="flex items-center gap-2 rounded-md border p-2 text-xs text-blue-600 hover:bg-accent bg-background"
+                        >
+                            <FileText className="h-4 w-4" />
+                            <span className="truncate">{pdf.fileName}</span>
+                        </a>
+                    ))}
+                </div>
+            )}
+
+            {/* Fallback for OTHER types or if logic fails */}
+            {displayOriginalPost.attachments && displayOriginalPost.attachments.length > 0 && 
+             displayOriginalPost.attachments.every(att => att.fileType !== "IMAGE" && att.fileType !== "PDF") && (
+              <div className="mt-2 text-muted-foreground text-xs p-2 bg-muted/20 rounded">
+                 <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" /> {displayOriginalPost.attachments.length} tệp đính kèm
                   </div>
-                )}
               </div>
             )}
+
           </div>
         )}
         {images.length > 0 && (
@@ -668,8 +704,7 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
           <CreatePostModal
             setOpen={setIsEditModalOpen}
             onSuccess={() => {
-              // Có thể thêm logic reload post hoặc update UI ở đây
-              window.location.reload(); // Tạm thời reload để thấy thay đổi
+              window.location.reload(); 
             }}
             initialData={post}
           />
@@ -682,7 +717,6 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
           setOpen={setIsShareModalOpen}
           onSuccess={() => {
             setShareCount(prev => prev + 1);
-            // Optionally reload but setting count is mostly enough unless we show the new post immediately
           }}
         />
       </Dialog>
