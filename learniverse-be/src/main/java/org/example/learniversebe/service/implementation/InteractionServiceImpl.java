@@ -75,7 +75,7 @@ public class InteractionServiceImpl implements IInteractionService {
 
         Optional<Vote> existingVoteOpt = voteRepository.findExistingVoteRaw(user.getId(), type, typeId);
 
-        int scoreDelta = 0;
+        int scoreDelta;
 
         if (existingVoteOpt.isPresent()) {
             Vote existingVote = existingVoteOpt.get();
@@ -285,9 +285,28 @@ public class InteractionServiceImpl implements IInteractionService {
         }
 
         bookmarkPage.getContent().forEach(bookmark -> {
-            Hibernate.initialize(bookmark.getContent());
-            if (bookmark.getContent() != null) {
-                Hibernate.initialize(bookmark.getContent().getAuthor());
+            Content content = bookmark.getContent();
+            Hibernate.initialize(content);
+
+            if (content != null) {
+                Hibernate.initialize(content.getAuthor());
+                if (content.getAuthor() != null) {
+                    Hibernate.initialize(content.getAuthor().getUserProfile());
+                }
+
+                if (content.getContentType() == ContentType.SHARED_POST
+                        && content.getOriginalContent() != null) {
+
+                    Content original = content.getOriginalContent();
+                    Hibernate.initialize(original);
+
+                    Hibernate.initialize(original.getAuthor());
+                    if (original.getAuthor() != null) {
+                        Hibernate.initialize(original.getAuthor().getUserProfile());
+                    }
+
+                    Hibernate.initialize(original.getAttachments());
+                }
             }
         });
         return bookmarkMapper.bookmarkPageToBookmarkPageResponse(bookmarkPage, contentMapper);
