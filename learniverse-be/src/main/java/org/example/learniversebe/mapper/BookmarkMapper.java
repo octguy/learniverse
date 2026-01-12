@@ -25,11 +25,12 @@ public interface BookmarkMapper {
 //    List<BookmarkResponse> toBookmarkResponseList(List<Bookmark> bookmarks);
 
     /**
-     * Map sang PostSummary nếu là POST
+     * Map sang PostSummary nếu là POST hoặc SHARED_POST
      */
     default PostSummaryResponse mapPostSummary(Bookmark bookmark, ContentMapper contentMapper) {
         Content content = bookmark.getContent();
-        if (content != null && content.getContentType() == ContentType.POST) {
+
+        if (content != null && (content.getContentType() == ContentType.POST || content.getContentType() == ContentType.SHARED_POST)) {
             return contentMapper.contentToPostSummaryResponse(content);
         }
         return null;
