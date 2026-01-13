@@ -15,6 +15,7 @@ import org.example.learniversebe.model.*;
 import org.example.learniversebe.repository.*;
 import org.example.learniversebe.service.ContentModerationService;
 import org.example.learniversebe.service.ICommentService;
+import org.example.learniversebe.service.INotificationService;
 import org.example.learniversebe.util.ServiceHelper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
@@ -40,7 +41,7 @@ public class CommentServiceImpl implements ICommentService {
     private final ReactionRepository reactionRepository;
     private final ContentModerationService moderationService;
 //    private final IInteractionService interactionService; // Inject InteractionService
-    // private final INotificationService notificationService;
+     private final INotificationService notificationService;
 
     @Value("${app.comment.edit.limit-minutes:15}") // Giới hạn sửa comment, ví dụ 15 phút
     private long commentEditLimitMinutes;
@@ -56,7 +57,9 @@ public class CommentServiceImpl implements ICommentService {
                               CommentMapper commentMapper,
                               ServiceHelper serviceHelper,
 //                              @Lazy IInteractionService interactionService,
-                              ReactionRepository reactionRepository, ContentModerationService moderationService
+                              ReactionRepository reactionRepository,
+                              ContentModerationService moderationService,
+                              INotificationService notificationService
 
             /*, INotificationService notificationService */) {
         this.commentRepository = commentRepository;
@@ -71,6 +74,7 @@ public class CommentServiceImpl implements ICommentService {
         // this.notificationService = notificationService;
         this.reactionRepository = reactionRepository;
         this.moderationService = moderationService;
+        this.notificationService = notificationService;
     }
 
     @Override
@@ -122,9 +126,17 @@ public class CommentServiceImpl implements ICommentService {
         // 5. Xử lý Mentions
         processMentions(savedComment, author, request.getMentionedUserIds());
 
-        // 6. Gửi Notifications (tạm bỏ qua)
-        // notificationService.notifyNewComment(...)
-        // notificationService.notifyMentionedUsers(...)
+        // 6. Gửi Notifications
+        if (parentComment != null) {
+            // Reply to comment -> notify parent comment author
+            notificationService.notifyNewReply(parentComment.getAuthor(), author, savedComment);
+        } else {
+            // Direct comment -> notify entity author (Content/Answer)
+            User entityAuthor = getEntityAuthor(request.getCommentableType(), request.getCommentableId());
+            if (entityAuthor != null && !entityAuthor.getId().equals(author.getId())) {
+                notificationService.notifyNewComment(entityAuthor, author, savedComment);
+            }
+        }
 
         // 7. Map sang Response DTO
         CommentResponse response = commentMapper.commentToCommentResponse(savedComment);
@@ -388,5 +400,20 @@ public class CommentServiceImpl implements ICommentService {
         );
 
         commentDto.setCurrentUserReaction(reaction.map(Reaction::getReactionType).orElse(null));
+    }
+
+    /**
+     * Lấy author của entity được comment (Content hoặc Answer)
+     */
+    private User getEntityAuthor(ReactableType type, UUID entityId) {
+        return switch (type) {
+            case CONTENT -> contentRepository.findById(entityId)
+                    .map(Content::getAuthor)
+                    .orElse(null);
+            case ANSWER -> answerRepository.findById(entityId)
+                    .map(Answer::getAuthor)
+                    .orElse(null);
+            case COMMENT -> null; // Không cần xử lý vì đã có parentComment
+        };
     }
 }
