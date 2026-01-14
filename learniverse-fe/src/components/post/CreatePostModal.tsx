@@ -319,13 +319,29 @@ export default function CreatePostModalContent({
                                     <span className="font-medium text-primary">{groupName}</span>
                                 </span>
                             ) : (
-                                <Select defaultValue="anyone">
-                                    <SelectTrigger className="h-7 px-2 py-1 text-xs w-fit">
+                                <Select value={visibility} onValueChange={(v) => setVisibility(v as ContentVisibility)}>
+                                    <SelectTrigger className="h-7 px-2 py-1 text-xs w-fit gap-1">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="anyone">Mọi người</SelectItem>
-                                        <SelectItem value="connections">Bạn bè</SelectItem>
+                                        <SelectItem value={ContentVisibility.PUBLIC}>
+                                            <div className="flex items-center gap-2">
+                                                <Globe className="h-3 w-3" />
+                                                <span>Công khai</span>
+                                            </div>
+                                        </SelectItem>
+                                        <SelectItem value={ContentVisibility.FRIENDS_ONLY}>
+                                            <div className="flex items-center gap-2">
+                                                <Users className="h-3 w-3" />
+                                                <span>Bạn bè</span>
+                                            </div>
+                                        </SelectItem>
+                                        <SelectItem value={ContentVisibility.PRIVATE}>
+                                            <div className="flex items-center gap-2">
+                                                <Lock className="h-3 w-3" />
+                                                <span>Chỉ mình tôi</span>
+                                            </div>
+                                        </SelectItem>
                                     </SelectContent>
                                 </Select>
                             )}
@@ -381,37 +397,6 @@ export default function CreatePostModalContent({
                             error={error && selectedTags.length === 0 ? "Vui lòng chọn tag" : undefined}
                         />
                     </div>
-
-                    {!groupId && (
-                        <div className="space-y-1.5">
-                            <Label className="font-semibold">Quyền riêng tư</Label>
-                            <Select value={visibility} onValueChange={(v) => setVisibility(v as ContentVisibility)}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Chọn quyền riêng tư" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value={ContentVisibility.PUBLIC}>
-                                        <div className="flex items-center gap-2">
-                                            <Globe className="h-4 w-4" />
-                                            <span>Công khai</span>
-                                        </div>
-                                    </SelectItem>
-                                    <SelectItem value={ContentVisibility.FRIENDS_ONLY}>
-                                        <div className="flex items-center gap-2">
-                                            <Users className="h-4 w-4" />
-                                            <span>Bạn bè</span>
-                                        </div>
-                                    </SelectItem>
-                                    <SelectItem value={ContentVisibility.PRIVATE}>
-                                        <div className="flex items-center gap-2">
-                                            <Lock className="h-4 w-4" />
-                                            <span>Chỉ mình tôi</span>
-                                        </div>
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    )}
 
                     <div className="space-y-1.5">
                         <Label className="font-semibold">Đã đính kèm</Label>
