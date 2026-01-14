@@ -9,10 +9,12 @@ import org.example.learniversebe.dto.response.PageResponse;
 import org.example.learniversebe.enums.*;
 import org.example.learniversebe.exception.BadRequestException;
 import org.example.learniversebe.exception.ResourceNotFoundException;
+import org.example.learniversebe.exception.UnauthorizedException;
 import org.example.learniversebe.mapper.BookmarkMapper;
 import org.example.learniversebe.mapper.ContentMapper;
 import org.example.learniversebe.model.*;
 import org.example.learniversebe.repository.*;
+import org.example.learniversebe.service.ContentVisibilityService;
 import org.example.learniversebe.service.IInteractionService;
 import org.example.learniversebe.util.ServiceHelper;
 import org.hibernate.Hibernate;
@@ -39,6 +41,7 @@ public class InteractionServiceImpl implements IInteractionService {
     private final ServiceHelper serviceHelper;
     private final BookmarkMapper bookmarkMapper;
     private final ContentMapper contentMapper;
+    private final ContentVisibilityService visibilityService;
 
 
     public InteractionServiceImpl(VoteRepository voteRepository,
@@ -48,7 +51,9 @@ public class InteractionServiceImpl implements IInteractionService {
                                   AnswerRepository answerRepository,
                                   CommentRepository commentRepository,
                                   ServiceHelper serviceHelper,
-                                  BookmarkMapper bookmarkMapper, ContentMapper contentMapper
+                                  BookmarkMapper bookmarkMapper,
+                                  ContentMapper contentMapper,
+                                  ContentVisibilityService visibilityService
     ) {
         this.voteRepository = voteRepository;
         this.reactionRepository = reactionRepository;
@@ -59,6 +64,7 @@ public class InteractionServiceImpl implements IInteractionService {
         this.serviceHelper = serviceHelper;
         this.bookmarkMapper = bookmarkMapper;
         this.contentMapper = contentMapper;
+        this.visibilityService = visibilityService;
     }
 
 
@@ -362,6 +368,11 @@ public class InteractionServiceImpl implements IInteractionService {
 
         if (content.getStatus() != ContentStatus.PUBLISHED) {
             throw new BadRequestException("Cannot interact with content that is not PUBLISHED (Current status: " + content.getStatus() + ")");
+        }
+
+        UUID currentUserId = serviceHelper.getCurrentUserId();
+        if (!visibilityService.canUserViewContent(currentUserId, content)) {
+            throw new UnauthorizedException("You don't have permission to interact with this content");
         }
     }
 

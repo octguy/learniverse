@@ -13,6 +13,7 @@ import org.example.learniversebe.mapper.ContentMapper;
 import org.example.learniversebe.model.*;
 import org.example.learniversebe.repository.*;
 import org.example.learniversebe.service.IInteractionService;
+import org.example.learniversebe.service.INotificationService;
 import org.example.learniversebe.service.IQuestionService;
 import org.example.learniversebe.service.IStorageService;
 import org.example.learniversebe.util.ServiceHelper;
@@ -52,6 +53,8 @@ public class QuestionServiceImpl implements IQuestionService {
     private final ShareRepository shareRepository;
     private final IStorageService storageService;
     private final AttachmentRepository attachmentRepository;
+    private final INotificationService notificationService;
+
 
     @Value("${app.content.edit.limit-hours:24}")
     private long editLimitHours;
@@ -61,10 +64,10 @@ public class QuestionServiceImpl implements IQuestionService {
                                UserRepository userRepository,
                                TagRepository tagRepository,
                                ContentTagRepository contentTagRepository,
-                               AnswerRepository answerRepository, // Inject
+                               AnswerRepository answerRepository,
                                ContentEditHistoryRepository editHistoryRepository,
                                ContentMapper contentMapper,
-                               AnswerMapper answerMapper, // Inject
+                               AnswerMapper answerMapper,
                                ServiceHelper serviceHelper,
                                SlugGenerator slugGenerator,
                                IInteractionService interactionService,
@@ -72,7 +75,10 @@ public class QuestionServiceImpl implements IQuestionService {
                                ReactionRepository reactionRepository,
                                VoteRepository voteRepository,
                                BookmarkRepository bookmarkRepository,
-                               ShareRepository shareRepository, IStorageService storageService, AttachmentRepository attachmentRepository // Inject
+                               ShareRepository shareRepository,
+                               IStorageService storageService,
+                               AttachmentRepository attachmentRepository,
+                               INotificationService notificationService
     ) {
         this.contentRepository = contentRepository;
         this.userRepository = userRepository;
@@ -92,6 +98,7 @@ public class QuestionServiceImpl implements IQuestionService {
         this.shareRepository = shareRepository;
         this.storageService = storageService;
         this.attachmentRepository = attachmentRepository;
+        this.notificationService = notificationService;
     }
 
 
@@ -483,7 +490,13 @@ public class QuestionServiceImpl implements IQuestionService {
         answerRepository.save(answerToAccept);
         contentRepository.save(question);
 
-        // TODO: Gửi notification cho người trả lời
+        if (!answerToAccept.getAuthor().getId().equals(question.getAuthor().getId())) {
+            notificationService.notifyAnswerAccepted(
+                    answerToAccept.getAuthor(),
+                    question.getAuthor(),
+                    answerToAccept
+            );
+        }
     }
 
     @Override

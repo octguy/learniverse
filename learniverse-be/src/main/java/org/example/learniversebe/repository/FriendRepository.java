@@ -29,6 +29,7 @@ public interface FriendRepository extends JpaRepository<Friend, Long> {
     List<Friend> findPendingRequestsFromUser(@Param("userId") UUID userId, @Param("status") FriendStatus status);
 
     boolean existsByUserId1AndUserId2AndStatus(UUID userId1, UUID userId2, FriendStatus status);
+
     @Query("SELECT DISTINCT CASE WHEN f.userId1 = :userId THEN f.userId2 ELSE f.userId1 END " +
             "FROM Friend f " +
             "WHERE (f.userId1 = :userId OR f.userId2 = :userId) " +
@@ -36,4 +37,14 @@ public interface FriendRepository extends JpaRepository<Friend, Long> {
     List<UUID> findAllRelatedUserIds(@Param("userId") UUID userId,
                                      @Param("acceptedStatus") FriendStatus acceptedStatus,
                                      @Param("pendingStatus") FriendStatus pendingStatus);
+
+    /**
+     * Check if two users are friends (ACCEPTED status)
+     */
+    @Query("SELECT COUNT(f) > 0 FROM Friend f " +
+            "WHERE f.status = 'ACCEPTED' " +
+            "AND f.deletedAt IS NULL " +
+            "AND ((f.userId1 = :userId1 AND f.userId2 = :userId2) " +
+            "     OR (f.userId1 = :userId2 AND f.userId2 = :userId1))")
+    boolean areFriends(@Param("userId1") UUID userId1, @Param("userId2") UUID userId2);
 }

@@ -41,7 +41,7 @@ public class AnswerServiceImpl implements IAnswerService {
     private final AnswerMapper answerMapper;
     private final ServiceHelper serviceHelper;
     private final IInteractionService interactionService;
-    // private final INotificationService notificationService;
+    private final INotificationService notificationService;
     private final VoteRepository voteRepository;
     private final ReactionRepository reactionRepository;
 
@@ -53,15 +53,18 @@ public class AnswerServiceImpl implements IAnswerService {
                              UserRepository userRepository,
                              AnswerMapper answerMapper,
                              ServiceHelper serviceHelper,
-                             @Lazy IInteractionService interactionService, VoteRepository voteRepository, ReactionRepository reactionRepository
-            /*, INotificationService notificationService */) {
+                             @Lazy IInteractionService interactionService,
+                             INotificationService notificationService,
+                             VoteRepository voteRepository,
+                             ReactionRepository reactionRepository
+    ) {
         this.answerRepository = answerRepository;
         this.contentRepository = contentRepository;
         this.userRepository = userRepository;
         this.answerMapper = answerMapper;
         this.serviceHelper = serviceHelper;
         this.interactionService = interactionService;
-        // this.notificationService = notificationService;
+        this.notificationService = notificationService;
         this.voteRepository = voteRepository;
         this.reactionRepository = reactionRepository;
     }
@@ -91,7 +94,7 @@ public class AnswerServiceImpl implements IAnswerService {
         contentRepository.save(question);
 
         if (!question.getAuthor().getId().equals(author.getId())) {
-            // notificationService.notifyNewAnswer(question.getAuthor(), author, savedAnswer);
+            notificationService.notifyNewAnswer(question.getAuthor(), author, savedAnswer);
         }
 
         AnswerResponse response = answerMapper.answerToAnswerResponse(savedAnswer);

@@ -6,6 +6,7 @@ import org.example.learniversebe.dto.request.UpdatePostRequest;
 import org.example.learniversebe.dto.response.PageResponse;
 import org.example.learniversebe.dto.response.PostResponse;
 import org.example.learniversebe.dto.response.PostSummaryResponse;
+import org.example.learniversebe.dto.response.VisibilityInfoResponse;
 import org.example.learniversebe.enums.*;
 import org.example.learniversebe.exception.BadRequestException;
 import org.example.learniversebe.exception.ResourceNotFoundException;
@@ -13,6 +14,7 @@ import org.example.learniversebe.exception.UnauthorizedException;
 import org.example.learniversebe.mapper.ContentMapper;
 import org.example.learniversebe.model.*;
 import org.example.learniversebe.repository.*;
+import org.example.learniversebe.service.ContentVisibilityService;
 import org.example.learniversebe.service.IInteractionService;
 import org.example.learniversebe.service.IPostService;
 import org.example.learniversebe.service.IStorageService;
@@ -51,6 +53,9 @@ public class PostServiceImpl implements IPostService {
     private final IStorageService storageService;
     private final AttachmentRepository attachmentRepository;
     private final GroupRepository groupRepository;
+    private final ContentVisibilityService visibilityService;
+    private final FriendRepository friendRepository;
+    private final GroupMemberRepository groupMemberRepository;
 
     @Value("${app.content.edit.limit-hours:24}") // Lấy từ application.properties, mặc định 24h
     private long editLimitHours;
@@ -69,9 +74,13 @@ public class PostServiceImpl implements IPostService {
                            CommentRepository commentRepository,
                            ReactionRepository reactionRepository,
                            BookmarkRepository bookmarkRepository,
-                           ShareRepository shareRepository, IStorageService storageService,
+                           ShareRepository shareRepository,
+                           IStorageService storageService,
                            AttachmentRepository attachmentRepository,
-                           GroupRepository groupRepository
+                           GroupRepository groupRepository,
+                           ContentVisibilityService visibilityService,
+                           FriendRepository friendRepository,
+                           GroupMemberRepository groupMemberRepository
     ) {
         this.contentRepository = contentRepository;
         this.userRepository = userRepository;
@@ -89,19 +98,33 @@ public class PostServiceImpl implements IPostService {
         this.storageService = storageService;
         this.attachmentRepository = attachmentRepository;
         this.groupRepository = groupRepository;
+        this.visibilityService = visibilityService;
+        this.friendRepository = friendRepository;
+        this.groupMemberRepository = groupMemberRepository;
     }
 
     @Override
-    @Transactional // Đảm bảo tất cả thao tác DB thành công hoặc rollback
+    @Transactional
     public PostResponse createPost(CreatePostRequest request, List<MultipartFile> files) {
         log.info("Creating new post with title: {}", request.getTitle());
-        User author = serviceHelper.getCurrentUser(); // Lấy user đang đăng nhập
+        User author = serviceHelper.getCurrentUser();
+
+        if (request.getGroupId() != null) {
+            visibilityService.validateVisibilityForGroupPost(request.getGroupId(), request.getVisibility());
+        }
 
         // Map DTO sang Entity
         Content content = contentMapper.createPostRequestToContent(request);
         content.setAuthor(author);
         content.setContentType(ContentType.POST);
         content.setStatus(request.getStatus() != null ? request.getStatus() : ContentStatus.PUBLISHED);
+        if (request.getGroupId() != null) {
+            content.setVisibility(ContentVisibility.GROUP);
+        } else if (request.getVisibility() != null) {
+            content.setVisibility(request.getVisibility());
+        } else {
+            content.setVisibility(ContentVisibility.PUBLIC);
+        }
         if (content.getStatus() == ContentStatus.PUBLISHED) {
             content.setPublishedAt(LocalDateTime.now());
         }
@@ -110,7 +133,14 @@ public class PostServiceImpl implements IPostService {
         // Bind group if posting in a group
         if (request.getGroupId() != null) {
             Group group = groupRepository.findById(request.getGroupId())
-                .orElseThrow(() -> new ResourceNotFoundException("Group not found with id: " + request.getGroupId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Group not found with id: " + request.getGroupId()));
+
+            // Check if user is member of group
+            UUID currentUserId = author.getId();
+            if (!groupMemberRepository.isUserMemberOfGroup(currentUserId, request.getGroupId())) {
+                throw new UnauthorizedException("You must be a member of the group to post");
+            }
+
             content.setGroup(group);
         }
 
@@ -146,26 +176,6 @@ public class PostServiceImpl implements IPostService {
         }
 
         return getPostResponseWithInteraction(savedContent);
-    }
-
-    private PostResponse getPostResponseWithInteraction(Content content) {
-        PostResponse response = contentMapper.contentToPostResponse(content);
-        UUID currentUserId = serviceHelper.getCurrentUserId();
-        if (currentUserId != null) {
-            response.setBookmarkedByCurrentUser(interactionService.isContentBookmarkedByUser(content.getId()));
-            ReactionType reactionType = interactionService.getCurrentUserReaction(ReactableType.CONTENT, content.getId());
-            response.setCurrentUserReaction(reactionType);
-        } else {
-            response.setBookmarkedByCurrentUser(false);
-            response.setCurrentUserReaction(null);
-        }
-        return response;
-    }
-
-    private AttachmentType determineAttachmentType(String mimeType) {
-        if (mimeType.startsWith("image/")) return AttachmentType.IMAGE;
-        if (mimeType.equals("application/pdf")) return AttachmentType.PDF;
-        return AttachmentType.OTHER;
     }
 
     @Transactional
@@ -236,25 +246,8 @@ public class PostServiceImpl implements IPostService {
         Page<Content> page = contentRepository.findByContentTypeInAndStatus(
                 types, ContentStatus.PUBLISHED, pageable);
 
-        page.getContent().forEach(content -> {
-            if (content.getAuthor() != null) {
-                Hibernate.initialize(content.getAuthor().getUserProfile());
-            }
-        });
-
-        PageResponse<PostSummaryResponse> response = contentMapper.contentPageToPostSummaryPage(page);
-
         UUID currentUserId = serviceHelper.getCurrentUserId();
-        if (currentUserId != null && response.getContent() != null) {
-            for (PostSummaryResponse post : response.getContent()) {
-                post.setBookmarkedByCurrentUser(
-                        interactionService.isContentBookmarkedByUser(post.getId()));
-                post.setCurrentUserReaction(
-                        interactionService.getCurrentUserReaction(ReactableType.CONTENT, post.getId()));
-            }
-        }
-
-        return response;
+        return filterAndMapPostsByVisibility(page, currentUserId);
     }
 
 
@@ -267,12 +260,8 @@ public class PostServiceImpl implements IPostService {
         List<ContentType> types = List.of(ContentType.POST, ContentType.SHARED_POST);
         Page<Content> postPage = contentRepository.findByAuthorIdAndContentTypeInAndStatusOrderByPublishedAtDesc(
                 authorId, types, ContentStatus.PUBLISHED, pageable);
-        postPage.getContent().forEach(content -> {
-            if (content.getAuthor() != null) {
-                Hibernate.initialize(content.getAuthor().getUserProfile());
-            }
-        });
-        return contentMapper.contentPageToPostSummaryPage(postPage);
+        UUID currentUserId = serviceHelper.getCurrentUserId();
+        return filterAndMapPostsByVisibility(postPage, currentUserId);
     }
 
     @Override
@@ -329,13 +318,10 @@ public class PostServiceImpl implements IPostService {
         if (!tagRepository.existsById(tagId)) {
             throw new ResourceNotFoundException("Tag not found with id: " + tagId);
         }
+
         Page<Content> postPage = contentRepository.findPublishedPostsByTagId(tagId, pageable);
-        postPage.getContent().forEach(content -> {
-            if (content.getAuthor() != null) {
-                Hibernate.initialize(content.getAuthor().getUserProfile());
-            }
-        });
-        return contentMapper.contentPageToPostSummaryPage(postPage);
+        UUID currentUserId = serviceHelper.getCurrentUserId();
+        return filterAndMapPostsByVisibility(postPage, currentUserId);
     }
 
 
@@ -354,6 +340,10 @@ public class PostServiceImpl implements IPostService {
         }
 
         User currentUser = serviceHelper.getCurrentUser();
+        UUID currentUserId = currentUser != null ? currentUser.getId() : null;
+        if (!visibilityService.canUserViewContent(currentUserId, content)) {
+            throw new UnauthorizedException("You don't have permission to view this post");
+        }
 
         boolean isAuthor = currentUser != null && content.getAuthor().getId().equals(currentUser.getId());
         boolean isPublished = content.getStatus() == ContentStatus.PUBLISHED;
@@ -396,6 +386,11 @@ public class PostServiceImpl implements IPostService {
             Hibernate.initialize(content.getAuthor().getUserProfile());
         }
 
+        UUID currentUserId = serviceHelper.getCurrentUserId();
+        if (!visibilityService.canUserViewContent(currentUserId, content)) {
+            throw new UnauthorizedException("You don't have permission to view this post");
+        }
+
         content.setViewCount(content.getViewCount() + 1);
         contentRepository.save(content);
 
@@ -433,6 +428,11 @@ public class PostServiceImpl implements IPostService {
         content.setLastEditedAt(LocalDateTime.now());
         if (titleChanged) {
             content.setSlug(slugGenerator.generateSlug(request.getTitle()));
+        }
+
+        if (request.getVisibility() != null) {
+            visibilityService.validateVisibilityUpdate(content, request.getVisibility());
+            content.setVisibility(request.getVisibility());
         }
 
         // Fix cascade issue: delete old tags, flush to DB, then create new ones
@@ -487,6 +487,27 @@ public class PostServiceImpl implements IPostService {
 
         Content updatedContent = contentRepository.save(content);
         return getPostById(updatedContent.getId());
+    }
+
+    @Transactional
+    @Override
+    public PostResponse updatePostVisibility(UUID postId, ContentVisibility newVisibility) {
+        User currentUser = serviceHelper.getCurrentUser();
+
+        Content content = contentRepository.findByIdAndContentType(postId, ContentType.POST)
+                .orElseThrow(() -> new ResourceNotFoundException("Post not found"));
+
+        if (!content.getAuthor().getId().equals(currentUser.getId())) {
+            throw new UnauthorizedException("Only author can change post visibility");
+        }
+
+        visibilityService.validateVisibilityUpdate(content, newVisibility);
+
+        content.setVisibility(newVisibility);
+        content.setUpdatedAt(LocalDateTime.now());
+
+        Content updated = contentRepository.save(content);
+        return getPostResponseWithInteraction(updated);
     }
 
     @Override
@@ -570,13 +591,51 @@ public class PostServiceImpl implements IPostService {
         if (query == null || query.isBlank()) {
             return PageResponse.<PostSummaryResponse>builder().content(List.of()).build();
         }
+
         Page<Content> postPage = contentRepository.searchPublishedPosts(query, pageable);
-        postPage.getContent().forEach(content -> {
-            if (content.getAuthor() != null) {
-                Hibernate.initialize(content.getAuthor().getUserProfile());
-            }
-        });
-        return contentMapper.contentPageToPostSummaryPage(postPage);
+        UUID currentUserId = serviceHelper.getCurrentUserId();
+        return filterAndMapPostsByVisibility(postPage, currentUserId);
+    }
+
+    /**
+     * Get visibility info for a post
+     */
+    @Transactional(readOnly = true)
+    @Override
+    public VisibilityInfoResponse getPostVisibilityInfo(UUID postId) {
+        Content content = contentRepository.findByIdAndContentType(postId, ContentType.POST)
+                .orElseThrow(() -> new ResourceNotFoundException("Post not found"));
+
+        User currentUser = serviceHelper.getCurrentUser();
+
+        // Chỉ author mới xem được visibility info để edit
+        if (!content.getAuthor().getId().equals(currentUser.getId())) {
+            throw new UnauthorizedException("Only author can view visibility settings");
+        }
+
+        List<ContentVisibility> availableOptions;
+        String message = null;
+
+        if (content.getGroup() != null) {
+            // Post trong group -> không thể đổi visibility
+            availableOptions = List.of(ContentVisibility.GROUP);
+            message = "Posts in groups cannot change visibility";
+        } else {
+            // Post thông thường -> có thể chọn PUBLIC, FRIENDS_ONLY, PRIVATE
+            availableOptions = List.of(
+                    ContentVisibility.PUBLIC,
+                    ContentVisibility.FRIENDS_ONLY,
+                    ContentVisibility.PRIVATE
+            );
+        }
+
+        return VisibilityInfoResponse.builder()
+                .currentVisibility(content.getVisibility())
+                .availableOptions(availableOptions)
+                .isInGroup(content.getGroup() != null)
+                .groupName(content.getGroup() != null ? content.getGroup().getName() : null)
+                .message(message)
+                .build();
     }
 
     // --- Helper Methods ---
@@ -610,5 +669,94 @@ public class PostServiceImpl implements IPostService {
         }
 //        contentTagRepository.saveAll(contentTags); // Lưu các liên kết mới
         content.setContentTags(contentTags); // Cập nhật lại collection trong Content entity
+    }
+
+
+    private PostResponse getPostResponseWithInteraction(Content content) {
+        return getPostResponseWithInteractionAndVisibility(content);
+    }
+
+    /**
+     * Helper method to prepare PostResponse with visibility-aware originalContent
+     */
+    private PostResponse getPostResponseWithInteractionAndVisibility(Content content) {
+        PostResponse response = contentMapper.contentToPostResponse(content);
+
+        UUID currentUserId = serviceHelper.getCurrentUserId();
+
+        // Set interaction status
+        if (currentUserId != null) {
+            response.setBookmarkedByCurrentUser(interactionService.isContentBookmarkedByUser(content.getId()));
+            ReactionType reactionType = interactionService.getCurrentUserReaction(ReactableType.CONTENT, content.getId());
+            response.setCurrentUserReaction(reactionType);
+        } else {
+            response.setBookmarkedByCurrentUser(false);
+            response.setCurrentUserReaction(null);
+        }
+
+        // Handle originalContent visibility
+        if (response.getOriginalPost() != null) {
+            Content originalContent = content.getOriginalContent();
+
+            // Check if current user can view original content
+            if (originalContent != null && !visibilityService.canUserViewContent(currentUserId, originalContent)) {
+                // User không có quyền xem bài gốc -> Set originalPost = null
+                // Hoặc set một placeholder message
+                response.setOriginalPost(null);
+            }
+        }
+
+        return response;
+    }
+
+    private AttachmentType determineAttachmentType(String mimeType) {
+        if (mimeType.startsWith("image/")) return AttachmentType.IMAGE;
+        if (mimeType.equals("application/pdf")) return AttachmentType.PDF;
+        return AttachmentType.OTHER;
+    }
+
+    /**
+     * Helper method to filter contents by visibility and map to response
+     * Tái sử dụng cho nhiều methods: getNewsfeedPosts, getPostsByTag, getPostsByAuthor, searchPosts
+     */
+    private PageResponse<PostSummaryResponse> filterAndMapPostsByVisibility(
+            Page<Content> postPage,
+            UUID currentUserId) {
+
+        // Initialize lazy-loaded associations
+        postPage.getContent().forEach(content -> {
+            if (content.getAuthor() != null) {
+                Hibernate.initialize(content.getAuthor().getUserProfile());
+            }
+        });
+
+        // Filter by visibility permission
+        List<Content> visibleContents = postPage.getContent().stream()
+                .filter(content -> visibilityService.canUserViewContent(currentUserId, content))
+                .toList();
+
+        // Map to DTO
+        PageResponse<PostSummaryResponse> response = contentMapper.contentPageToPostSummaryPage(postPage);
+
+        // Filter response to match visible contents
+        List<PostSummaryResponse> filteredResponse = response.getContent().stream()
+                .filter(post -> visibleContents.stream()
+                        .anyMatch(c -> c.getId().equals(post.getId())))
+                .toList();
+
+        response.setContent(filteredResponse);
+        response.setNumberOfElements(filteredResponse.size());
+
+        // Set interaction status for visible posts
+        if (currentUserId != null && response.getContent() != null) {
+            for (PostSummaryResponse post : response.getContent()) {
+                post.setBookmarkedByCurrentUser(
+                        interactionService.isContentBookmarkedByUser(post.getId()));
+                post.setCurrentUserReaction(
+                        interactionService.getCurrentUserReaction(ReactableType.CONTENT, post.getId()));
+            }
+        }
+
+        return response;
     }
 }

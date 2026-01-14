@@ -47,4 +47,15 @@ public interface GroupMemberRepository extends JpaRepository<GroupMember, UUID> 
 
     // Delete all members of a group (for group deletion)
     void deleteAllByGroupId(UUID groupId);
+
+
+    /**
+     * Check if user is member of group (not banned)
+     */
+    @Query("SELECT COUNT(gm) > 0 FROM GroupMember gm " +
+            "WHERE gm.group.id = :groupId " +
+            "AND gm.user.id = :userId " +
+            "AND gm.isBanned = false " +
+            "AND gm.deletedAt IS NULL")
+    boolean isUserMemberOfGroup(@Param("userId") UUID userId, @Param("groupId") UUID groupId);
 }

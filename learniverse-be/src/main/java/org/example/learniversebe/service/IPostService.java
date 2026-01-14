@@ -5,7 +5,9 @@ import org.example.learniversebe.dto.request.UpdatePostRequest;
 import org.example.learniversebe.dto.response.PageResponse;
 import org.example.learniversebe.dto.response.PostResponse;
 import org.example.learniversebe.dto.response.PostSummaryResponse;
+import org.example.learniversebe.dto.response.VisibilityInfoResponse;
 import org.example.learniversebe.enums.ContentStatus;
+import org.example.learniversebe.enums.ContentVisibility;
 import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -112,6 +114,10 @@ public interface IPostService {
      * @throws org.example.learniversebe.exception.BadRequestException if tag IDs are invalid.
      */
     PostResponse updatePost(UUID postId, UpdatePostRequest request, List<MultipartFile> files);
+
+    @Transactional
+    PostResponse updatePostVisibility(UUID postId, ContentVisibility newVisibility);
+
     /**
      * Deletes a post identified by its ID (performs a soft delete).
      * Requires authenticated user context. Checks if the user is the author or has moderator/admin privileges.
@@ -135,4 +141,7 @@ public interface IPostService {
      * @return A PageResponse containing PostSummaryResponse DTOs matching the search query.
      */
     PageResponse<PostSummaryResponse> searchPosts(String query, Pageable pageable);
+
+    @Transactional(readOnly = true)
+    VisibilityInfoResponse getPostVisibilityInfo(UUID postId);
 }

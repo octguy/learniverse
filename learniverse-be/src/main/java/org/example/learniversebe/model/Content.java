@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.example.learniversebe.enums.ContentStatus;
 import org.example.learniversebe.enums.ContentType;
+import org.example.learniversebe.enums.ContentVisibility;
 import org.hibernate.annotations.NotFound;
 import org.hibernate.annotations.NotFoundAction;
 import org.hibernate.annotations.SQLDelete;
@@ -39,6 +40,10 @@ public class Content extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private ContentStatus status = ContentStatus.DRAFT;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "visibility", nullable = false)
+    private ContentVisibility visibility = ContentVisibility.PUBLIC;
 
     @Column(length = 300)
     private String title;
@@ -112,13 +117,17 @@ public class Content extends BaseEntity {
         this.setCreatedAt(now);
         this.setUpdatedAt(now);
         // Có thể thêm logic tạo slug tự động ở đây nếu muốn
+
+        if (this.group != null && this.visibility == null) {
+            this.visibility = ContentVisibility.GROUP;
+        } else if (this.visibility == null) {
+            this.visibility = ContentVisibility.PUBLIC;
+        }
     }
 
     @PreUpdate
     protected void onUpdate() {
         this.setUpdatedAt(LocalDateTime.now());
-        // Note: lastEditedAt should only be set manually in PostService when user explicitly edits the post
-        // Not here, because @PreUpdate fires on every DB update (viewCount, reactionCount, etc.)
     }
 
     // Helper method để thêm attachment

@@ -14,7 +14,9 @@ import org.example.learniversebe.mapper.CommentMapper;
 import org.example.learniversebe.model.*;
 import org.example.learniversebe.repository.*;
 import org.example.learniversebe.service.ContentModerationService;
+import org.example.learniversebe.service.ContentVisibilityService;
 import org.example.learniversebe.service.ICommentService;
+import org.example.learniversebe.service.INotificationService;
 import org.example.learniversebe.util.ServiceHelper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
@@ -40,7 +42,8 @@ public class CommentServiceImpl implements ICommentService {
     private final ReactionRepository reactionRepository;
     private final ContentModerationService moderationService;
 //    private final IInteractionService interactionService; // Inject InteractionService
-    // private final INotificationService notificationService;
+     private final INotificationService notificationService;
+    private final ContentVisibilityService visibilityService;
 
     @Value("${app.comment.edit.limit-minutes:15}") // Giới hạn sửa comment, ví dụ 15 phút
     private long commentEditLimitMinutes;
@@ -52,13 +55,14 @@ public class CommentServiceImpl implements ICommentService {
                               ContentRepository contentRepository,
                               AnswerRepository answerRepository,
                               UserRepository userRepository,
-                              MentionRepository mentionRepository, // Inject
+                              MentionRepository mentionRepository,
                               CommentMapper commentMapper,
                               ServiceHelper serviceHelper,
-//                              @Lazy IInteractionService interactionService,
-                              ReactionRepository reactionRepository, ContentModerationService moderationService
-
-            /*, INotificationService notificationService */) {
+                              ReactionRepository reactionRepository,
+                              ContentModerationService moderationService,
+                              INotificationService notificationService,
+                              ContentVisibilityService visibilityService
+        ) {
         this.commentRepository = commentRepository;
         this.contentRepository = contentRepository;
         this.answerRepository = answerRepository;
@@ -66,11 +70,10 @@ public class CommentServiceImpl implements ICommentService {
         this.mentionRepository = mentionRepository;
         this.commentMapper = commentMapper;
         this.serviceHelper = serviceHelper;
-
-//        this.interactionService = interactionService;
-        // this.notificationService = notificationService;
         this.reactionRepository = reactionRepository;
         this.moderationService = moderationService;
+        this.notificationService = notificationService;
+        this.visibilityService = visibilityService;
     }
 
     @Override
@@ -122,9 +125,17 @@ public class CommentServiceImpl implements ICommentService {
         // 5. Xử lý Mentions
         processMentions(savedComment, author, request.getMentionedUserIds());
 
-        // 6. Gửi Notifications (tạm bỏ qua)
-        // notificationService.notifyNewComment(...)
-        // notificationService.notifyMentionedUsers(...)
+        // 6. Gửi Notifications
+        if (parentComment != null) {
+            // Reply to comment -> notify parent comment author
+            notificationService.notifyNewReply(parentComment.getAuthor(), author, savedComment);
+        } else {
+            // Direct comment -> notify entity author (Content/Answer)
+            User entityAuthor = getEntityAuthor(request.getCommentableType(), request.getCommentableId());
+            if (entityAuthor != null && !entityAuthor.getId().equals(author.getId())) {
+                notificationService.notifyNewComment(entityAuthor, author, savedComment);
+            }
+        }
 
         // 7. Map sang Response DTO
         CommentResponse response = commentMapper.commentToCommentResponse(savedComment);
@@ -281,9 +292,18 @@ public class CommentServiceImpl implements ICommentService {
     /** Kiểm tra xem commentable entity có tồn tại không */
     private void validateCommentableEntity(ReactableType type, UUID id) {
         boolean exists = switch (type) {
-            case CONTENT -> contentRepository.existsById(id);
+            case CONTENT -> {
+                Content content = contentRepository.findById(id)
+                        .orElseThrow(() -> new ResourceNotFoundException("Content not found"));
+
+                UUID currentUserId = serviceHelper.getCurrentUserId();
+                if (!visibilityService.canUserViewContent(currentUserId, content)) {
+                    throw new UnauthorizedException("You don't have permission to comment on this content");
+                }
+                yield true;
+            }
             case ANSWER -> answerRepository.existsById(id);
-            case COMMENT -> commentRepository.existsById(id); // Không nên comment vào comment khác type
+            case COMMENT -> commentRepository.existsById(id);
             // default -> throw new BadRequestException("Invalid commentable type: " + type);
         };
         if (!exists) {
@@ -388,5 +408,20 @@ public class CommentServiceImpl implements ICommentService {
         );
 
         commentDto.setCurrentUserReaction(reaction.map(Reaction::getReactionType).orElse(null));
+    }
+
+    /**
+     * Lấy author của entity được comment (Content hoặc Answer)
+     */
+    private User getEntityAuthor(ReactableType type, UUID entityId) {
+        return switch (type) {
+            case CONTENT -> contentRepository.findById(entityId)
+                    .map(Content::getAuthor)
+                    .orElse(null);
+            case ANSWER -> answerRepository.findById(entityId)
+                    .map(Answer::getAuthor)
+                    .orElse(null);
+            case COMMENT -> null; // Không cần xử lý vì đã có parentComment
+        };
     }
 }
