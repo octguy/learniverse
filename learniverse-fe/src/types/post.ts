@@ -16,16 +16,25 @@ export interface Tag {
   slug: string;
   description?: string;
 }
+export enum ContentVisibility {
+  PUBLIC = "PUBLIC",
+  FRIENDS_ONLY = "FRIENDS_ONLY",
+  PRIVATE = "PRIVATE",
+  GROUP = "GROUP"
+}
+
 export interface CreatePostRequest {
   title: string;
   body: string;
   tagIds: string[];
   status?: "DRAFT" | "PUBLISHED";
+  visibility?: ContentVisibility;
   groupId?: string;
 }
 
 export interface UpdatePostRequest extends CreatePostRequest {
   deletedAttachmentIds?: string[];
+  visibility?: ContentVisibility;
 }
 export type PostAuthor = {
   id: string;
@@ -71,6 +80,7 @@ export type Post = {
   attachments: PostAttachment[];
   bookmarkedByCurrentUser: boolean;
   currentUserReaction: string | null;
+  visibility: ContentVisibility;
   groupId?: string;
   groupName?: string;
   groupSlug?: string;

@@ -9,7 +9,7 @@ import type { Notification } from '@/types/notification';
 
 interface NotificationItemProps {
     notification: Notification;
-    onClick?: (id: string) => void;
+    onClick?: (notification: Notification) => void;
 }
 
 export function NotificationItem({ notification, onClick }: NotificationItemProps) {
@@ -19,7 +19,7 @@ export function NotificationItem({ notification, onClick }: NotificationItemProp
                 'flex cursor-pointer items-start gap-3 p-3 transition-colors hover:bg-accent',
                 !notification.isRead && 'bg-blue-50 dark:bg-blue-900/20'
             )}
-            onClick={() => onClick?.(notification.id)}
+            onClick={() => onClick?.(notification)}
         >
             <Avatar className="h-9 w-9">
                 <AvatarImage src={notification.senderAvatarUrl || undefined} alt="Avatar" />

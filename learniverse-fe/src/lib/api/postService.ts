@@ -1,6 +1,6 @@
 import apiService from "@/lib/apiService";
 import { ApiResponse } from "@/types/api";
-import { CreatePostRequest, Tag, Post, UpdatePostRequest } from "@/types/post";
+import { CreatePostRequest, Tag, Post, UpdatePostRequest, ContentVisibility } from "@/types/post";
 
 export interface PostResponse {
     id: string;
@@ -51,6 +51,10 @@ export const postService = {
             },
         });
         return response.data;
+    },
+    updatePostVisibility: async (id: string, visibility: ContentVisibility) => {
+      const response = await apiService.patch<ApiResponse<void>>(`/posts/${id}/visibility`, { visibility });
+      return response.data;
     },
     getNewsfeed: async (page = 0, size = 10) => {
         const response = await apiService.get<ApiResponse<PageResponse<Post>>>("/posts/feed", {

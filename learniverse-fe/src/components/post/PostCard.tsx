@@ -14,6 +14,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu"
 import {
   Popover,
@@ -40,9 +43,13 @@ import {
   Flag,
   Copy,
   Send as SendIcon,
+  Globe,
+  Users,
+  Lock,
+  Check,
 } from "lucide-react"
 import { MarkdownRenderer } from "./MarkdownRenderer"
-import type { Post } from "@/types/post"
+import { Post, ContentVisibility } from "@/types/post"
 import { interactionService, ReactionType } from "@/lib/api/interactionService"
 import { cn } from "@/lib/utils"
 import { CommentSection } from "./CommentSection"
@@ -126,8 +133,29 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
 
   const [commentCount, setCommentCount] = useState(post.commentCount)
   const [shareCount, setShareCount] = useState(post.shareCount)
+  const [visibility, setVisibility] = useState<ContentVisibility>(post.visibility || ContentVisibility.PUBLIC)
 
   const isAuthor = user?.id === author.id
+
+  const handleChangeVisibility = async (newVisibility: ContentVisibility) => {
+    try {
+        await postService.updatePostVisibility(post.id, newVisibility);
+        setVisibility(newVisibility);
+        toast.success("Đã cập nhật quyền riêng tư");
+    } catch (error) {
+        toast.error("Lỗi cập nhật quyền riêng tư");
+    }
+  }
+
+  const getVisibilityIcon = () => {
+    switch (visibility) {
+      case ContentVisibility.PUBLIC: return <Globe className="h-3 w-3" />;
+      case ContentVisibility.FRIENDS_ONLY: return <Users className="h-3 w-3" />;
+      case ContentVisibility.PRIVATE: return <Lock className="h-3 w-3" />;
+      case ContentVisibility.GROUP: return <Users className="h-3 w-3" />;
+      default: return <Globe className="h-3 w-3" />;
+    }
+  }
 
 
   const [fetchedOriginalPost, setFetchedOriginalPost] = useState<Post | null>(
@@ -333,6 +361,8 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
                       "Vừa xong"
                     )}
                   </span>
+                  <span>•</span>
+                  {getVisibilityIcon()}
                   {(
                     <>
                       <span>•</span>
@@ -364,6 +394,8 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
                       "Vừa xong"
                     )}
                   </span>
+                  <span>•</span>
+                  {getVisibilityIcon()}
                   {(() => {
                     if (!lastEditedAt) return null;
 
@@ -407,7 +439,32 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 {isAuthor && (
-                  <>
+                  <>{!post.groupName && (
+                        <DropdownMenuSub>
+                            <DropdownMenuSubTrigger>
+                                <Globe className="mr-2 h-4 w-4" />
+                                <span>Chỉnh sửa đối tượng</span>
+                            </DropdownMenuSubTrigger>
+                            <DropdownMenuSubContent>
+                                <DropdownMenuItem onClick={() => handleChangeVisibility(ContentVisibility.PUBLIC)}>
+                                    <Globe className="mr-2 h-4 w-4" />
+                                    <span>Công khai</span>
+                                    {visibility === ContentVisibility.PUBLIC && <Check className="ml-auto h-4 w-4" />}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleChangeVisibility(ContentVisibility.FRIENDS_ONLY)}>
+                                    <Users className="mr-2 h-4 w-4" />
+                                    <span>Bạn bè</span>
+                                    {visibility === ContentVisibility.FRIENDS_ONLY && <Check className="ml-auto h-4 w-4" />}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleChangeVisibility(ContentVisibility.PRIVATE)}>
+                                    <Lock className="mr-2 h-4 w-4" />
+                                    <span>Chỉ mình tôi</span>
+                                    {visibility === ContentVisibility.PRIVATE && <Check className="ml-auto h-4 w-4" />}
+                                </DropdownMenuItem>
+                            </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                    )}
+                    
                     <DropdownMenuItem onClick={() => setIsEditModalOpen(true)}>
                       <Edit className="mr-2 h-4 w-4" />
                       Chỉnh sửa bài viết

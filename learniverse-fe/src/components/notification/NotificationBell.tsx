@@ -14,11 +14,13 @@ import type { Notification } from '@/types/notification';
 import Link from 'next/link';
 import { notificationService } from '@/lib/api/notificationService';
 import { useNotification } from '@/context/NotificationContext';
+import { useRouter } from 'next/navigation';
 
 export function NotificationBell() {
     const [notifications, setNotifications] = React.useState<Notification[]>([]);
     const { unreadNotificationsCount, refreshNotifications } = useNotification();
     const [isOpen, setIsOpen] = React.useState(false);
+    const router = useRouter();
 
     React.useEffect(() => {
         if (isOpen) {
@@ -35,13 +37,23 @@ export function NotificationBell() {
         }
     };
 
-    const handleMarkAsRead = async (id: string) => {
+    const handleNotificationClick = async (item: Notification) => {
         try {
-            await notificationService.markAsRead(id);
-            setNotifications((prev) =>
-                prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
-            );
-            refreshNotifications();
+            if (!item.isRead) {
+                await notificationService.markAsRead(item.id);
+                setNotifications((prev) =>
+                    prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n))
+                );
+                refreshNotifications();
+            }
+
+            if (["COMMENT", "REPLY", "MENTION", "LIKE", "POST_SHARE", "ANSWER", "ANSWER_ACCEPTED"].includes(item.notificationType as string)) {
+                 setIsOpen(false);
+                 router.push(`/posts/${item.relatedEntityId}`);
+            } else if (item.notificationType === "FRIEND_REQUEST" || item.notificationType === "FRIEND_ACCEPT") {
+                 setIsOpen(false);
+                 router.push(`/profile/${item.senderId}`);
+            }
         } catch (error) {
             console.error("Failed to mark as read", error);
         }
@@ -90,7 +102,7 @@ export function NotificationBell() {
                 <div className="flex-1 overflow-hidden">
                     <NotificationList
                         notifications={notifications}
-                        onItemClick={handleMarkAsRead}
+                        onItemClick={handleNotificationClick}
                     />
                 </div>
 

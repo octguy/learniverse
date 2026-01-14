@@ -44,10 +44,13 @@ import {
     ListOrdered,
     Quote,
     Sigma,
+    Globe,
+    Users,
+    Lock,
 } from "lucide-react"
 import { MarkdownRenderer } from "./MarkdownRenderer"
 import { postService } from "@/lib/api/postService"
-import { Tag, Post, PostAttachment } from "@/types/post"
+import { Tag, Post, PostAttachment, ContentVisibility } from "@/types/post"
 import { useAuth } from "@/context/AuthContext"
 import { TagMultiSelect, type TagOption } from "@/components/question/tag-multi-select"
 
@@ -81,6 +84,7 @@ export default function CreatePostModalContent({
     const [error, setError] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const [activeTab, setActiveTab] = useState("edit")
+    const [visibility, setVisibility] = useState<ContentVisibility>(ContentVisibility.PUBLIC)
 
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const imageInputRef = useRef<HTMLInputElement>(null)
@@ -96,6 +100,7 @@ export default function CreatePostModalContent({
                 slug: t.slug,
                 description: null
             })) : [])
+            setVisibility(initialData.visibility || ContentVisibility.PUBLIC)
             setExistingAttachments(initialData.attachments || [])
         }
     }, [initialData])
@@ -227,12 +232,12 @@ export default function CreatePostModalContent({
         setIsLoading(true)
 
         try {
-            const payload = {
+            const payload: any = {
                 title: title,
                 body: content,
                 tagIds: selectedTags.map(tag => tag.id),
-                status: "PUBLISHED" as "PUBLISHED" | "DRAFT",
-                groupId: groupId || undefined
+                status: "PUBLISHED",
+                ...(groupId ? { groupId } : { visibility }),
             };
             const filesToUpload = [...images, ...pdfs];
 
@@ -314,13 +319,29 @@ export default function CreatePostModalContent({
                                     <span className="font-medium text-primary">{groupName}</span>
                                 </span>
                             ) : (
-                                <Select defaultValue="anyone">
-                                    <SelectTrigger className="h-7 px-2 py-1 text-xs w-fit">
+                                <Select value={visibility} onValueChange={(v) => setVisibility(v as ContentVisibility)}>
+                                    <SelectTrigger className="h-7 px-2 py-1 text-xs w-fit gap-1">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="anyone">Mọi người</SelectItem>
-                                        <SelectItem value="connections">Bạn bè</SelectItem>
+                                        <SelectItem value={ContentVisibility.PUBLIC}>
+                                            <div className="flex items-center gap-2">
+                                                <Globe className="h-3 w-3" />
+                                                <span>Công khai</span>
+                                            </div>
+                                        </SelectItem>
+                                        <SelectItem value={ContentVisibility.FRIENDS_ONLY}>
+                                            <div className="flex items-center gap-2">
+                                                <Users className="h-3 w-3" />
+                                                <span>Bạn bè</span>
+                                            </div>
+                                        </SelectItem>
+                                        <SelectItem value={ContentVisibility.PRIVATE}>
+                                            <div className="flex items-center gap-2">
+                                                <Lock className="h-3 w-3" />
+                                                <span>Chỉ mình tôi</span>
+                                            </div>
+                                        </SelectItem>
                                     </SelectContent>
                                 </Select>
                             )}
