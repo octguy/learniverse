@@ -44,10 +44,13 @@ import {
     ListOrdered,
     Quote,
     Sigma,
+    Globe,
+    Users,
+    Lock,
 } from "lucide-react"
 import { MarkdownRenderer } from "./MarkdownRenderer"
 import { postService } from "@/lib/api/postService"
-import { Tag, Post, PostAttachment } from "@/types/post"
+import { Tag, Post, PostAttachment, ContentVisibility } from "@/types/post"
 import { useAuth } from "@/context/AuthContext"
 import { TagMultiSelect, type TagOption } from "@/components/question/tag-multi-select"
 
@@ -81,6 +84,7 @@ export default function CreatePostModalContent({
     const [error, setError] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const [activeTab, setActiveTab] = useState("edit")
+    const [visibility, setVisibility] = useState<ContentVisibility>(ContentVisibility.PUBLIC)
 
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const imageInputRef = useRef<HTMLInputElement>(null)
@@ -96,6 +100,7 @@ export default function CreatePostModalContent({
                 slug: t.slug,
                 description: null
             })) : [])
+            setVisibility(initialData.visibility || ContentVisibility.PUBLIC)
             setExistingAttachments(initialData.attachments || [])
         }
     }, [initialData])
@@ -227,12 +232,12 @@ export default function CreatePostModalContent({
         setIsLoading(true)
 
         try {
-            const payload = {
+            const payload: any = {
                 title: title,
                 body: content,
                 tagIds: selectedTags.map(tag => tag.id),
-                status: "PUBLISHED" as "PUBLISHED" | "DRAFT",
-                groupId: groupId || undefined
+                status: "PUBLISHED",
+                ...(groupId ? { groupId } : { visibility }),
             };
             const filesToUpload = [...images, ...pdfs];
 
@@ -376,6 +381,37 @@ export default function CreatePostModalContent({
                             error={error && selectedTags.length === 0 ? "Vui lòng chọn tag" : undefined}
                         />
                     </div>
+
+                    {!groupId && (
+                        <div className="space-y-1.5">
+                            <Label className="font-semibold">Quyền riêng tư</Label>
+                            <Select value={visibility} onValueChange={(v) => setVisibility(v as ContentVisibility)}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Chọn quyền riêng tư" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value={ContentVisibility.PUBLIC}>
+                                        <div className="flex items-center gap-2">
+                                            <Globe className="h-4 w-4" />
+                                            <span>Công khai</span>
+                                        </div>
+                                    </SelectItem>
+                                    <SelectItem value={ContentVisibility.FRIENDS_ONLY}>
+                                        <div className="flex items-center gap-2">
+                                            <Users className="h-4 w-4" />
+                                            <span>Bạn bè</span>
+                                        </div>
+                                    </SelectItem>
+                                    <SelectItem value={ContentVisibility.PRIVATE}>
+                                        <div className="flex items-center gap-2">
+                                            <Lock className="h-4 w-4" />
+                                            <span>Chỉ mình tôi</span>
+                                        </div>
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
 
                     <div className="space-y-1.5">
                         <Label className="font-semibold">Đã đính kèm</Label>

@@ -9,7 +9,7 @@ import { Bell } from 'lucide-react';
 
 interface NotificationListProps {
     notifications: Notification[];
-    onItemClick: (id: string) => void;
+    onItemClick: (notification: Notification) => void;
 }
 
 export function NotificationList({ notifications, onItemClick }: NotificationListProps) {
