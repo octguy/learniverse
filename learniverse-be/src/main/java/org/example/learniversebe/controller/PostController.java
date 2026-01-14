@@ -7,10 +7,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.example.learniversebe.dto.request.CreatePostRequest;
 import org.example.learniversebe.dto.request.UpdatePostRequest;
+import org.example.learniversebe.dto.request.UpdatePostVisibilityRequest;
 import org.example.learniversebe.dto.request.UpdateStatusRequest;
 import org.example.learniversebe.dto.response.PageResponse;
 import org.example.learniversebe.dto.response.PostResponse;
 import org.example.learniversebe.dto.response.PostSummaryResponse;
+import org.example.learniversebe.dto.response.VisibilityInfoResponse;
 import org.example.learniversebe.enums.ContentStatus;
 import org.example.learniversebe.model.ApiResponse;
 import org.example.learniversebe.service.IPostService;
@@ -176,6 +178,53 @@ public class PostController {
 
         ApiResponse<PostResponse> response = new ApiResponse<>(HttpStatus.OK, "Post updated successfully", updatedPost, null);
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Update visibility của một bài post
+     */
+    @PatchMapping("/{postId}/visibility")
+    @Operation(
+            summary = "Cập nhật visibility của bài post",
+            description = "Chỉ author có thể thay đổi visibility. Không thể đổi visibility của post trong group"
+    )
+    public ResponseEntity<ApiResponse<PostResponse>> updatePostVisibility(
+            @PathVariable UUID postId,
+            @Valid @RequestBody UpdatePostVisibilityRequest request) {
+
+        PostResponse response = postService.updatePostVisibility(postId, request.getVisibility());
+
+        ApiResponse<PostResponse> apiResponse = new ApiResponse<>(
+                HttpStatus.OK,
+                "Post visibility updated successfully",
+                response,
+                null
+        );
+
+        return ResponseEntity.ok(apiResponse);
+    }
+
+    /**
+     * Lấy thông tin visibility của một post
+     */
+    @GetMapping("/{postId}/visibility")
+    @Operation(
+            summary = "Lấy thông tin visibility của bài post",
+            description = "Trả về visibility hiện tại và danh sách visibility options có thể chọn"
+    )
+    public ResponseEntity<ApiResponse<VisibilityInfoResponse>> getPostVisibilityInfo(
+            @PathVariable UUID postId) {
+
+        VisibilityInfoResponse info = postService.getPostVisibilityInfo(postId);
+
+        ApiResponse<VisibilityInfoResponse> apiResponse = new ApiResponse<>(
+                HttpStatus.OK,
+                "Visibility info retrieved successfully",
+                info,
+                null
+        );
+
+        return ResponseEntity.ok(apiResponse);
     }
 
     @DeleteMapping("/{postId}")

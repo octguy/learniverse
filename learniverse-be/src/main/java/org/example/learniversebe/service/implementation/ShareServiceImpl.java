@@ -3,17 +3,17 @@ package org.example.learniversebe.service.implementation;
 import lombok.extern.slf4j.Slf4j;
 import org.example.learniversebe.dto.request.SharePostRequest;
 import org.example.learniversebe.dto.response.PostResponse;
-import org.example.learniversebe.enums.ContentStatus;
-import org.example.learniversebe.enums.ContentType;
-import org.example.learniversebe.enums.ShareType;
+import org.example.learniversebe.enums.*;
 import org.example.learniversebe.exception.BadRequestException;
 import org.example.learniversebe.exception.ResourceNotFoundException;
+import org.example.learniversebe.exception.UnauthorizedException;
 import org.example.learniversebe.mapper.ContentMapper;
 import org.example.learniversebe.model.Content;
 import org.example.learniversebe.model.Share;
 import org.example.learniversebe.model.User;
 import org.example.learniversebe.repository.ContentRepository;
 import org.example.learniversebe.repository.ShareRepository;
+import org.example.learniversebe.service.ContentVisibilityService;
 import org.example.learniversebe.service.IShareService;
 import org.example.learniversebe.util.ServiceHelper;
 import org.example.learniversebe.util.SlugGenerator;
@@ -32,17 +32,20 @@ public class ShareServiceImpl implements IShareService {
     private final ServiceHelper serviceHelper;
     private final ContentMapper contentMapper;
     private final SlugGenerator slugGenerator;
+    private final ContentVisibilityService visibilityService;
 
     public ShareServiceImpl(ContentRepository contentRepository,
                             ShareRepository shareRepository,
                             ServiceHelper serviceHelper,
                             ContentMapper contentMapper,
-                            SlugGenerator slugGenerator) {
+                            SlugGenerator slugGenerator,
+                            ContentVisibilityService visibilityService) {
         this.contentRepository = contentRepository;
         this.shareRepository = shareRepository;
         this.serviceHelper = serviceHelper;
         this.contentMapper = contentMapper;
         this.slugGenerator = slugGenerator;
+        this.visibilityService = visibilityService;
     }
 
     @Override
@@ -54,14 +57,23 @@ public class ShareServiceImpl implements IShareService {
         Content originalContent = contentRepository.findById(request.getOriginalContentId())
                 .orElseThrow(() -> new ResourceNotFoundException("Original content not found"));
 
+        // Check visibility permission - User phải có quyền xem bài gốc mới được share
+        if (!visibilityService.canUserViewContent(currentUser.getId(), originalContent)) {
+            throw new UnauthorizedException("You don't have permission to share this post");
+        }
+
         // Check logic: Không cho share bài nháp hoặc bài đã xóa
         if (originalContent.getStatus() != ContentStatus.PUBLISHED || originalContent.getDeletedAt() != null) {
             throw new BadRequestException("Cannot share a content that is not published or deleted.");
         }
 
+        // Group PRIVATE không cho share ra ngoài
+        if (originalContent.getGroup() != null &&
+                originalContent.getGroup().getPrivacy() == GroupPrivacy.PRIVATE) {
+            throw new BadRequestException("Cannot share posts from private groups");
+        }
+
         // Logic Edge Case: Nếu share một bài vốn đã là bài share (Share of a share)
-        // -> Nên trỏ thẳng về bài gốc nhất để tránh chain quá dài (A share B, B share C -> A share C)
-        // Tùy nghiệp vụ, ở đây tôi code trỏ về bài user đang tương tác.
         Content actualOriginal = originalContent.getOriginalContent() != null ? originalContent.getOriginalContent() : originalContent;
 
         // 2. Tạo Content mới (Shared Post)
@@ -78,6 +90,11 @@ public class ShareServiceImpl implements IShareService {
         sharedPost.setSlug(slugGenerator.generateSlug(shareTitle + " " + System.currentTimeMillis()));
 
         sharedPost.setOriginalContent(actualOriginal);
+
+        ContentVisibility shareVisibility = request.getVisibility() != null
+                ? request.getVisibility()
+                : ContentVisibility.PUBLIC;
+        sharedPost.setVisibility(shareVisibility);
 
         contentRepository.save(sharedPost);
 

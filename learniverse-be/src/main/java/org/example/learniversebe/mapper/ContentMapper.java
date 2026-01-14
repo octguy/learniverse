@@ -81,6 +81,7 @@ public interface ContentMapper {
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "deletedAt", ignore = true)
     @Mapping(target = "originalContent", ignore = true)
+    @Mapping(target = "visibility", ignore = true)
     Content createQuestionRequestToContent(CreateQuestionRequest request);
 
     /**

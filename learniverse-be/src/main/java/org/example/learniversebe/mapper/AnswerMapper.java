@@ -37,6 +37,7 @@ public interface AnswerMapper {
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "deletedAt", ignore = true)
     @Mapping(target = "acceptedInQuestion", ignore = true)
+    @Mapping(target = "attachments", ignore = true)
     Answer createAnswerRequestToAnswer(CreateAnswerRequest request);
 
     /**

@@ -14,6 +14,7 @@ import org.example.learniversebe.mapper.CommentMapper;
 import org.example.learniversebe.model.*;
 import org.example.learniversebe.repository.*;
 import org.example.learniversebe.service.ContentModerationService;
+import org.example.learniversebe.service.ContentVisibilityService;
 import org.example.learniversebe.service.ICommentService;
 import org.example.learniversebe.service.INotificationService;
 import org.example.learniversebe.util.ServiceHelper;
@@ -42,6 +43,7 @@ public class CommentServiceImpl implements ICommentService {
     private final ContentModerationService moderationService;
 //    private final IInteractionService interactionService; // Inject InteractionService
      private final INotificationService notificationService;
+    private final ContentVisibilityService visibilityService;
 
     @Value("${app.comment.edit.limit-minutes:15}") // Giới hạn sửa comment, ví dụ 15 phút
     private long commentEditLimitMinutes;
@@ -53,15 +55,14 @@ public class CommentServiceImpl implements ICommentService {
                               ContentRepository contentRepository,
                               AnswerRepository answerRepository,
                               UserRepository userRepository,
-                              MentionRepository mentionRepository, // Inject
+                              MentionRepository mentionRepository,
                               CommentMapper commentMapper,
                               ServiceHelper serviceHelper,
-//                              @Lazy IInteractionService interactionService,
                               ReactionRepository reactionRepository,
                               ContentModerationService moderationService,
-                              INotificationService notificationService
-
-            /*, INotificationService notificationService */) {
+                              INotificationService notificationService,
+                              ContentVisibilityService visibilityService
+        ) {
         this.commentRepository = commentRepository;
         this.contentRepository = contentRepository;
         this.answerRepository = answerRepository;
@@ -69,12 +70,10 @@ public class CommentServiceImpl implements ICommentService {
         this.mentionRepository = mentionRepository;
         this.commentMapper = commentMapper;
         this.serviceHelper = serviceHelper;
-
-//        this.interactionService = interactionService;
-        // this.notificationService = notificationService;
         this.reactionRepository = reactionRepository;
         this.moderationService = moderationService;
         this.notificationService = notificationService;
+        this.visibilityService = visibilityService;
     }
 
     @Override
@@ -293,9 +292,18 @@ public class CommentServiceImpl implements ICommentService {
     /** Kiểm tra xem commentable entity có tồn tại không */
     private void validateCommentableEntity(ReactableType type, UUID id) {
         boolean exists = switch (type) {
-            case CONTENT -> contentRepository.existsById(id);
+            case CONTENT -> {
+                Content content = contentRepository.findById(id)
+                        .orElseThrow(() -> new ResourceNotFoundException("Content not found"));
+
+                UUID currentUserId = serviceHelper.getCurrentUserId();
+                if (!visibilityService.canUserViewContent(currentUserId, content)) {
+                    throw new UnauthorizedException("You don't have permission to comment on this content");
+                }
+                yield true;
+            }
             case ANSWER -> answerRepository.existsById(id);
-            case COMMENT -> commentRepository.existsById(id); // Không nên comment vào comment khác type
+            case COMMENT -> commentRepository.existsById(id);
             // default -> throw new BadRequestException("Invalid commentable type: " + type);
         };
         if (!exists) {

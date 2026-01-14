@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+import org.example.learniversebe.enums.ContentVisibility;
 
 import java.util.List;
 import java.util.Set;
@@ -27,6 +28,9 @@ public class UpdatePostRequest {
     @Schema(description = "Danh sách ID các tag mới", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotEmpty(message = "At least one tag is required")
     private Set<UUID> tagIds;
+
+    @Schema(description = "Phạm vi hiển thị bài viết")
+    private ContentVisibility visibility;
 
     @Schema(description = "Lý do chỉnh sửa (tùy chọn)")
     private String editReason;

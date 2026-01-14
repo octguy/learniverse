@@ -1,18 +1,18 @@
 package org.example.learniversebe.model;
 
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import org.example.learniversebe.model.composite_key.RoleUserId;
+import org.hibernate.proxy.HibernateProxy;
 
-@EqualsAndHashCode(callSuper = true)
+import java.util.Objects;
+
 @Entity
 @Table(name="role_user")
 @Setter
 @Getter
-@Data
+@ToString
+@RequiredArgsConstructor
 public class RoleUser extends BaseEntity {
 
     @EmbeddedId
@@ -27,4 +27,20 @@ public class RoleUser extends BaseEntity {
     @MapsId("roleId")
     @JoinColumn(name="role_id", referencedColumnName = "id", nullable = false)
     private Role role;
+
+    @Override
+    public final boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null) return false;
+        Class<?> oEffectiveClass = o instanceof HibernateProxy ? ((HibernateProxy) o).getHibernateLazyInitializer().getPersistentClass() : o.getClass();
+        Class<?> thisEffectiveClass = this instanceof HibernateProxy ? ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass() : this.getClass();
+        if (thisEffectiveClass != oEffectiveClass) return false;
+        RoleUser roleUser = (RoleUser) o;
+        return getRoleUserId() != null && Objects.equals(getRoleUserId(), roleUser.getRoleUserId());
+    }
+
+    @Override
+    public final int hashCode() {
+        return Objects.hash(roleUserId);
+    }
 }

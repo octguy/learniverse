@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 import org.example.learniversebe.enums.ContentStatus;
+import org.example.learniversebe.enums.ContentVisibility;
 
 import java.util.Set;
 import java.util.UUID;
@@ -28,6 +29,9 @@ public class CreatePostRequest {
 
     @Schema(description = "Trạng thái bài viết (DRAFT hoặc PUBLISHED). Mặc định là PUBLISHED nếu null")
     private ContentStatus status;
+
+    @Schema(description = "Phạm vi hiển thị bài viết (PUBLIC, FRIENDS_ONLY, PRIVATE). Mặc định là PUBLIC. Nếu đăng trong group thì tự động là GROUP")
+    private ContentVisibility visibility;
 
     @Schema(description = "ID nhóm (nếu đăng bài trong nhóm)")
     private UUID groupId;

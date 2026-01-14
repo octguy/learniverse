@@ -1,5 +1,6 @@
 package org.example.learniversebe.util;
 
+import org.example.learniversebe.enums.UserRole;
 import org.example.learniversebe.exception.UnauthorizedException;
 import org.example.learniversebe.model.CustomUserDetails;
 import org.example.learniversebe.model.User;
@@ -90,4 +91,17 @@ public class ServiceHelper {
 
     // Có thể thêm các hàm kiểm tra quyền khác (isAdmin, isModerator) ở đây
     // public boolean isCurrentUserAdmin() { ... }
+
+    /**
+     * Check if user is admin
+     */
+    public boolean isUserAdmin(UUID userId) {
+        if (userId == null) return false;
+
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null) return false;
+
+        return user.getRoleUsers().stream()
+                .anyMatch(roleUser -> UserRole.ROLE_ADMIN == roleUser.getRole().getName());
+    }
 }
