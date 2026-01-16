@@ -207,7 +207,7 @@ public class NotificationServiceImpl implements INotificationService {
     private void sendRealtimeNotification(Notification notification) {
         try {
             NotificationResponse response = notificationMapper.toResponse(notification);
-            String destination = "/notifications/" + notification.getRecipient().getId();
+            String destination = "/topic/notifications/" + notification.getRecipient().getId();
 
             // Gửi đến topic mà frontend đã subscribe trong websocketService.ts
             messagingTemplate.convertAndSend(destination, response);
