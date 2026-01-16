@@ -19,6 +19,7 @@ import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 
 import { PostAuthor } from "@/types/post";
+import { CommentInput } from "./CommentInput";
 
 interface CommentItemProps {
     comment: Comment;
@@ -151,8 +152,8 @@ export function CommentItem({ comment, postId, commentableType, depth = 0, paren
         }
     };
 
-    const handleSubmitReply = async () => {
-        if (!replyText.trim()) return;
+    const handleSubmitReply = async (text: string, mentionedUserIds: string[]) => {
+        if (!text.trim()) return;
 
         setIsSubmittingReply(true);
         try {
@@ -160,7 +161,8 @@ export function CommentItem({ comment, postId, commentableType, depth = 0, paren
                 commentableType: commentableType,
                 commentableId: postId,
                 parentId: comment.id,
-                body: replyText,
+                body: text,
+                mentionedUserIds: mentionedUserIds
             });
 
             setReplies([...replies, createdReply]);
@@ -185,15 +187,15 @@ export function CommentItem({ comment, postId, commentableType, depth = 0, paren
         }
     };
 
-    const handleUpdate = async () => {
-        if (!editText.trim() || editText === comment.body) {
+    const handleUpdate = async (text: string, mentionedUserIds: string[]) => {
+        if (!text.trim() || text === comment.body) {
             setIsEditing(false);
             return;
         }
 
         setIsSubmittingEdit(true);
         try {
-            const updatedComment = await commentService.updateComment(comment.id, editText);
+            const updatedComment = await commentService.updateComment(comment.id, text, mentionedUserIds);
 
             toast.success("Đã cập nhật bình luận");
             comment.body = updatedComment.body;
@@ -222,47 +224,80 @@ export function CommentItem({ comment, postId, commentableType, depth = 0, paren
 
                 {isEditing ? (
                     <div className="space-y-2">
-                        <Textarea
-                            value={editText}
-                            onChange={(e) => setEditText(e.target.value)}
-                            className="text-sm min-h-[60px]"
+                        <CommentInput
+                            initialValue={editText}
+                            onSubmit={handleUpdate}
+                            onCancel={() => setIsEditing(false)}
+                            submitLabel="Lưu"
+                            autoFocus
                         />
-                        <div className="flex gap-2 justify-end">
-                            <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)}>Hủy</Button>
-                            <Button size="sm" onClick={handleUpdate} disabled={isSubmittingEdit}>
-                                {isSubmittingEdit ? <Loader2 className="w-3 h-3 animate-spin" /> : "Lưu"}
-                            </Button>
-                        </div>
                     </div>
                 ) : (
                     <div className="text-sm text-foreground/90 whitespace-pre-line">
-                        {comment.body.split(/(@[\w._@]+)/g).map((part, index) => {
-                            if (part.startsWith("@") && part.length > 1) {
-                                const username = part.slice(1);
+                        {(() => {
+                            const elements: React.ReactNode[] = [];
+                            const regex = /(@\[([\w._@]+)\]\(([a-zA-Z0-9-]+)\))|(@[\w._@]+)/g;
 
-                                let link = `/profile/${username}`;
+                            let lastIndex = 0;
+                            let match;
 
-
-                                if (parentAuthor && parentAuthor.username === username) {
-                                    link = `/profile/${parentAuthor.id}`;
-                                }
-                                else if (user && user.username === username) {
-                                    link = `/profile/${user.id}`;
+                            while ((match = regex.exec(comment.body)) !== null) {
+                                if (match.index > lastIndex) {
+                                    elements.push(comment.body.slice(lastIndex, match.index));
                                 }
 
-                                return (
-                                    <a
-                                        key={index}
-                                        href={link}
-                                        className="text-blue-600 hover:underline font-medium"
-                                        onClick={(e) => e.stopPropagation()}
-                                    >
-                                        {part}
-                                    </a>
-                                );
+                                const fullMatch = match[0];
+                                const isNewFormat = fullMatch.startsWith("@[");
+
+                                if (isNewFormat) {
+                                    const username = match[2];
+                                    const userId = match[3];
+                                    elements.push(
+                                        <a
+                                            key={match.index}
+                                            href={`/profile/${userId}`}
+                                            className="text-blue-600 hover:underline font-medium"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            @{username}
+                                        </a>
+                                    );
+                                } else {
+                                    const part = match[4];
+                                    if (part.length > 1) {
+                                        const username = part.slice(1);
+                                        let link = `/profile/${username}`;
+
+                                        if (parentAuthor && parentAuthor.username === username) {
+                                            link = `/profile/${parentAuthor.id}`;
+                                        } else if (user && user.username === username) {
+                                            link = `/profile/${user.id}`;
+                                        }
+
+                                        elements.push(
+                                            <a
+                                                key={match.index}
+                                                href={link}
+                                                className="text-blue-600 hover:underline font-medium"
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                {part}
+                                            </a>
+                                        );
+                                    } else {
+                                        elements.push(part);
+                                    }
+                                }
+
+                                lastIndex = regex.lastIndex;
                             }
-                            return part;
-                        })}
+
+                            if (lastIndex < comment.body.length) {
+                                elements.push(comment.body.slice(lastIndex));
+                            }
+
+                            return elements;
+                        })()}
                     </div>
                 )}
                 <div className="flex gap-4 mt-1 items-center">
@@ -344,23 +379,15 @@ export function CommentItem({ comment, postId, commentableType, depth = 0, paren
                             <AvatarImage src={user?.avatarUrl} />
                             <AvatarFallback>Me</AvatarFallback>
                         </Avatar>
-                        <div className="flex-1 gap-2 flex flex-col">
-                            <Textarea
+                        <div className="flex-1">
+                            <CommentInput
+                                initialValue={replyText}
+                                initialMentions={[comment.author] as any}
+                                onSubmit={handleSubmitReply}
+                                onCancel={() => setIsReplying(false)}
                                 placeholder={`Trả lời ${comment.author.username}...`}
-                                value={replyText}
-                                onChange={(e) => setReplyText(e.target.value)}
-                                className="min-h-[60px] text-sm"
+                                autoFocus
                             />
-                            <div className="flex justify-end gap-2">
-                                <Button variant="ghost" size="sm" onClick={() => setIsReplying(false)}>Hủy</Button>
-                                <Button
-                                    size="sm"
-                                    onClick={handleSubmitReply}
-                                    disabled={!replyText.trim() || isSubmittingReply}
-                                >
-                                    {isSubmittingReply ? <Loader2 className="w-3 h-3 animate-spin" /> : "Gửi"}
-                                </Button>
-                            </div>
                         </div>
                     </div>
                 )}

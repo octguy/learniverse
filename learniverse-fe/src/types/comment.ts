@@ -12,6 +12,7 @@ export interface Comment {
   reactionCount: number;
   currentUserReaction: string | null;
   commentableId?: string;
+  mentionedUsers?: PostAuthor[];
 }
 
 export enum ReactionType {
