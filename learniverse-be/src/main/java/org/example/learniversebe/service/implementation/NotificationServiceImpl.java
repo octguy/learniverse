@@ -1,5 +1,6 @@
 package org.example.learniversebe.service.implementation;
 
+import lombok.extern.slf4j.Slf4j;
 import org.example.learniversebe.dto.response.NotificationResponse;
 import org.example.learniversebe.dto.response.PageResponse;
 import org.example.learniversebe.enums.NotificationType;
@@ -19,6 +20,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -26,6 +28,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class NotificationServiceImpl implements INotificationService {
@@ -34,6 +37,7 @@ public class NotificationServiceImpl implements INotificationService {
     private final UserRepository userRepository;
     private final NotificationMapper notificationMapper;
     private final ServiceHelper serviceHelper;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Override
     @Transactional
@@ -63,7 +67,11 @@ public class NotificationServiceImpl implements INotificationService {
         notification.setCreatedAt(now);
         notification.setUpdatedAt(now);
 
-        return notificationRepository.save(notification);
+        Notification savedNotification = notificationRepository.save(notification);
+
+        sendRealtimeNotification(savedNotification);
+
+        return savedNotification;
     }
 
     @Override
@@ -194,5 +202,19 @@ public class NotificationServiceImpl implements INotificationService {
 
         Notification saved = notificationRepository.save(notification);
         return notificationMapper.toResponse(saved);
+    }
+
+    private void sendRealtimeNotification(Notification notification) {
+        try {
+            NotificationResponse response = notificationMapper.toResponse(notification);
+            String destination = "/notifications/" + notification.getRecipient().getId();
+
+            // Gửi đến topic mà frontend đã subscribe trong websocketService.ts
+            messagingTemplate.convertAndSend(destination, response);
+
+            log.info("Đã gửi thông báo realtime tới người dùng: {}", notification.getRecipient().getUsername());
+        } catch (Exception e) {
+            log.error("Lỗi khi gửi thông báo realtime qua WebSocket", e);
+        }
     }
 }
