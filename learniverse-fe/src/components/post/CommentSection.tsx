@@ -12,6 +12,7 @@ import { toast } from "sonner";
 
 import { useAuth } from "@/context/AuthContext";
 import { CommentItem } from "./CommentItem";
+import { CommentInput } from "./CommentInput";
 
 interface CommentSectionProps {
   postId: string;
@@ -43,15 +44,16 @@ export function CommentSection({ postId, commentableType, onCommentAdded }: Comm
     }
   };
 
-  const handleSubmit = async () => {
-    if (!newComment.trim()) return;
+  const handleSubmit = async (text: string, mentionedUserIds: string[]) => {
+    if (!text.trim()) return;
 
     setIsSubmitting(true);
     try {
       const createdComment = await commentService.createComment({
         commentableType: commentableType,
         commentableId: postId,
-        body: newComment
+        body: text,
+        mentionedUserIds: mentionedUserIds
       });
 
       setComments([createdComment, ...comments]);
@@ -62,7 +64,7 @@ export function CommentSection({ postId, commentableType, onCommentAdded }: Comm
 
     } catch (error: any) {
       console.error("Lỗi gửi bình luận:", error);
-      
+
       if (error.response?.status === 400) {
         toast.error(error.response.data?.message || "Bình luận không được đăng vì chứa ngôn từ không phù hợp.");
       } else {
@@ -81,23 +83,12 @@ export function CommentSection({ postId, commentableType, onCommentAdded }: Comm
           <AvatarImage src={user?.avatarUrl} />
           <AvatarFallback>Me</AvatarFallback>
         </Avatar>
-        <div className="flex-1 gap-2 flex flex-col min-w-0">
-          <Textarea
+        <div className="flex-1 min-w-0">
+          <CommentInput
             placeholder="Viết bình luận của bạn..."
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            className="min-h-[80px] text-sm"
+            onSubmit={handleSubmit}
+            submitLabel="Gửi bình luận"
           />
-          <div className="flex justify-end">
-            <Button
-              size="sm"
-              onClick={handleSubmit}
-              disabled={!newComment.trim() || isSubmitting}
-            >
-              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
-              Gửi
-            </Button>
-          </div>
         </div>
       </div>
       {isLoading ? (
