@@ -30,6 +30,11 @@ export const commentService = {
     return response.data.data;
   },
 
+  getCommentById: async (commentId: string) => {
+    const response = await apiService.get<ApiResponse<Comment>>(`${BASE_URL}/${commentId}`);
+    return response.data.data;
+  },
+
   createComment: async (payload: {
     commentableType: "POST" | "QUESTION" | "ANSWER" | "SHARED_POST";
     commentableId: string;
@@ -44,6 +49,14 @@ export const commentService = {
         : payload.commentableType
     };
     const response = await apiService.post<ApiResponse<Comment>>(BASE_URL, backendPayload);
+    return response.data.data;
+  },
+
+  updateComment: async (id: string, body: string, mentionedUserIds?: string[]) => {
+    const response = await apiService.put<ApiResponse<Comment>>(`${BASE_URL}/${id}`, {
+      body,
+      mentionedUserIds
+    });
     return response.data.data;
   }
 };

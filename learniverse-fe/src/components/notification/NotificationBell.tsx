@@ -13,6 +13,7 @@ import { NotificationList } from './NotificationList';
 import type { Notification } from '@/types/notification';
 import Link from 'next/link';
 import { notificationService } from '@/lib/api/notificationService';
+import { commentService } from '@/lib/api/commentService';
 import { useNotification } from '@/context/NotificationContext';
 import { useRouter } from 'next/navigation';
 
@@ -47,12 +48,25 @@ export function NotificationBell() {
                 refreshNotifications();
             }
 
-            if (["COMMENT", "REPLY", "MENTION", "LIKE", "POST_SHARE", "ANSWER", "ANSWER_ACCEPTED"].includes(item.notificationType as string)) {
-                 setIsOpen(false);
-                 router.push(`/posts/${item.relatedEntityId}`);
+            if (["COMMENT", "REPLY", "MENTION"].includes(item.notificationType as string)) {
+                setIsOpen(false);
+                try {
+                    const comment = await commentService.getCommentById(item.relatedEntityId);
+                    if (comment && comment.commentableId) {
+                        router.push(`/posts/${comment.commentableId}`);
+                    } else {
+                        router.push(`/posts/${item.relatedEntityId}`);
+                    }
+                } catch (err) {
+                    console.error("Failed to fetch comment details", err);
+                    router.push(`/posts/${item.relatedEntityId}`);
+                }
+            } else if (["LIKE", "POST_SHARE", "ANSWER", "ANSWER_ACCEPTED"].includes(item.notificationType as string)) {
+                setIsOpen(false);
+                router.push(`/posts/${item.relatedEntityId}`);
             } else if (item.notificationType === "FRIEND_REQUEST" || item.notificationType === "FRIEND_ACCEPT") {
-                 setIsOpen(false);
-                 router.push(`/profile/${item.senderId}`);
+                setIsOpen(false);
+                router.push(`/profile/${item.senderId}`);
             }
         } catch (error) {
             console.error("Failed to mark as read", error);

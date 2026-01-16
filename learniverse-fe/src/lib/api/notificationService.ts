@@ -13,7 +13,15 @@ export const notificationService = {
         sort: "createdAt,desc"
       }
     });
-    return response.data.data;
+    const content = response.data.data.content.map((item: any) => ({
+      ...item,
+      isRead: item.isRead ?? item.read ?? item.is_read ?? false
+    }));
+
+    return {
+      ...response.data.data,
+      content
+    };
   },
 
   getUnreadCount: async () => {

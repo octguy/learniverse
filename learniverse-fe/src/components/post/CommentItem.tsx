@@ -39,9 +39,20 @@ export function CommentItem({ comment, postId, commentableType, depth = 0, paren
     const [replyCount, setReplyCount] = useState(comment.replyCount);
     const [isReportOpen, setIsReportOpen] = useState(false);
 
+    const [isEditing, setIsEditing] = useState(false);
+    const [editText, setEditText] = useState(comment.body);
+    const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+
     const isAuthor = user?.id === comment.author.id;
-    
-    // Reaction state
+
+    const isEditable = React.useMemo(() => {
+        if (!isAuthor) return false;
+        const createdAt = new Date(comment.createdAt).getTime();
+        const now = new Date().getTime();
+        const diffInMinutes = (now - createdAt) / (1000 * 60);
+        return diffInMinutes < 15;
+    }, [isAuthor, comment.createdAt]);
+
     const [reactionCount, setReactionCount] = useState(comment.reactionCount || 0);
     const [userReaction, setUserReaction] = useState<string | null>(comment.currentUserReaction || null);
 
@@ -55,32 +66,32 @@ export function CommentItem({ comment, postId, commentableType, depth = 0, paren
 
     const handleReaction = async (type: string = "LIKE") => {
         if (!user) {
-             toast.error("Vui lòng đăng nhập để thực hiện chức năng này");
-             return;
+            toast.error("Vui lòng đăng nhập để thực hiện chức năng này");
+            return;
         }
 
         const previousReaction = userReaction;
         const previousCount = reactionCount;
-        
+
         let newReaction: string | null = type;
         let newCount = previousCount;
 
         if (previousReaction === type) {
-            newReaction = null; 
+            newReaction = null;
             newCount = previousCount - 1;
         } else if (previousReaction) {
             newReaction = type;
-            newCount = previousCount; 
+            newCount = previousCount;
         } else {
             // New reaction
             newReaction = type;
             newCount = previousCount + 1;
         }
-        
+
         // Optimistic update
         setUserReaction(newReaction);
         setReactionCount(newCount);
-        
+
         try {
             await interactionService.react({
                 reactableType: "COMMENT",
@@ -105,10 +116,10 @@ export function CommentItem({ comment, postId, commentableType, depth = 0, paren
     };
 
     const getReactionLabel = () => {
-         if (userReaction && reactionConfig[userReaction as ReactionType]) {
+        if (userReaction && reactionConfig[userReaction as ReactionType]) {
             return reactionConfig[userReaction as ReactionType].label;
-         }
-         return "Thích";
+        }
+        return "Thích";
     };
 
     const handleToggleReplies = async () => {
@@ -167,10 +178,31 @@ export function CommentItem({ comment, postId, commentableType, depth = 0, paren
             if (error.response?.status === 400) {
                 toast.error(error.response.data?.message || "Bình luận không được đăng vì chứa ngôn từ không phù hợp.");
             } else {
-                 toast.error("Gửi thất bại. Vui lòng thử lại.");
+                toast.error("Gửi thất bại. Vui lòng thử lại.");
             }
         } finally {
             setIsSubmittingReply(false);
+        }
+    };
+
+    const handleUpdate = async () => {
+        if (!editText.trim() || editText === comment.body) {
+            setIsEditing(false);
+            return;
+        }
+
+        setIsSubmittingEdit(true);
+        try {
+            const updatedComment = await commentService.updateComment(comment.id, editText);
+
+            toast.success("Đã cập nhật bình luận");
+            comment.body = updatedComment.body;
+            setIsEditing(false);
+        } catch (error: any) {
+            console.error("Lỗi cập nhật:", error);
+            toast.error(error.response?.data?.message || "Không thể cập nhật bình luận");
+        } finally {
+            setIsSubmittingEdit(false);
         }
     };
 
@@ -187,39 +219,56 @@ export function CommentItem({ comment, postId, commentableType, depth = 0, paren
                         {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true, locale: vi })}
                     </span>
                 </div>
-                <div className="text-sm text-foreground/90 whitespace-pre-line">
-                    {comment.body.split(/(@[\w._@]+)/g).map((part, index) => {
-                        if (part.startsWith("@") && part.length > 1) {
-                            const username = part.slice(1);
 
-                            let link = `/profile/${username}`;
+                {isEditing ? (
+                    <div className="space-y-2">
+                        <Textarea
+                            value={editText}
+                            onChange={(e) => setEditText(e.target.value)}
+                            className="text-sm min-h-[60px]"
+                        />
+                        <div className="flex gap-2 justify-end">
+                            <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)}>Hủy</Button>
+                            <Button size="sm" onClick={handleUpdate} disabled={isSubmittingEdit}>
+                                {isSubmittingEdit ? <Loader2 className="w-3 h-3 animate-spin" /> : "Lưu"}
+                            </Button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="text-sm text-foreground/90 whitespace-pre-line">
+                        {comment.body.split(/(@[\w._@]+)/g).map((part, index) => {
+                            if (part.startsWith("@") && part.length > 1) {
+                                const username = part.slice(1);
+
+                                let link = `/profile/${username}`;
 
 
-                            if (parentAuthor && parentAuthor.username === username) {
-                                link = `/profile/${parentAuthor.id}`;
+                                if (parentAuthor && parentAuthor.username === username) {
+                                    link = `/profile/${parentAuthor.id}`;
+                                }
+                                else if (user && user.username === username) {
+                                    link = `/profile/${user.id}`;
+                                }
+
+                                return (
+                                    <a
+                                        key={index}
+                                        href={link}
+                                        className="text-blue-600 hover:underline font-medium"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        {part}
+                                    </a>
+                                );
                             }
-                            else if (user && user.username === username) {
-                                link = `/profile/${user.id}`;
-                            }
-
-                            return (
-                                <a
-                                    key={index}
-                                    href={link}
-                                    className="text-blue-600 hover:underline font-medium"
-                                    onClick={(e) => e.stopPropagation()}
-                                >
-                                    {part}
-                                </a>
-                            );
-                        }
-                        return part;
-                    })}
-                </div>
+                            return part;
+                        })}
+                    </div>
+                )}
                 <div className="flex gap-4 mt-1 items-center">
                     <div className="relative group/reaction">
                         <div className="absolute bottom-full left-0 pb-4 hidden group-hover/reaction:block z-50">
-                             <div className="flex items-center gap-1 bg-white dark:bg-slate-950 border shadow-lg rounded-full p-1 animate-in fade-in zoom-in duration-200">
+                            <div className="flex items-center gap-1 bg-white dark:bg-slate-950 border shadow-lg rounded-full p-1 animate-in fade-in zoom-in duration-200">
                                 {Object.entries(reactionConfig).map(([type, config]) => {
                                     const Icon = config.icon;
                                     return (
@@ -239,7 +288,7 @@ export function CommentItem({ comment, postId, commentableType, depth = 0, paren
                             </div>
                         </div>
 
-                        <button 
+                        <button
                             className={cn(
                                 "text-xs font-medium flex items-center gap-1 transition-colors py-1",
                                 userReaction && reactionConfig[userReaction as ReactionType]
@@ -248,8 +297,8 @@ export function CommentItem({ comment, postId, commentableType, depth = 0, paren
                             )}
                             onClick={() => handleReaction(userReaction || "LIKE")}
                         >
-                           {getReactionIcon()}
-                           <span>
+                            {getReactionIcon()}
+                            <span>
                                 {reactionCount > 0 ? reactionCount : "Thích"}
                             </span>
                         </button>
@@ -267,6 +316,15 @@ export function CommentItem({ comment, postId, commentableType, depth = 0, paren
                             onClick={() => setIsReportOpen(true)}
                         >
                             Báo cáo
+                        </button>
+                    )}
+
+                    {isEditable && (
+                        <button
+                            className="text-xs font-medium text-muted-foreground hover:text-foreground"
+                            onClick={() => setIsEditing(true)}
+                        >
+                            Chỉnh sửa
                         </button>
                     )}
 
@@ -326,11 +384,11 @@ export function CommentItem({ comment, postId, commentableType, depth = 0, paren
                     </div>
                 )}
             </div>
-            <ReportDialog 
-                open={isReportOpen} 
+            <ReportDialog
+                open={isReportOpen}
                 onOpenChange={setIsReportOpen}
-                reportableType="COMMENT" 
-                reportableId={comment.id} 
+                reportableType="COMMENT"
+                reportableId={comment.id}
             />        </div>
     );
 }

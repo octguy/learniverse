@@ -11,6 +11,7 @@ export interface Comment {
   isEdited: boolean;
   reactionCount: number;
   currentUserReaction: string | null;
+  commentableId?: string;
 }
 
 export enum ReactionType {
