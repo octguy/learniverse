@@ -126,17 +126,20 @@ export function SideBar() {
                 )}
             </nav>
 
-            {/* Spacer để đẩy Tags xuống dưới cùng */}
             <div className="flex-1" />
 
             <Separator className="my-2" />
 
-            {/* PHẦN 3: DANH SÁCH TAGS (Ở DƯỚI CÙNG) */}
             <div className="py-2">
-                <h3 className="flex items-center gap-2 font-semibold mb-3 px-2 text-sm text-muted-foreground">
-                    <Hash className="h-4 w-4" />
-                    Chủ đề nổi bật
-                </h3>
+                <div className="flex items-center justify-between mb-3 px-2">
+                    <h3 className="flex items-center gap-2 font-semibold text-sm text-muted-foreground">
+                        <Hash className="h-4 w-4" />
+                        Chủ đề nổi bật
+                    </h3>
+                    <Link href="/tags" className="text-xs text-muted-foreground hover:text-primary transition-colors">
+                        Xem tất cả
+                    </Link>
+                </div>
 
                 <div className="flex flex-wrap gap-2 px-1">
                     {isTagsLoading ? (
@@ -148,7 +151,7 @@ export function SideBar() {
                         ))
                     ) : tags.length > 0 ? (
                         tags.slice(0, 5).map((tag) => (
-                            <Link key={tag.id} href={`/tags/${tag.slug}`}>
+                            <Link key={tag.id} href={`/tags/${tag.id}`}>
                                 <Badge
                                     variant="outline"
                                     className="hover:bg-accent cursor-pointer transition-colors"

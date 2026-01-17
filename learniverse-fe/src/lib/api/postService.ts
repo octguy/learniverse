@@ -78,6 +78,12 @@ export const postService = {
         });
         return response.data.data;
     },
+    getPostsByTag: async (tagId: string, page = 0, size = 10) => {
+        const response = await apiService.get<ApiResponse<PageResponse<Post>>>(`/posts/tag/${tagId}`, {
+            params: { page, size }
+        });
+        return response.data.data;
+    },
     deletePost: async (id: string) => {
         const response = await apiService.delete<ApiResponse<void>>(`/posts/${id}`);
         return response.data;

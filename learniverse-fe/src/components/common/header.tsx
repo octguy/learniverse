@@ -17,8 +17,16 @@ import { useDebounce } from '@/hooks/use-debounce';
 import { friendService } from '@/lib/api/friendService';
 import { SuggestedFriend } from '@/types/friend';
 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
 export function Header() {
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
   const { unreadMessagesCount, pendingFriendRequestsCount, unreadNotificationsCount } = useNotification();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -154,13 +162,6 @@ export function Header() {
             <span className="text-xs">Home</span>
           </Link>
           
-          {(user?.role === 'ROLE_ADMIN' || user?.roles?.includes('ROLE_ADMIN')) && (
-            <Link href="/admin/dashboard" className="flex flex-col items-center text-gray-600 hover:text-primary">
-              <Settings className="w-5 h-5" />
-              <span className="text-xs">Admin</span>
-            </Link>
-          )}
-
           <Link href="/friend" className="flex flex-col items-center text-gray-600 hover:text-primary">
             <div className="relative">
               <Users className="w-5 h-5" />
@@ -195,13 +196,50 @@ export function Header() {
               <Skeleton className="h-3 w-6 mt-1.5" />
             </div>
           ) : user ? (
-            <Link href="/profile" className="flex flex-col items-center text-gray-600 hover:text-primary">
-              <Avatar className="w-6 h-6">
-                <AvatarImage src={user.avatarUrl} alt={user.username} />
-                <AvatarFallback>{user.username?.charAt(0).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <span className="text-xs">Me</span>
-            </Link>
+            <DropdownMenu>
+              <DropdownMenuTrigger className="outline-none">
+                <div className="flex flex-col items-center text-gray-600 hover:text-primary cursor-pointer">
+                  <Avatar className="w-6 h-6">
+                    <AvatarImage src={user.avatarUrl} alt={user.username} />
+                    <AvatarFallback>{user.username?.charAt(0).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  <span className="text-xs">Me</span>
+                </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-[200px]">
+                {(user?.role === 'ROLE_ADMIN' || user?.roles?.includes('ROLE_ADMIN')) && (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin/dashboard" className="cursor-pointer w-full flex items-center">
+                        <Settings className="w-4 h-4 mr-2" />
+                        Quản trị
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+                <DropdownMenuItem asChild>
+                  <Link href="/profile" className="cursor-pointer w-full flex items-center">
+                    <Users className="w-4 h-4 mr-2" />
+                    Hồ sơ cá nhân
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/settings" className="cursor-pointer w-full flex items-center">
+                    <Settings className="w-4 h-4 mr-2" />
+                    Cài đặt
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-red-500 cursor-pointer focus:text-red-500"
+                  onClick={logout}
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Đăng xuất
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : (
             <Link href="/login" className="flex flex-col items-center text-gray-600 hover:text-primary">
               <Avatar className="w-6 h-6">
@@ -210,12 +248,6 @@ export function Header() {
               <span className="text-xs">Login</span>
             </Link>
           )}
-
-          {/* Work menu */}
-          <div className="flex flex-col items-center text-gray-600 hover:text-primary">
-            <LayoutGrid className="w-5 h-5" />
-            <span className="text-xs">Work</span>
-          </div>
         </div>
       </div>
     </header >
