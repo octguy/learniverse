@@ -84,6 +84,16 @@ export const postService = {
         });
         return response.data.data;
     },
+    getMyDrafts: async (page = 0, size = 10) => {
+        const response = await apiService.get<ApiResponse<PageResponse<Post>>>("/posts/me/drafts", {
+            params: { page, size }
+        });
+        return response.data.data;
+    },
+    updatePostStatus: async (id: string, status: "DRAFT" | "PUBLISHED" | "ARCHIVED") => {
+        const response = await apiService.patch<ApiResponse<PostResponse>>(`/posts/${id}/status`, { status });
+        return response.data;
+    },
     deletePost: async (id: string) => {
         const response = await apiService.delete<ApiResponse<void>>(`/posts/${id}`);
         return response.data;

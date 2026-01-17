@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Bell, HomeIcon, Search, MessageCircle, Users, Settings, LogOut, Home, LayoutGrid, BadgeQuestionMark } from 'lucide-react';
+import { Bell, HomeIcon, Search, MessageCircle, Users, Settings, LogOut, Home, LayoutGrid, BadgeQuestionMark, FileText } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useNotification } from '@/context/NotificationContext';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -222,6 +222,12 @@ export function Header() {
                   <Link href="/profile" className="cursor-pointer w-full flex items-center">
                     <Users className="w-4 h-4 mr-2" />
                     Hồ sơ cá nhân
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/profile/drafts" className="cursor-pointer w-full flex items-center">
+                    <FileText className="w-4 h-4 mr-2" />
+                    Bài viết nháp
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
