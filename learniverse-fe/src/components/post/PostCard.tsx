@@ -1,5 +1,6 @@
 "use client"
 import React, { useState } from "react"
+import Link from "next/link"
 import {
   Card,
   CardContent,
@@ -209,7 +210,28 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
     }
   }
 
+  const handlePublish = async () => {
+    try {
+        await postService.updatePostStatus(post.id, 'PUBLISHED');
+        toast.success("Đã đăng bài viết thành công!");
+        if (onDelete) {
+           onDelete(post.id); 
+        } else {
+           window.location.reload();
+        }
+    } catch (error: any) {
+        console.error("Lỗi đăng bài:", error);
+         const errorMessage = error.response?.data?.message || "Không thể đăng bài viết.";
+        toast.error(errorMessage);
+    }
+  }
+
   const handleReact = async (type: ReactionType) => {
+    if (post.status !== 'PUBLISHED') {
+        toast.error("Bạn không thể tương tác với bài viết chưa được xuất bản (Nháp).")
+        return
+    }
+
     if (isApiLoading) return
     setIsApiLoading(true)
 
@@ -232,10 +254,14 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
         reactableId: post.id,
         reactionType: type,
       })
-    } catch (error) {
+    } catch (error: any) {
       console.error("Lỗi reaction:", error)
+      // Revert optimistic update
       setCurrentReaction(prevReaction)
       setReactionCount(prevCount)
+      
+      const errorMessage = error.response?.data?.message || "Không thể thực hiện tương tác.";
+      toast.error(errorMessage);
     } finally {
       setIsApiLoading(false)
     }
@@ -465,6 +491,13 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
                         </DropdownMenuSub>
                     )}
                     
+                    {post.status === 'DRAFT' && (
+                        <DropdownMenuItem onClick={handlePublish}>
+                            <SendIcon className="mr-2 h-4 w-4" />
+                            Đăng bài
+                        </DropdownMenuItem>
+                    )}
+
                     <DropdownMenuItem onClick={() => setIsEditModalOpen(true)}>
                       <Edit className="mr-2 h-4 w-4" />
                       Chỉnh sửa bài viết
@@ -690,7 +723,8 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
                 activeReactionConfig ? `${activeReactionConfig.color} font-semibold` : "text-muted-foreground"
               )}
               onClick={() => handleReact("LIKE")}
-              disabled={isApiLoading}
+              disabled={isApiLoading || post.status !== "PUBLISHED"}
+              title={post.status !== "PUBLISHED" ? "Bài viết nháp không thể tương tác" : "Thích"}
             >
               {activeReactionConfig ? (
                 <activeReactionConfig.icon className={cn("h-5 w-5 mr-2", activeReactionConfig.color)} />
@@ -706,6 +740,8 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
             variant="ghost"
             className="flex-1 flex items-center justify-center"
             onClick={() => setShowComments(!showComments)}
+            disabled={post.status !== "PUBLISHED"}
+            title={post.status !== "PUBLISHED" ? "Bài viết nháp không thể bình luận" : "Bình luận"}
           >
             <MessageCircle className="h-4 w-4 mr-2" />
             Bình luận
@@ -716,7 +752,12 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="flex-1 flex items-center justify-center">
+              <Button 
+                variant="ghost" 
+                className="flex-1 flex items-center justify-center"
+                disabled={post.status !== "PUBLISHED"}
+                title={post.status !== "PUBLISHED" ? "Bài viết nháp không thể chia sẻ" : "Chia sẻ"}
+              >
                 <Share2 className="h-4 w-4 mr-2" />
                 Chia sẻ
                 <span className="ml-1 text-xs text-muted-foreground">({shareCount})</span>
@@ -739,9 +780,11 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
         {tags.length > 0 && (
           <div className="w-full border-t pt-4 flex flex-wrap gap-2">
             {tags.map((tag) => (
-              <Badge key={tag.id} variant="outline">
-                {tag.name}
-              </Badge>
+              <Link key={tag.id} href={`/tags/${tag.id}`}>
+                <Badge variant="outline" className="hover:bg-accent cursor-pointer transition-colors">
+                  # {tag.name}
+                </Badge>
+              </Link>
             ))}
           </div>
         )}

@@ -46,6 +46,11 @@ export const tagService = {
     return response.data.data;
   },
 
+  getTagById: async (id: string) => {
+    const response = await apiService.get<ApiResponse<Tag>>(`${BASE_URL}/${id}`);
+    return response.data.data;
+  },
+
   createTag: async (data: CreateTagRequest) => {
     const response = await apiService.post<ApiResponse<Tag>>(BASE_URL, data);
     return response.data.data;

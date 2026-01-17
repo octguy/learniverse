@@ -85,6 +85,7 @@ export default function CreatePostModalContent({
     const [isLoading, setIsLoading] = useState(false)
     const [activeTab, setActiveTab] = useState("edit")
     const [visibility, setVisibility] = useState<ContentVisibility>(ContentVisibility.PUBLIC)
+    const [editReason, setEditReason] = useState("")
 
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const imageInputRef = useRef<HTMLInputElement>(null)
@@ -221,7 +222,7 @@ export default function CreatePostModalContent({
         e.target.value = ""
     }
 
-    const handleSubmit = async () => {
+    const handleSubmit = async (status: "PUBLISHED" | "DRAFT" = "PUBLISHED") => {
         setError("")
         if (!title.trim()) return setError("Tiêu đề không được để trống.")
         const bodyContent = content.trim();
@@ -236,7 +237,7 @@ export default function CreatePostModalContent({
                 title: title,
                 body: content,
                 tagIds: selectedTags.map(tag => tag.id),
-                status: "PUBLISHED",
+                status: status,
                 ...(groupId ? { groupId } : { visibility }),
             };
             const filesToUpload = [...images, ...pdfs];
@@ -244,9 +245,13 @@ export default function CreatePostModalContent({
             if (initialData) {
                 const updatePayload = {
                     ...payload,
-                    deletedAttachmentIds
+                    deletedAttachmentIds,
+                    editReason: editReason.trim() || undefined
                 }
                 await postService.updatePost(initialData.id, updatePayload, filesToUpload);
+                if (initialData.status !== status) {
+                     await postService.updatePostStatus(initialData.id, status);
+                }
             } else {
                 await postService.createPost(payload, filesToUpload);
             }
@@ -259,6 +264,7 @@ export default function CreatePostModalContent({
             setPdfs([])
             setExistingAttachments([])
             setDeletedAttachmentIds([])
+            setEditReason("")
 
             if (onSuccess) {
                 onSuccess();
@@ -397,6 +403,20 @@ export default function CreatePostModalContent({
                             error={error && selectedTags.length === 0 ? "Vui lòng chọn tag" : undefined}
                         />
                     </div>
+
+                    {initialData && initialData.status === 'PUBLISHED' && (
+                        <div className="space-y-1.5">
+                            <Label htmlFor="edit-reason" className="font-semibold">
+                                Lý do chỉnh sửa <span className="text-muted-foreground font-normal text-xs">(Không bắt buộc)</span>
+                            </Label>
+                            <Input
+                                id="edit-reason"
+                                placeholder="Ví dụ: Cập nhật nội dung, bổ sung thông tin..."
+                                value={editReason}
+                                onChange={(e) => setEditReason(e.target.value)}
+                            />
+                        </div>
+                    )}
 
                     <div className="space-y-1.5">
                         <Label className="font-semibold">Đã đính kèm</Label>
@@ -544,14 +564,26 @@ export default function CreatePostModalContent({
 
             <div className="flex items-center justify-end gap-2 border-t p-4">
                 <Button
-                    variant="outline"
+                    variant="ghost"
                     onClick={() => setActiveTab(activeTab === "edit" ? "preview" : "edit")}
                 >
                     {activeTab === "edit" ? "Xem trước" : "Chỉnh sửa"}
                 </Button>
-                <Button onClick={handleSubmit} disabled={isLoading}>
+                
+                {(!initialData || initialData.status !== 'PUBLISHED') && (
+                    <Button
+                        variant="outline"
+                        onClick={() => handleSubmit("DRAFT")}
+                        disabled={isLoading}
+                    >
+                        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Lưu nháp
+                    </Button>
+                )}
+
+                <Button onClick={() => handleSubmit("PUBLISHED")} disabled={isLoading}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {initialData ? "Lưu thay đổi" : "Đăng bài"}
+                    {initialData && initialData.status === 'PUBLISHED' ? "Lưu thay đổi" : "Đăng bài"}
                 </Button>
             </div>
             <input

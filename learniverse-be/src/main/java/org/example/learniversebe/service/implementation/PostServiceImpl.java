@@ -419,7 +419,7 @@ public class PostServiceImpl implements IPostService {
         history.setEditedBy(currentUser);
         history.setPreviousTitle(content.getTitle());
         history.setPreviousBody(content.getBody());
-        history.setEditReason(request.getEditReason());
+        history.setEditReason(request.getEditReason() != null ? request.getEditReason() : "Updated by author");
         editHistoryRepository.save(history);
 
         boolean titleChanged = request.getTitle() != null && !request.getTitle().equals(content.getTitle());
