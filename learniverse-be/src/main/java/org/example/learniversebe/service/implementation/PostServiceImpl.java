@@ -435,13 +435,6 @@ public class PostServiceImpl implements IPostService {
             content.setVisibility(request.getVisibility());
         }
 
-        // Fix cascade issue: delete old tags, flush to DB, then create new ones
-        Set<ContentTag> oldTags = new HashSet<>(content.getContentTags());
-        content.getContentTags().clear();
-        contentRepository.saveAndFlush(content); // Flush để xóa associations trong DB
-        contentTagRepository.deleteAll(oldTags);  // Xóa các ContentTag cũ
-        contentTagRepository.flush();             // Đảm bảo delete hoàn tất trước khi insert
-
         associateTags(content, request.getTagIds());
 
         if (request.getAttachmentsToDelete() != null && !request.getAttachmentsToDelete().isEmpty()) {
@@ -667,8 +660,16 @@ public class PostServiceImpl implements IPostService {
             contentTag.setCreatedAt(now); // Set timestamp cho bảng join
             contentTags.add(contentTag);
         }
+
+        if (content.getContentTags() == null) {
+            // Nếu chưa có list thì mới set mới
+            content.setContentTags(contentTags);
+        } else {
+            // Nếu đã có, phải clear và addAll để giữ nguyên reference mà Hibernate đang quản lý
+            content.getContentTags().clear(); // Hibernate sẽ tự động delete các item bị remove (orphanRemoval=true)
+            content.getContentTags().addAll(contentTags); // Hibernate sẽ tự insert các item mới
+        }
 //        contentTagRepository.saveAll(contentTags); // Lưu các liên kết mới
-        content.setContentTags(contentTags); // Cập nhật lại collection trong Content entity
     }
 
 
