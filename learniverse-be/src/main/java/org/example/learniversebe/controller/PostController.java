@@ -160,7 +160,7 @@ public class PostController {
         return ResponseEntity.ok(response);
     }
 
-    @PutMapping(value = "/{postId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PatchMapping(value = "/{postId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Update an existing post", description = "Update post content and attachments.")
     public ResponseEntity<ApiResponse<PostResponse>> updatePost(

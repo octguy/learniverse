@@ -541,9 +541,10 @@ public class QuestionServiceImpl implements IQuestionService {
 
     private void associateTags(Content content, Set<UUID> tagIds) {
         if (tagIds == null || tagIds.isEmpty()) {
-            throw new BadRequestException("At least one tag is required for a question.");
+            throw new BadRequestException("At least one tag is required for a post.");
         }
-        // Tương tự PostServiceImpl
+
+        // 1. Lấy thông tin các Tag từ DB để đảm bảo tồn tại
         List<Tag> tags = tagRepository.findAllById(tagIds);
         if (tags.size() != tagIds.size()) {
             Set<UUID> foundIds = tags.stream().map(Tag::getId).collect(Collectors.toSet());
@@ -551,18 +552,38 @@ public class QuestionServiceImpl implements IQuestionService {
             throw new BadRequestException("Tags not found with IDs: " + notFoundIds);
         }
 
-        Set<ContentTag> contentTags = new HashSet<>();
+        // 2. Lấy danh sách ContentTag hiện tại
+        Set<ContentTag> currentContentTags = content.getContentTags();
+        if (currentContentTags == null) {
+            currentContentTags = new HashSet<>();
+            content.setContentTags(currentContentTags);
+        }
+
+        // 3. BƯỚC QUAN TRỌNG: Lọc và Cập nhật (Smart Update)
+
+        // A. XÓA những tag cũ KHÔNG còn nằm trong danh sách mới
+        // (Hibernate sẽ tự động delete khỏi DB nhờ orphanRemoval = true)
+        currentContentTags.removeIf(ct -> !tagIds.contains(ct.getTag().getId()));
+
+        // B. THÊM những tag mới CHƯA có trong danh sách hiện tại
+        // Lấy danh sách ID của những tag đang còn giữ lại
+        Set<UUID> existingTagIds = currentContentTags.stream()
+                .map(ct -> ct.getTag().getId())
+                .collect(Collectors.toSet());
+
         LocalDateTime now = LocalDateTime.now();
         for (Tag tag : tags) {
-            ContentTag contentTag = new ContentTag();
-            contentTag.setContent(content);
-            contentTag.setTag(tag);
-//            contentTag.setContentTagId(new ContentTagId(content.getId(), tag.getId()));
-            contentTag.setCreatedAt(now);
-            contentTags.add(contentTag);
+            // Chỉ tạo mới nếu chưa tồn tại
+            if (!existingTagIds.contains(tag.getId())) {
+                ContentTag contentTag = new ContentTag();
+                contentTag.setContent(content);
+                contentTag.setTag(tag);
+                contentTag.setCreatedAt(now);
+
+                // Thêm vào Set hiện có (Hibernate sẽ tự động insert)
+                currentContentTags.add(contentTag);
+            }
         }
-//        contentTagRepository.saveAll(contentTags);
-        content.setContentTags(contentTags);
     }
 
     private void updateTags(Content content, Set<UUID> newTagIds) {

@@ -422,20 +422,31 @@ public class PostServiceImpl implements IPostService {
         history.setEditReason(request.getEditReason() != null ? request.getEditReason() : "Updated by author");
         editHistoryRepository.save(history);
 
-        boolean titleChanged = request.getTitle() != null && !request.getTitle().equals(content.getTitle());
-        content.setTitle(request.getTitle());
-        content.setBody(request.getBody());
-        content.setLastEditedAt(LocalDateTime.now());
-        if (titleChanged) {
+        boolean isContentChanged = false;
+
+        if (request.getTitle() != null && !request.getTitle().isBlank()
+                && !request.getTitle().equals(content.getTitle())) {
+            content.setTitle(request.getTitle());
             content.setSlug(slugGenerator.generateSlug(request.getTitle()));
+            isContentChanged = true;
         }
 
-        if (request.getVisibility() != null) {
+        if (request.getBody() != null && !request.getBody().isBlank()
+                && !request.getBody().equals(content.getBody())) {
+            content.setBody(request.getBody());
+            isContentChanged = true;
+        }
+
+        if (request.getVisibility() != null && request.getVisibility() != content.getVisibility()) {
             visibilityService.validateVisibilityUpdate(content, request.getVisibility());
             content.setVisibility(request.getVisibility());
+            isContentChanged = true;
         }
 
-        associateTags(content, request.getTagIds());
+        if (request.getTagIds() != null) {
+            associateTags(content, request.getTagIds());
+            isContentChanged = true;
+        }
 
         if (request.getAttachmentsToDelete() != null && !request.getAttachmentsToDelete().isEmpty()) {
             List<Attachment> attachmentsToDelete = attachmentRepository.findAllById(request.getAttachmentsToDelete());
@@ -449,6 +460,7 @@ public class PostServiceImpl implements IPostService {
 
             attachmentsToDelete.forEach(content.getAttachments()::remove);
             attachmentRepository.deleteAll(attachmentsToDelete);
+            isContentChanged = true;
         }
 
         // Append new attachments if provided
@@ -476,8 +488,12 @@ public class PostServiceImpl implements IPostService {
             }
             attachmentRepository.saveAll(newAttachments);
             content.getAttachments().addAll(newAttachments);
+            isContentChanged = true;
         }
 
+        if (isContentChanged) {
+            content.setLastEditedAt(LocalDateTime.now());
+        }
         Content updatedContent = contentRepository.save(content);
         return getPostById(updatedContent.getId());
     }
@@ -639,37 +655,49 @@ public class PostServiceImpl implements IPostService {
      */
     private void associateTags(Content content, Set<UUID> tagIds) {
         if (tagIds == null || tagIds.isEmpty()) {
-            throw new BadRequestException("At least one tag is required for a post."); // Hoặc cho phép post không tag?
+            throw new BadRequestException("At least one tag is required for a post.");
         }
 
+        // 1. Lấy thông tin các Tag từ DB để đảm bảo tồn tại
         List<Tag> tags = tagRepository.findAllById(tagIds);
         if (tags.size() != tagIds.size()) {
-            // Tìm các ID không hợp lệ
             Set<UUID> foundIds = tags.stream().map(Tag::getId).collect(Collectors.toSet());
             Set<UUID> notFoundIds = tagIds.stream().filter(id -> !foundIds.contains(id)).collect(Collectors.toSet());
             throw new BadRequestException("Tags not found with IDs: " + notFoundIds);
         }
 
-        Set<ContentTag> contentTags = new HashSet<>();
-        LocalDateTime now = LocalDateTime.now();
-        for (Tag tag : tags) {
-            ContentTag contentTag = new ContentTag();
-            contentTag.setContent(content);
-            contentTag.setTag(tag);
-//            contentTag.setContentTagId(new ContentTagId(content.getId(), tag.getId()));
-            contentTag.setCreatedAt(now); // Set timestamp cho bảng join
-            contentTags.add(contentTag);
+        // 2. Lấy danh sách ContentTag hiện tại
+        Set<ContentTag> currentContentTags = content.getContentTags();
+        if (currentContentTags == null) {
+            currentContentTags = new HashSet<>();
+            content.setContentTags(currentContentTags);
         }
 
-        if (content.getContentTags() == null) {
-            // Nếu chưa có list thì mới set mới
-            content.setContentTags(contentTags);
-        } else {
-            // Nếu đã có, phải clear và addAll để giữ nguyên reference mà Hibernate đang quản lý
-            content.getContentTags().clear(); // Hibernate sẽ tự động delete các item bị remove (orphanRemoval=true)
-            content.getContentTags().addAll(contentTags); // Hibernate sẽ tự insert các item mới
+        // 3. BƯỚC QUAN TRỌNG: Lọc và Cập nhật (Smart Update)
+
+        // A. XÓA những tag cũ KHÔNG còn nằm trong danh sách mới
+        // (Hibernate sẽ tự động delete khỏi DB nhờ orphanRemoval = true)
+        currentContentTags.removeIf(ct -> !tagIds.contains(ct.getTag().getId()));
+
+        // B. THÊM những tag mới CHƯA có trong danh sách hiện tại
+        // Lấy danh sách ID của những tag đang còn giữ lại
+        Set<UUID> existingTagIds = currentContentTags.stream()
+                .map(ct -> ct.getTag().getId())
+                .collect(Collectors.toSet());
+
+        LocalDateTime now = LocalDateTime.now();
+        for (Tag tag : tags) {
+            // Chỉ tạo mới nếu chưa tồn tại
+            if (!existingTagIds.contains(tag.getId())) {
+                ContentTag contentTag = new ContentTag();
+                contentTag.setContent(content);
+                contentTag.setTag(tag);
+                contentTag.setCreatedAt(now);
+
+                // Thêm vào Set hiện có (Hibernate sẽ tự động insert)
+                currentContentTags.add(contentTag);
+            }
         }
-//        contentTagRepository.saveAll(contentTags); // Lưu các liên kết mới
     }
 
 
