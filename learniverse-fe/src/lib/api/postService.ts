@@ -45,7 +45,7 @@ export const postService = {
                 formData.append("files", file);
             });
         }
-        const response = await apiService.put<ApiResponse<PostResponse>>(`/posts/${id}`, formData, {
+        const response = await apiService.patch<ApiResponse<PostResponse>>(`/posts/${id}`, formData, {
             headers: {
                 "Content-Type": "multipart/form-data",
             },

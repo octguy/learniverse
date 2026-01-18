@@ -35,6 +35,7 @@ export interface CreatePostRequest {
 export interface UpdatePostRequest extends CreatePostRequest {
   deletedAttachmentIds?: string[];
   visibility?: ContentVisibility;
+  editReason?: string;
 }
 export type PostAuthor = {
   id: string;
