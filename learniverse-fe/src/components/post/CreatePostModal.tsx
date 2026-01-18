@@ -245,7 +245,7 @@ export default function CreatePostModalContent({
             if (initialData) {
                 const updatePayload = {
                     ...payload,
-                    deletedAttachmentIds,
+                    attachmentsToDelete: deletedAttachmentIds,
                     editReason: editReason.trim() || undefined
                 }
                 await postService.updatePost(initialData.id, updatePayload, filesToUpload);
