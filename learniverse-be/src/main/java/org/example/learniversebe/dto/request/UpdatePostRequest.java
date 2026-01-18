@@ -20,13 +20,10 @@ public class UpdatePostRequest {
     @Size(max = 300, message = "Title cannot exceed 300 characters")
     private String title;
 
-    @Schema(description = "Nội dung mới (Markdown/LaTeX)", minLength = 10, requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotBlank(message = "Body cannot be blank")
-    @Size(min = 10, message = "Body must be at least 10 characters")
+    @Schema(description = "Nội dung mới (Markdown/LaTeX)")
     private String body;
 
-    @Schema(description = "Danh sách ID các tag mới", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotEmpty(message = "At least one tag is required")
+    @Schema(description = "Danh sách ID các tag mới")
     private Set<UUID> tagIds;
 
     @Schema(description = "Phạm vi hiển thị bài viết")
