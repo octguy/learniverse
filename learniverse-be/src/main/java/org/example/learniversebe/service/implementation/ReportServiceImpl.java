@@ -305,7 +305,7 @@ public class ReportServiceImpl implements IReportService {
         log.info("Suspending user {} due to report {}", targetAuthor.getId(), report.getId());
         
         // Cập nhật trạng thái user
-        targetAuthor.setStatus(UserStatus.SUSPENDED);
+        targetAuthor.setStatus(UserStatus.INACTIVE);
         userRepository.save(targetAuthor);
         
         // Gửi notification
