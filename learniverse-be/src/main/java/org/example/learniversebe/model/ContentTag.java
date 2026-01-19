@@ -5,6 +5,8 @@ import lombok.*;
 import org.example.learniversebe.model.composite_key.ContentTagId;
 import org.example.learniversebe.model.composite_key.RoleUserId;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name="content_tag")
 @Setter
@@ -25,4 +27,20 @@ public class ContentTag extends BaseEntity {
     @MapsId("tagId")
     @JoinColumn(name="tag_id", referencedColumnName = "id", nullable = false)
     private Tag tag;
+
+    @PrePersist
+    protected void onCreate() {
+        LocalDateTime now = LocalDateTime.now();
+        if (this.getCreatedAt() == null) {
+            this.setCreatedAt(now);
+        }
+        if (this.getUpdatedAt() == null) {
+            this.setUpdatedAt(now);
+        }
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.setUpdatedAt(LocalDateTime.now());
+    }
 }

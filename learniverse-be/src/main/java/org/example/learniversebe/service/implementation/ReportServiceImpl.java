@@ -6,12 +6,9 @@ import org.example.learniversebe.dto.request.UpdateReportRequest;
 import org.example.learniversebe.dto.response.PageResponse;
 import org.example.learniversebe.dto.response.ReportDetailResponse;
 import org.example.learniversebe.dto.response.ReportResponse;
-import org.example.learniversebe.dto.response.UserResponse;
-import org.example.learniversebe.enums.ReportStatus;
-import org.example.learniversebe.enums.ReportableType;
+import org.example.learniversebe.enums.*;
 import org.example.learniversebe.exception.BadRequestException;
 import org.example.learniversebe.exception.ResourceNotFoundException;
-import org.example.learniversebe.exception.UnauthorizedException;
 import org.example.learniversebe.mapper.ReportMapper;
 import org.example.learniversebe.mapper.UserMapper;
 import org.example.learniversebe.model.*;
@@ -95,9 +92,6 @@ public class ReportServiceImpl implements IReportService {
         Report savedReport = reportRepository.save(report);
         log.info("Report created with ID: {}", savedReport.getId());
         
-        // 5. Gửi notification cho mod team (TODO: Implement broadcast to mods)
-        // notificationService.notifyModerators("New report submitted", savedReport.getId());
-        
         return reportMapper.toReportResponse(savedReport);
     }
 
@@ -155,6 +149,12 @@ public class ReportServiceImpl implements IReportService {
             throw new BadRequestException("Report đã được xử lý trước đó với trạng thái: " + report.getStatus());
         }
         
+        // Lấy thông tin về target author
+        User targetAuthor = getTargetAuthor(report);
+        
+        // Thực hiện action
+        executeReportAction(report, request.getActionTaken(), targetAuthor, currentUser);
+        
         // Cập nhật report
         report.setStatus(request.getStatus());
         report.setActionTaken(request.getActionTaken());
@@ -165,8 +165,8 @@ public class ReportServiceImpl implements IReportService {
         Report updatedReport = reportRepository.save(report);
         log.info("Report processed successfully: {}", updatedReport.getId());
         
-        // TODO: Thực hiện action nếu cần (xóa content, warn user, v.v.)
-        // Có thể gọi các service khác tùy theo actionTaken
+        // Gửi notification cho reporter
+        notifyReporter(report, request.getStatus());
         
         return reportMapper.toReportResponse(updatedReport);
     }
@@ -224,12 +224,192 @@ public class ReportServiceImpl implements IReportService {
         return response;
     }
 
-    // --- Helper Methods ---
+    // ==================== ACTION EXECUTION ====================
 
     /**
-     * Tìm reports với các filter kết hợp
-     * Sử dụng các method query riêng biệt để tránh lỗi parameter type với PostgreSQL
+     * Thực hiện action dựa trên loại action được chọn
      */
+    private void executeReportAction(Report report, ReportActionTaken action, User targetAuthor, User moderator) {
+        if (action == null || action == ReportActionTaken.NONE || action == ReportActionTaken.NO_VIOLATION) {
+            log.info("No action required for report {}", report.getId());
+            return;
+        }
+
+        switch (action) {
+            case CONTENT_DELETED -> deleteReportedContent(report, targetAuthor, moderator);
+            case USER_WARNED -> notifyUserWarning(targetAuthor, report, moderator);
+            case USER_SUSPENDED -> suspendUser(targetAuthor, report, moderator);
+            case USER_BANNED -> banUser(targetAuthor, report, moderator);
+            default -> log.warn("Unknown action: {}", action);
+        }
+    }
+
+    /**
+     * Xóa nội dung bị báo cáo
+     */
+    private void deleteReportedContent(Report report, User targetAuthor, User moderator) {
+        log.info("Deleting content for report {} - type: {}, id: {}", 
+                report.getId(), report.getReportableType(), report.getReportableId());
+        
+        switch (report.getReportableType()) {
+            case POST, QUESTION -> softDeleteContent(report.getReportableId());
+            case ANSWER -> softDeleteAnswer(report.getReportableId());
+            case COMMENT -> softDeleteComment(report.getReportableId());
+        }
+
+        // Gửi notification cho tác giả nội dung
+        if (targetAuthor != null) {
+            String message = String.format(
+                "Nội dung của bạn đã bị xóa do vi phạm quy định cộng đồng. Lý do: %s", 
+                report.getReason().name()
+            );
+            notificationService.createNotification(
+                    targetAuthor.getId(),
+                    moderator.getId(),
+                    NotificationType.CONTENT_DELETED,
+                    message,
+                    report.getId(),
+                    "REPORT"
+            );
+        }
+    }
+
+    /**
+     * Gửi cảnh cáo cho người dùng (chỉ notification)
+     */
+    private void notifyUserWarning(User targetAuthor, Report report, User moderator) {
+        if (targetAuthor == null) return;
+
+        log.info("Sending warning to user {} for report {}", targetAuthor.getId(), report.getId());
+        
+        String message = String.format(
+            "Bạn đã nhận được cảnh cáo do vi phạm quy định cộng đồng. Lý do: %s",
+            report.getReason().name()
+        );
+        notificationService.createNotification(
+                targetAuthor.getId(),
+                moderator.getId(),
+                NotificationType.WARNING_RECEIVED,
+                message,
+                report.getId(),
+                "REPORT"
+        );
+    }
+
+    /**
+     * Tạm khóa tài khoản người dùng
+     */
+    private void suspendUser(User targetAuthor, Report report, User moderator) {
+        if (targetAuthor == null) return;
+
+        log.info("Suspending user {} due to report {}", targetAuthor.getId(), report.getId());
+        
+        // Cập nhật trạng thái user
+        targetAuthor.setStatus(UserStatus.SUSPENDED);
+        userRepository.save(targetAuthor);
+        
+        // Gửi notification
+        String message = String.format(
+            "Tài khoản của bạn đã bị tạm khóa do vi phạm quy định cộng đồng. Lý do: %s",
+            report.getReason().name()
+        );
+        notificationService.createNotification(
+                targetAuthor.getId(),
+                moderator.getId(),
+                NotificationType.ACCOUNT_SUSPENDED,
+                message,
+                report.getId(),
+                "REPORT"
+        );
+    }
+
+    /**
+     * Cấm vĩnh viễn tài khoản người dùng
+     */
+    private void banUser(User targetAuthor, Report report, User moderator) {
+        if (targetAuthor == null) return;
+
+        log.info("Banning user {} due to report {}", targetAuthor.getId(), report.getId());
+        
+        // Cập nhật trạng thái user
+        targetAuthor.setStatus(UserStatus.BANNED);
+        targetAuthor.setEnabled(false);
+        userRepository.save(targetAuthor);
+        
+        // Gửi notification
+        String message = String.format(
+            "Tài khoản của bạn đã bị cấm vĩnh viễn do vi phạm nghiêm trọng quy định cộng đồng. Lý do: %s",
+            report.getReason().name()
+        );
+        notificationService.createNotification(
+                targetAuthor.getId(),
+                moderator.getId(),
+                NotificationType.ACCOUNT_BANNED,
+                message,
+                report.getId(),
+                "REPORT"
+        );
+    }
+
+    // ==================== HELPER METHODS ====================
+
+    private void softDeleteContent(UUID contentId) {
+        contentRepository.findById(contentId).ifPresent(content -> {
+            content.setDeletedAt(LocalDateTime.now());
+            contentRepository.save(content);
+            log.info("Content {} soft deleted", contentId);
+        });
+    }
+
+    private void softDeleteAnswer(UUID answerId) {
+        answerRepository.findById(answerId).ifPresent(answer -> {
+            answer.setDeletedAt(LocalDateTime.now());
+            answerRepository.save(answer);
+            log.info("Answer {} soft deleted", answerId);
+        });
+    }
+
+    private void softDeleteComment(UUID commentId) {
+        commentRepository.findById(commentId).ifPresent(comment -> {
+            comment.setDeletedAt(LocalDateTime.now());
+            commentRepository.save(comment);
+            log.info("Comment {} soft deleted", commentId);
+        });
+    }
+
+    private User getTargetAuthor(Report report) {
+        return switch (report.getReportableType()) {
+            case POST, QUESTION -> contentRepository.findById(report.getReportableId())
+                    .map(Content::getAuthor).orElse(null);
+            case ANSWER -> answerRepository.findById(report.getReportableId())
+                    .map(Answer::getAuthor).orElse(null);
+            case COMMENT -> commentRepository.findById(report.getReportableId())
+                    .map(Comment::getAuthor).orElse(null);
+        };
+    }
+
+    private void notifyReporter(Report report, ReportStatus status) {
+        if (report.getReporter() == null) return;
+
+        User moderator = report.getResolvedBy();
+        String message = switch (status) {
+            case RESOLVED -> "Báo cáo của bạn đã được xem xét và nội dung vi phạm đã được xử lý. Cảm ơn bạn!";
+            case REJECTED -> "Báo cáo của bạn đã được xem xét. Nội dung không vi phạm quy định.";
+            default -> null;
+        };
+
+        if (message != null) {
+            notificationService.createNotification(
+                    report.getReporter().getId(),
+                    moderator != null ? moderator.getId() : null,
+                    NotificationType.REPORT_RESOLVED,
+                    message,
+                    report.getId(),
+                    "REPORT"
+            );
+        }
+    }
+
     private Page<Report> findReportsWithFilters(
             ReportStatus status, 
             ReportableType type, 
