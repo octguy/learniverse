@@ -52,9 +52,9 @@ export default function AdminTopbar({
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-9 w-9 rounded-full">
               <Avatar className="h-9 w-9">
-                <AvatarImage src={user?.avatarUrl || ""} alt="Admin" />
+                <AvatarImage src={user?.avatarUrl || ""} alt={user?.username || "Admin"} />
                 <AvatarFallback className="bg-primary text-primary-foreground">
-                  AD
+                  {(user?.username || "AD").slice(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
             </Button>
@@ -84,6 +84,6 @@ export default function AdminTopbar({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-    </div>
+    </div >
   );
 }

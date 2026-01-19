@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import AdminTopbar from "@/components/admin/AdminTopbar";
-import { cn } from "@/lib/utils"; 
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 export default function AdminLayout({
@@ -22,9 +22,9 @@ export default function AdminLayout({
       if (!user) {
         router.push("/login");
       } else {
-        const isAdmin = user.role === "ROLE_ADMIN" || 
-                        user.roles?.includes("ROLE_ADMIN");
-        
+        const isAdmin = user.role === "ROLE_ADMIN" ||
+          user.roles?.includes("ROLE_ADMIN");
+
         if (!isAdmin) {
           toast.error("Bạn không có quyền truy cập vào trang quản trị.");
           router.push("/home");
