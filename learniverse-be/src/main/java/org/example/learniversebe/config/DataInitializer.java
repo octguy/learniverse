@@ -48,7 +48,7 @@ public class DataInitializer implements CommandLineRunner {
         if (roleUserRepository.existsOneAdmin()) {
             log.debug("Exist admin user.");
         } else {
-            //authService.initAdmin(new RegisterRequest("admin1@gmail.com", "Admin1", "123456@A"));
+            authService.initAdmin(new RegisterRequest("admin1@gmail.com", "Admin1", "123456@A"));
             log.info("Created admin user.");
         }
     }
@@ -83,10 +83,23 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void initializeRoles() {
-        // Add role initialization logic here if needed
-        if (roleService.findAll().isEmpty()) {
+        List<UserRole> existingRoles = roleService.findAll().stream()
+                .map(role -> role.getName())
+                .toList();
+
+        boolean createdAny = false;
+
+        if (!existingRoles.contains(UserRole.ROLE_ADMIN)) {
             roleService.createNewRole(UserRole.ROLE_ADMIN);
+            createdAny = true;
+        }
+
+        if (!existingRoles.contains(UserRole.ROLE_USER)) {
             roleService.createNewRole(UserRole.ROLE_USER);
+            createdAny = true;
+        }
+
+        if (createdAny) {
             System.out.println("Initialized default roles.");
         }
         else {
