@@ -7,6 +7,8 @@ import org.example.learniversebe.dto.response.CommentResponse;
 import org.example.learniversebe.dto.response.PageResponse;
 import org.example.learniversebe.enums.ReactableType;
 import org.example.learniversebe.enums.ReactionType;
+import org.example.learniversebe.enums.ReportReason;
+import org.example.learniversebe.enums.ReportStatus;
 import org.example.learniversebe.exception.BadRequestException;
 import org.example.learniversebe.exception.ResourceNotFoundException;
 import org.example.learniversebe.exception.UnauthorizedException;
@@ -44,6 +46,7 @@ public class CommentServiceImpl implements ICommentService {
 //    private final IInteractionService interactionService; // Inject InteractionService
      private final INotificationService notificationService;
     private final ContentVisibilityService visibilityService;
+    private final ReportRepository reportRepository;
 
     @Value("${app.comment.edit.limit-minutes:15}") // Giới hạn sửa comment, ví dụ 15 phút
     private long commentEditLimitMinutes;
@@ -61,8 +64,8 @@ public class CommentServiceImpl implements ICommentService {
                               ReactionRepository reactionRepository,
                               ContentModerationService moderationService,
                               INotificationService notificationService,
-                              ContentVisibilityService visibilityService
-        ) {
+                              ContentVisibilityService visibilityService, ReportRepository reportRepository
+    ) {
         this.commentRepository = commentRepository;
         this.contentRepository = contentRepository;
         this.answerRepository = answerRepository;
@@ -74,6 +77,7 @@ public class CommentServiceImpl implements ICommentService {
         this.moderationService = moderationService;
         this.notificationService = notificationService;
         this.visibilityService = visibilityService;
+        this.reportRepository = reportRepository;
     }
 
     @Override
@@ -81,9 +85,9 @@ public class CommentServiceImpl implements ICommentService {
     public CommentResponse addComment(CreateCommentRequest request) {
         log.info("Adding comment to {} with ID: {}", request.getCommentableType(), request.getCommentableId());
         User author = serviceHelper.getCurrentUser();
-        if (!moderationService.isContentSafe(request.getBody())) {
-            log.info(request.getBody());
-            throw new BadRequestException("Bình luận của bạn chứa ngôn từ không phù hợp hoặc vi phạm tiêu chuẩn cộng đồng.");
+        boolean isSafe = moderationService.isContentSafe(request.getBody());
+        if (!isSafe) {
+            log.warn("Comment flagged by AI as unsafe. Author: {}", author.getId());
         }
 
         Comment parentComment = null;
@@ -110,10 +114,18 @@ public class CommentServiceImpl implements ICommentService {
         Comment comment = commentMapper.createCommentRequestToComment(request);
         comment.setAuthor(author);
         comment.setParent(parentComment);
+        comment.setIsVisible(isSafe);
         // @PrePersist sẽ set ID và timestamps
 
         // 3. Lưu Comment
         Comment savedComment = commentRepository.save(comment);
+        if (!isSafe) {
+            createSystemReport(savedComment, author);
+
+            CommentResponse response = commentMapper.commentToCommentResponse(savedComment);
+            // Có thể thêm field "isFlagged" vào response để FE hiện thông báo "Đang chờ duyệt" cho chính tác giả
+            return response;
+        }
 
         // 4. Cập nhật Counts
         updateCommentableCommentCount(request.getCommentableType(), request.getCommentableId(), 1);
@@ -423,5 +435,17 @@ public class CommentServiceImpl implements ICommentService {
                     .orElse(null);
             case COMMENT -> null; // Không cần xử lý vì đã có parentComment
         };
+    }
+
+    private void createSystemReport(Comment comment, User reportedUser) {
+        Report report = new Report();
+        report.setReportableType(org.example.learniversebe.enums.ReportableType.COMMENT);
+        report.setReportableId(comment.getId());
+        report.setReason(ReportReason.SYSTEM_AUTO_FLAG);
+        report.setDescription("Nội dung: " + comment.getBody());
+        report.setStatus(ReportStatus.PENDING);
+        report.setReporter(null);
+
+        reportRepository.save(report);
     }
 }

@@ -56,11 +56,20 @@ public interface CommentRepository extends JpaRepository<Comment, UUID> {
     Page<Comment> findByCommentableTypeAndCommentableIdAndParentIsNullOrderByCreatedAtAsc(ReactableType commentableType, UUID commentableId, Pageable pageable);
 
     // Tìm các replies cho một comment cha
+    @Query("SELECT c FROM Comment c WHERE c.parent.id = :parentId " +
+            "AND c.deletedAt IS NULL " +
+            "AND c.isVisible = true " +
+            "ORDER BY c.createdAt ASC")
     Page<Comment> findByParentIdOrderByCreatedAtAsc(UUID parentId, Pageable pageable);
 
     List<Comment> findByParentId(UUID parentId);
 
     // Tìm comment theo Type và ID (có phân trang)
+    @Query("SELECT c FROM Comment c WHERE c.commentableType = :type " +
+            "AND c.commentableId = :id " +
+            "AND c.deletedAt IS NULL " +
+            "AND c.isVisible = true " +
+            "ORDER BY c.createdAt DESC")
     Page<Comment> findByCommentableTypeAndCommentableId(
             ReactableType commentableType,
             UUID commentableId,
@@ -131,4 +140,5 @@ public interface CommentRepository extends JpaRepository<Comment, UUID> {
     Page<Comment> findByUserId(
             @Param("userId") UUID userId,
             Pageable pageable);
+
 }
