@@ -144,7 +144,7 @@ export default function AllTagsPage() {
                       </div>
                       <h3 className="text-lg font-semibold text-foreground">Không tìm thấy chủ đề nào</h3>
                       <p className="text-muted-foreground mt-1 max-w-sm mx-auto">
-                        Chúng tôi không tìm thấy chủ đề phù hợp với "{query}". Hãy thử tìm kiếm với từ khóa khác.
+                        Chúng tôi không tìm thấy chủ đề phù hợp với &ldquo;{query}&rdquo;. Hãy thử tìm kiếm với từ khóa khác.
                       </p>
                       <Button 
                          variant="outline" 
