@@ -182,7 +182,7 @@ export default function QuestionsPage() {
                                     className="w-full text-primary"
                                     asChild
                                 >
-                                    <Link href="/friends/suggestions">
+                                    <Link href="/friends">
                                         Xem thêm gợi ý
                                     </Link>
                                 </Button>
@@ -205,18 +205,21 @@ export default function QuestionsPage() {
                                     Nổi bật trong cộng đồng
                                 </Badge>
                                 <p className="text-sm font-medium text-foreground">
-                                    Tham gia giờ cố vấn mỗi tuần
+                                    Tham gia nhóm học tập cộng đồng
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                    Gặp gỡ các cố vấn vào thứ Năm để trao đổi
-                                    bài tập và chuẩn bị cho kỳ thi.
+                                    Trao đổi làm quen với những người có chung khó khăn để học tập
+                                    và chuẩn bị cho kỳ thi.
                                 </p>
                                 <Button
                                     variant="outline"
                                     size="sm"
                                     className="w-full"
+                                    asChild
                                 >
-                                    Tìm hiểu thêm
+                                    <Link href="/groups">
+                                        Tìm hiểu thêm
+                                    </Link>
                                 </Button>
                             </div>
                         </CardContent>

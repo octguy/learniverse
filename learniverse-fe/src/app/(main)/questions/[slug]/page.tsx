@@ -1642,18 +1642,6 @@ export default function QuestionDetailPage() {
                                                 >
                                                     <ThumbsDown className="size-4" />
                                                 </Button>
-                                                {user && user.id !== answer.author?.id && (
-                                                    <Button
-                                                        type="button"
-                                                        size="icon"
-                                                        variant="ghost"
-                                                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                                        title="Báo cáo vi phạm"
-                                                        onClick={() => setReportAnswerId(answer.id)}
-                                                    >
-                                                        <Flag className="size-4" />
-                                                    </Button>
-                                                )}
                                                 {isAuthor && (
                                                     <Button
                                                         type="button"

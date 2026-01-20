@@ -38,28 +38,34 @@ function unwrap<T>(response: ApiResponse<T>) {
 
 export const questionService = {
     async list(params: QuestionQuery = {}) {
-        const url = BASE_PATH;
-        const searchParams: Record<string, any> = {
+        // Build query parameters object
+        const queryParams: Record<string, string | number | undefined> = {
             page: params.page,
             size: params.size,
             sort: params.sort,
         };
 
+        // Add search query if provided
         if (params.query) {
-            searchParams.query = params.query;
-            searchParams.keyword = params.query;
-            searchParams.search = params.query;
-            searchParams.title = params.query;
+            queryParams.query = params.query;
+        }
+
+        // Add answer filter if provided (unanswered, answered, accepted)
+        if (params.answerFilter) {
+            queryParams.answerFilter = params.answerFilter;
+        }
+
+        // Add tag IDs if provided (backend expects List<UUID> as comma-separated or repeated params)
+        // For Spring, we can pass tagIds as repeated query params
+        const finalParams: Record<string, any> = { ...queryParams };
+        if (params.tagIds && params.tagIds.length > 0) {
+            finalParams.tagIds = params.tagIds;
         }
 
         const response = await apiService.get<
             ApiResponse<PageResponse<QuestionSummary>>
         >(BASE_PATH, {
-            params: {
-                page: params.page,
-                size: params.size,
-                sort: params.sort,
-            },
+            params: finalParams,
         })
         return unwrap(response.data)
     },
