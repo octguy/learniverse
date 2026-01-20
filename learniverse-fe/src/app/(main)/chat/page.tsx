@@ -36,7 +36,12 @@ const initialState = {
   currentUserId: null,
 };
 
+import { useSearchParams } from "next/navigation";
+
 export default function ChatPage() {
+  const searchParams = useSearchParams();
+  const targetUserId = searchParams.get("userId");
+
   const [state, dispatch] = useReducer(chatReducer, initialState);
   const {
     chats,
@@ -52,6 +57,8 @@ export default function ChatPage() {
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
   const { refreshMessages } = useNotification();
   const [friends, setFriends] = useState<SuggestedFriend[]>([]);
+
+  const [hasRedirected, setHasRedirected] = useState(false);
 
   useEffect(() => {
     const loadFriends = async () => {
@@ -279,6 +286,13 @@ export default function ChatPage() {
 
     loadChats();
   }, []);
+
+  useEffect(() => {
+    if (targetUserId && !hasRedirected && chats.length > 0) {
+      handleSelectFriend(targetUserId);
+      setHasRedirected(true);
+    }
+  }, [targetUserId, chats, hasRedirected]);
 
   // Connect WebSocket
   useEffect(() => {

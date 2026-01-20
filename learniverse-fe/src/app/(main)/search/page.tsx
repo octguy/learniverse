@@ -64,7 +64,10 @@ function SearchContent() {
                 // @ts-ignore
                 const data = res.data || res
                 const results = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
-                setFriends(results)
+
+                const uniqueResults = Array.from(new Map(results.map((item: SuggestedFriend) => [item.id, item])).values());
+
+                setFriends(uniqueResults)
             } catch (error) {
                 console.error("Error searching friends:", error)
             } finally {
@@ -96,8 +99,8 @@ function SearchContent() {
                     {loadingPosts ? (
                         <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>
                     ) : posts.length > 0 ? (
-                        posts.map(post => (
-                            <PostCard key={post.id} post={post} onDelete={() => { }} />
+                        posts.map((post, index) => (
+                            <PostCard key={`${post.id}-${index}`} post={post} onDelete={() => { }} />
                         ))
                     ) : (
                         <div className="text-center p-8 text-gray-500">Không tìm thấy bài viết nào.</div>
@@ -108,8 +111,8 @@ function SearchContent() {
                     {loadingQuestions ? (
                         <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>
                     ) : questions.length > 0 ? (
-                        questions.map(q => (
-                            <QuestionCard key={q.id} question={q} />
+                        questions.map((q, index) => (
+                            <QuestionCard key={`${q.id}-${index}`} question={q} />
                         ))
                     ) : (
                         <div className="text-center p-8 text-gray-500">Không tìm thấy câu hỏi nào.</div>
@@ -121,7 +124,7 @@ function SearchContent() {
                         <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>
                     ) : friends.length > 0 ? (
                         <div className="grid gap-4">
-                            {friends.map(friend => (
+                            {friends.map((friend) => (
                                 <div key={friend.id} className="flex items-center justify-between p-4 bg-white rounded-lg border shadow-sm">
                                     <div className="flex items-center gap-3">
                                         <Avatar className="h-12 w-12">

@@ -57,7 +57,9 @@ export function Header() {
           // Handle both array directly or wrapped in data field just in case
           const results = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
 
-          setSearchResults(results);
+          const uniqueResults = Array.from(new Map(results.map((item: SuggestedFriend) => [item.id, item])).values());
+
+          setSearchResults(uniqueResults);
           if (results.length > 0) setShowResults(true);
         } catch (error) {
           console.error("Search failed", error);
@@ -161,7 +163,7 @@ export function Header() {
             <Home className="w-5 h-5" />
             <span className="text-xs">Home</span>
           </Link>
-          
+
           <Link href="/friend" className="flex flex-col items-center text-gray-600 hover:text-primary">
             <div className="relative">
               <Users className="w-5 h-5" />

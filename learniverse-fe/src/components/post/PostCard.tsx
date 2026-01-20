@@ -59,6 +59,7 @@ import { useAuth } from "@/context/AuthContext"
 import { Dialog } from "@/components/ui/dialog"
 import CreatePostModal from "./CreatePostModal"
 import { SharePostDialog } from "./SharePostDialog"
+import { SendPostDialog } from "./SendPostDialog"
 import { postService } from "@/lib/api/postService"
 import { shareService } from "@/lib/api/shareService"
 import { ReportDialog } from "@/components/common/ReportDialog"
@@ -129,6 +130,7 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
+  const [isSendDialogOpen, setIsSendDialogOpen] = useState(false)
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
@@ -140,11 +142,11 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
 
   const handleChangeVisibility = async (newVisibility: ContentVisibility) => {
     try {
-        await postService.updatePostVisibility(post.id, newVisibility);
-        setVisibility(newVisibility);
-        toast.success("Đã cập nhật quyền riêng tư");
+      await postService.updatePostVisibility(post.id, newVisibility);
+      setVisibility(newVisibility);
+      toast.success("Đã cập nhật quyền riêng tư");
     } catch (error) {
-        toast.error("Lỗi cập nhật quyền riêng tư");
+      toast.error("Lỗi cập nhật quyền riêng tư");
     }
   }
 
@@ -212,24 +214,24 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
 
   const handlePublish = async () => {
     try {
-        await postService.updatePostStatus(post.id, 'PUBLISHED');
-        toast.success("Đã đăng bài viết thành công!");
-        if (onDelete) {
-           onDelete(post.id); 
-        } else {
-           window.location.reload();
-        }
+      await postService.updatePostStatus(post.id, 'PUBLISHED');
+      toast.success("Đã đăng bài viết thành công!");
+      if (onDelete) {
+        onDelete(post.id);
+      } else {
+        window.location.reload();
+      }
     } catch (error: any) {
-        console.error("Lỗi đăng bài:", error);
-         const errorMessage = error.response?.data?.message || "Không thể đăng bài viết.";
-        toast.error(errorMessage);
+      console.error("Lỗi đăng bài:", error);
+      const errorMessage = error.response?.data?.message || "Không thể đăng bài viết.";
+      toast.error(errorMessage);
     }
   }
 
   const handleReact = async (type: ReactionType) => {
     if (post.status !== 'PUBLISHED') {
-        toast.error("Bạn không thể tương tác với bài viết chưa được xuất bản (Nháp).")
-        return
+      toast.error("Bạn không thể tương tác với bài viết chưa được xuất bản (Nháp).")
+      return
     }
 
     if (isApiLoading) return
@@ -259,7 +261,7 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
       // Revert optimistic update
       setCurrentReaction(prevReaction)
       setReactionCount(prevCount)
-      
+
       const errorMessage = error.response?.data?.message || "Không thể thực hiện tương tác.";
       toast.error(errorMessage);
     } finally {
@@ -466,36 +468,36 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
               <DropdownMenuContent align="end">
                 {isAuthor && (
                   <>{!post.groupName && (
-                        <DropdownMenuSub>
-                            <DropdownMenuSubTrigger>
-                                <Globe className="mr-2 h-4 w-4" />
-                                <span>Chỉnh sửa đối tượng</span>
-                            </DropdownMenuSubTrigger>
-                            <DropdownMenuSubContent>
-                                <DropdownMenuItem onClick={() => handleChangeVisibility(ContentVisibility.PUBLIC)}>
-                                    <Globe className="mr-2 h-4 w-4" />
-                                    <span>Công khai</span>
-                                    {visibility === ContentVisibility.PUBLIC && <Check className="ml-auto h-4 w-4" />}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleChangeVisibility(ContentVisibility.FRIENDS_ONLY)}>
-                                    <Users className="mr-2 h-4 w-4" />
-                                    <span>Bạn bè</span>
-                                    {visibility === ContentVisibility.FRIENDS_ONLY && <Check className="ml-auto h-4 w-4" />}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleChangeVisibility(ContentVisibility.PRIVATE)}>
-                                    <Lock className="mr-2 h-4 w-4" />
-                                    <span>Chỉ mình tôi</span>
-                                    {visibility === ContentVisibility.PRIVATE && <Check className="ml-auto h-4 w-4" />}
-                                </DropdownMenuItem>
-                            </DropdownMenuSubContent>
-                        </DropdownMenuSub>
-                    )}
-                    
-                    {post.status === 'DRAFT' && (
-                        <DropdownMenuItem onClick={handlePublish}>
-                            <SendIcon className="mr-2 h-4 w-4" />
-                            Đăng bài
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>
+                        <Globe className="mr-2 h-4 w-4" />
+                        <span>Chỉnh sửa đối tượng</span>
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent>
+                        <DropdownMenuItem onClick={() => handleChangeVisibility(ContentVisibility.PUBLIC)}>
+                          <Globe className="mr-2 h-4 w-4" />
+                          <span>Công khai</span>
+                          {visibility === ContentVisibility.PUBLIC && <Check className="ml-auto h-4 w-4" />}
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleChangeVisibility(ContentVisibility.FRIENDS_ONLY)}>
+                          <Users className="mr-2 h-4 w-4" />
+                          <span>Bạn bè</span>
+                          {visibility === ContentVisibility.FRIENDS_ONLY && <Check className="ml-auto h-4 w-4" />}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleChangeVisibility(ContentVisibility.PRIVATE)}>
+                          <Lock className="mr-2 h-4 w-4" />
+                          <span>Chỉ mình tôi</span>
+                          {visibility === ContentVisibility.PRIVATE && <Check className="ml-auto h-4 w-4" />}
+                        </DropdownMenuItem>
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                  )}
+
+                    {post.status === 'DRAFT' && (
+                      <DropdownMenuItem onClick={handlePublish}>
+                        <SendIcon className="mr-2 h-4 w-4" />
+                        Đăng bài
+                      </DropdownMenuItem>
                     )}
 
                     <DropdownMenuItem onClick={() => setIsEditModalOpen(true)}>
@@ -609,52 +611,52 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
             <div className="text-sm text-foreground/90">
               <MarkdownRenderer content={displayOriginalPost.body} />
             </div>
-            
+
             {displayOriginalPost.attachments && displayOriginalPost.attachments.filter(att => att.fileType === "IMAGE").length > 0 && (
-                <div className={cn(
-                    "mt-2 grid gap-1",
-                    displayOriginalPost.attachments.filter(att => att.fileType === "IMAGE").length === 1 ? "grid-cols-1" : 
-                    displayOriginalPost.attachments.filter(att => att.fileType === "IMAGE").length === 2 ? "grid-cols-2" : "grid-cols-2 md:grid-cols-3"
-                )}>
-                    {displayOriginalPost.attachments.filter(att => att.fileType === "IMAGE").map((img, index) => (
-                        <div key={index} className="relative aspect-video">
-                            <img 
-                                src={img.storageUrl} 
-                                alt={img.fileName}
-                                className="w-full h-full object-cover rounded-sm border" 
-                            />
-                        </div>
-                    ))}
-                </div>
+              <div className={cn(
+                "mt-2 grid gap-1",
+                displayOriginalPost.attachments.filter(att => att.fileType === "IMAGE").length === 1 ? "grid-cols-1" :
+                  displayOriginalPost.attachments.filter(att => att.fileType === "IMAGE").length === 2 ? "grid-cols-2" : "grid-cols-2 md:grid-cols-3"
+              )}>
+                {displayOriginalPost.attachments.filter(att => att.fileType === "IMAGE").map((img, index) => (
+                  <div key={index} className="relative aspect-video">
+                    <img
+                      src={img.storageUrl}
+                      alt={img.fileName}
+                      className="w-full h-full object-cover rounded-sm border"
+                    />
+                  </div>
+                ))}
+              </div>
             )}
 
             {/* Display Shared Post PDFs */}
             {displayOriginalPost.attachments && displayOriginalPost.attachments.filter(att => att.fileType === "PDF").length > 0 && (
-                <div className="mt-2 flex flex-col gap-1">
-                    {displayOriginalPost.attachments.filter(att => att.fileType === "PDF").map((pdf, index) => (
-                        <a 
-                            key={index} 
-                            href={pdf.storageUrl} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            className="flex items-center gap-2 rounded-md border p-2 text-xs text-blue-600 hover:bg-accent bg-background"
-                        >
-                            <FileText className="h-4 w-4" />
-                            <span className="truncate">{pdf.fileName}</span>
-                        </a>
-                    ))}
-                </div>
+              <div className="mt-2 flex flex-col gap-1">
+                {displayOriginalPost.attachments.filter(att => att.fileType === "PDF").map((pdf, index) => (
+                  <a
+                    key={index}
+                    href={pdf.storageUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 rounded-md border p-2 text-xs text-blue-600 hover:bg-accent bg-background"
+                  >
+                    <FileText className="h-4 w-4" />
+                    <span className="truncate">{pdf.fileName}</span>
+                  </a>
+                ))}
+              </div>
             )}
 
             {/* Fallback for OTHER types or if logic fails */}
-            {displayOriginalPost.attachments && displayOriginalPost.attachments.length > 0 && 
-             displayOriginalPost.attachments.every(att => att.fileType !== "IMAGE" && att.fileType !== "PDF") && (
-              <div className="mt-2 text-muted-foreground text-xs p-2 bg-muted/20 rounded">
-                 <div className="flex items-center gap-2">
+            {displayOriginalPost.attachments && displayOriginalPost.attachments.length > 0 &&
+              displayOriginalPost.attachments.every(att => att.fileType !== "IMAGE" && att.fileType !== "PDF") && (
+                <div className="mt-2 text-muted-foreground text-xs p-2 bg-muted/20 rounded">
+                  <div className="flex items-center gap-2">
                     <FileText className="h-4 w-4" /> {displayOriginalPost.attachments.length} tệp đính kèm
                   </div>
-              </div>
-            )}
+                </div>
+              )}
 
           </div>
         )}
@@ -752,8 +754,8 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 className="flex-1 flex items-center justify-center"
                 disabled={post.status !== "PUBLISHED"}
                 title={post.status !== "PUBLISHED" ? "Bài viết nháp không thể chia sẻ" : "Chia sẻ"}
@@ -768,12 +770,20 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
                 <SendIcon className="mr-2 h-4 w-4" />
                 Chia sẻ lên bảng tin
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setIsSendDialogOpen(true)}>
+                <MessageCircle className="mr-2 h-4 w-4" />
+                Gửi bằng tin nhắn
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={handleCopyLink}>
                 <Copy className="mr-2 h-4 w-4" />
                 Sao chép liên kết
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <Dialog open={isSendDialogOpen} onOpenChange={setIsSendDialogOpen}>
+            {isSendDialogOpen && <SendPostDialog post={post} setOpen={setIsSendDialogOpen} />}
+          </Dialog>
 
         </div>
 
@@ -804,7 +814,7 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
           <CreatePostModal
             setOpen={setIsEditModalOpen}
             onSuccess={() => {
-              window.location.reload(); 
+              window.location.reload();
             }}
             initialData={post}
           />
