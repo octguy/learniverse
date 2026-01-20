@@ -10,9 +10,11 @@ import { Button } from "@/components/ui/button"
 import { postService } from "@/lib/api/postService"
 import { questionService } from "@/lib/api/questionService"
 import { friendService } from "@/lib/api/friendService"
+import { userProfileService } from "@/lib/api/userProfileService"
 import { Post } from "@/types/post"
 import { QuestionSummary } from "@/types/question"
 import { SuggestedFriend } from "@/types/friend"
+import { PageResponse } from "@/types/api"
 import { Loader2 } from "lucide-react"
 
 function SearchContent() {
@@ -60,13 +62,15 @@ function SearchContent() {
         const fetchFriends = async () => {
             setLoadingFriends(true)
             try {
-                const res = await friendService.searchFriends(query)
+                const res = await userProfileService.search(query, 0, 20)
                 // @ts-ignore
-                const data = res.data || res
-                const results = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
+                const data = (res.data || res) as PageResponse<any>
+                const results = data.content || (data as any).data?.content || []
 
-                const uniqueResults = Array.from(new Map(results.map((item: SuggestedFriend) => [item.id, item])).values());
+                // @ts-ignore
+                const uniqueResults = Array.from(new Map(results.map((item: any) => [item.id, item])).values());
 
+                // @ts-ignore
                 setFriends(uniqueResults)
             } catch (error) {
                 console.error("Error searching friends:", error)

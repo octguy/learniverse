@@ -47,8 +47,17 @@ export function SendPostDialog({ post, setOpen }: SendPostDialogProps) {
                 } else {
                     response = await friendService.getFriends()
                 }
-                const data = response.data || response
-                const results = Array.isArray(data) ? data : (Array.isArray((data as any)?.data) ? (data as any).data : [])
+                const resData = (response.data || response) as any
+                let results: any[] = [];
+                if (resData.data?.content && Array.isArray(resData.data.content)) {
+                    results = resData.data.content;
+                }
+                else if (Array.isArray(resData.data)) {
+                    results = resData.data;
+                }
+                else if (Array.isArray(resData)) {
+                    results = resData;
+                }
 
                 const uniqueResults = Array.from(new Map(results.map((item: SuggestedFriend) => [item.id, item])).values())
                 setFriends(uniqueResults as SuggestedFriend[])
