@@ -15,7 +15,7 @@ public interface UserProfileRepository extends JpaRepository<UserProfile, UUID> 
     List<UserProfile> findByUserIdIn(@Param("userIds") List<UUID> userIds);
 
     @Query(value = """
-    SELECT
+    SELECT DISTINCT
         u.id             AS user_id,
         u.username       AS username,
         up.id            AS profile_id,
@@ -27,15 +27,15 @@ public interface UserProfileRepository extends JpaRepository<UserProfile, UUID> 
         up.answered_question_count AS answered_question_count
     FROM friend f
     JOIN "user" u
-      ON u.id = CASE
-          WHEN f.user_id_1 = :currentUserId THEN f.user_id_2
-          ELSE f.user_id_1
-      END
+      ON (
+           (f.user_id_1 = :currentUserId AND u.id = f.user_id_2)
+        OR (f.user_id_2 = :currentUserId AND u.id = f.user_id_1)
+      )
     LEFT JOIN user_profile up
       ON up.user_id = u.id
     WHERE f.status = 'ACCEPTED'
       AND (
-            (up.id IS NOT NULL AND up.display_name IS NOT NULL 
+            (up.id IS NOT NULL AND up.display_name IS NOT NULL\s
                 AND LOWER(up.display_name) LIKE LOWER(CONCAT('%', :keyword, '%')))
          OR (up.id IS NOT NULL AND up.display_name IS NULL
                 AND LOWER(u.username) LIKE LOWER(CONCAT('%', :keyword, '%')))
