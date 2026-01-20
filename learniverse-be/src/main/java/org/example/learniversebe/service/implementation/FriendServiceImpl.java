@@ -3,6 +3,7 @@ package org.example.learniversebe.service.implementation;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.example.learniversebe.dto.response.PageResponse;
 import org.example.learniversebe.dto.response.UserProfileResponse;
 import org.example.learniversebe.enums.FriendStatus;
 import org.example.learniversebe.enums.NotificationType;
@@ -18,6 +19,8 @@ import org.example.learniversebe.repository.UserRepository;
 import org.example.learniversebe.service.IFriendService;
 import org.example.learniversebe.service.INotificationService;
 import org.example.learniversebe.util.ServiceHelper;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -206,19 +209,29 @@ public class FriendServiceImpl implements IFriendService {
     }
 
     @Override
-    public List<UserProfileResponse> searchFriends(String keyword) {
+    public PageResponse<UserProfileResponse> searchFriends(String keyword, Pageable pageable) {
         UUID currentUserId = serviceHelper.getCurrentUserId();
 
         // Validate keyword nếu cần (trim, check rỗng...)
         if (keyword == null) keyword = "";
         keyword = keyword.trim();
 
-        List<Object[]> rows =
-                userProfileRepository.searchFriendsRaw(currentUserId, keyword);
+        Page<Object[]> page =
+                userProfileRepository.searchFriendsRaw(currentUserId, keyword, pageable);
 
-        return rows.stream()
+        List<UserProfileResponse> content = page.getContent()
+                .stream()
                 .map(this::mapToUserProfileResponse)
                 .toList();
+
+        PageResponse<UserProfileResponse> response = new PageResponse<>();
+        response.setContent(content);
+        response.setCurrentPage(page.getNumber());
+        response.setPageSize(page.getSize());
+        response.setTotalElements(page.getTotalElements());
+        response.setTotalPages(page.getTotalPages());
+
+        return response;
     }
 
     @Override
