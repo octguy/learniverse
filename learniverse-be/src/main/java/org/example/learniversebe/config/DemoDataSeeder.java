@@ -654,31 +654,56 @@ public class DemoDataSeeder implements CommandLineRunner {
     private void seedReports(List<User> users, List<Content> posts, Map<UUID, List<Answer>> answersByQuestion) {
         List<Report> reports = new ArrayList<>();
         List<Answer> allAnswers = answersByQuestion.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
+        
+        // Track created reports to avoid duplicates: key = reporter_id + "_" + reportable_type + "_" + reportable_id
+        Set<String> createdReportKeys = new HashSet<>();
+        
         for (User reporter : users) {
-            for (int i = 0; i < REPORTS_PER_USER; i++) {
+            int created = 0;
+            int attempts = 0;
+            int maxAttempts = REPORTS_PER_USER * 5;
+            
+            while (created < REPORTS_PER_USER && attempts < maxAttempts) {
+                attempts++;
                 double pick = random.nextDouble();
                 Report report = new Report();
                 report.setReporter(reporter);
+                
+                ReportableType reportableType;
+                UUID reportableId;
+                
                 if (pick < 0.4) {
                     Content post = posts.get(random.nextInt(posts.size()));
-                    report.setReportableType(post.getContentType() == ContentType.QUESTION ? ReportableType.QUESTION : ReportableType.POST);
-                    report.setReportableId(post.getId());
+                    reportableType = post.getContentType() == ContentType.QUESTION ? ReportableType.QUESTION : ReportableType.POST;
+                    reportableId = post.getId();
                 } else if (pick < 0.8 && !allAnswers.isEmpty()) {
                     Answer answer = allAnswers.get(random.nextInt(allAnswers.size()));
-                    report.setReportableType(ReportableType.ANSWER);
-                    report.setReportableId(answer.getId());
+                    reportableType = ReportableType.ANSWER;
+                    reportableId = answer.getId();
                 } else {
                     Content post = posts.get(random.nextInt(posts.size()));
-                    report.setReportableType(ReportableType.POST);
-                    report.setReportableId(post.getId());
+                    reportableType = ReportableType.POST;
+                    reportableId = post.getId();
                 }
+                
+                // Create unique key for this report
+                String key = reporter.getId() + "_" + reportableType + "_" + reportableId;
+                if (createdReportKeys.contains(key)) {
+                    continue; // Skip duplicate
+                }
+                createdReportKeys.add(key);
+                
+                report.setReportableType(reportableType);
+                report.setReportableId(reportableId);
                 report.setReason(ReportReason.values()[random.nextInt(ReportReason.values().length)]);
                 report.setDescription("Báo cáo tự động để kiểm thử");
                 reports.add(report);
+                created++;
             }
         }
         reportRepository.saveAll(reports);
     }
+
 
     private void seedChatRooms(List<User> users, Map<UUID, Set<UUID>> graph, List<Group> groups) {
         List<ChatRoom> rooms = new ArrayList<>();
