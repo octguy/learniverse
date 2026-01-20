@@ -3,10 +3,16 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, Smile } from "lucide-react";
 import { friendService } from "@/lib/api/friendService";
 import { SuggestedFriend } from "@/types/friend";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover";
+import { EmojiPicker } from "@/components/ui/emoji-picker";
 
 interface CommentInputProps {
     placeholder?: string;
@@ -40,6 +46,7 @@ export function CommentInput({
         new Set(initialMentions.map(u => u.userId || u.id))
     );
     const [friendCache, setFriendCache] = useState<Map<string, string>>(new Map());
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
     useEffect(() => {
         const fetchFriends = async () => {
@@ -221,6 +228,11 @@ export function CommentInput({
         }
     };
 
+    const handleEmojiSelect = (emoji: { native: string }) => {
+        setText(prev => prev + emoji.native);
+        // Không focus vào textarea để popover không tự đóng
+    };
+
     return (
         <div className="relative w-full">
             <div className="relative">
@@ -232,6 +244,28 @@ export function CommentInput({
                     className="min-h-[60px] text-sm pr-12"
                     autoFocus={autoFocus}
                 />
+
+                {/* Emoji Picker Button */}
+                <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
+                    <PopoverTrigger asChild>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-2 top-2 h-7 w-7 text-muted-foreground hover:text-foreground"
+                        >
+                            <Smile className="h-4 w-4" />
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                        className="w-auto p-0 border-none"
+                        side="top"
+                        align="end"
+                        sideOffset={5}
+                    >
+                        <EmojiPicker onEmojiSelect={handleEmojiSelect} />
+                    </PopoverContent>
+                </Popover>
 
                 {showSuggestions && suggestions.length > 0 && (
                     <div className="absolute bottom-full left-0 w-full max-w-xs bg-popover border rounded-md shadow-md mb-2 overflow-hidden z-50 animate-in fade-in slide-in-from-bottom-2">
