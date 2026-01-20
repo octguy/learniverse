@@ -233,49 +233,54 @@ public class UserProfileServiceImpl implements IUserProfileService {
     }
 
     private UserProfileResponse toResponse(UserProfile profile) {
+
         List<TagResponse> interestTags = new ArrayList<>();
         List<TagResponse> skillTags = new ArrayList<>();
 
         for (UserProfileTag relation : profile.getUserProfileTags()) {
-            if (relation.getType() == UserTagType.INTEREST) {
-                TagResponse response = TagResponse.builder()
-                                .id(relation.getTag().getId())
-                                .name(relation.getTag().getName())
-                                .slug(relation.getTag().getSlug())
-                                .description(relation.getTag().getSlug())
-                                .build();
+            TagResponse response = TagResponse.builder()
+                    .id(relation.getTag().getId())
+                    .name(relation.getTag().getName())
+                    .slug(relation.getTag().getSlug())
+                    .description(relation.getTag().getSlug())
+                    .build();
 
+            if (relation.getType() == UserTagType.INTEREST) {
                 interestTags.add(response);
             } else if (relation.getType() == UserTagType.SKILL_IMPROVE) {
-                TagResponse response = TagResponse.builder()
-                        .id(relation.getTag().getId())
-                        .name(relation.getTag().getName())
-                        .slug(relation.getTag().getSlug())
-                        .description(relation.getTag().getSlug())
-                        .build();
-
                 skillTags.add(response);
             }
         }
 
-        UserRole role = profile.getUser().getRoleUsers().stream()
+        User user = profile.getUser();
+
+        UserRole role = user.getRoleUsers().stream()
                 .findFirst()
                 .map(roleUser -> roleUser.getRole().getName())
                 .orElse(UserRole.ROLE_USER);
 
         return UserProfileResponse.builder()
                 .id(profile.getId())
-                .displayName(profile.getDisplayName())
+                .userId(user.getId())
+                .username(user.getUsername())
+                .displayName(
+                        profile.getDisplayName() != null
+                                ? profile.getDisplayName()
+                                : user.getUsername()
+                )
+
                 .bio(profile.getBio())
                 .avatarUrl(profile.getAvatarUrl())
                 .coverUrl(profile.getCoverUrl())
                 .postCount(profile.getPostCount())
                 .answeredQuestionCount(profile.getAnsweredQuestionCount())
+
                 .interestTags(interestTags)
                 .skillTags(skillTags)
                 .role(role)
                 .build();
     }
+
 
     // Mapper for user without user profile
     private UserProfileResponse toResponse(User user) {
