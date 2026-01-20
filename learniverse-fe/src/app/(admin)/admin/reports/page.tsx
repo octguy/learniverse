@@ -2,28 +2,28 @@
 
 import { useEffect, useState, useCallback } from "react";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,9 +43,13 @@ import remarkGfm from "remark-gfm";
 
 export default function ReportsPage() {
     const [filterStatus, setFilterStatus] = useState<string>("ALL");
+    const [filterType, setFilterType] = useState<string>("ALL");
+    const [startDate, setStartDate] = useState<string>("");
+    const [endDate, setEndDate] = useState<string>("");
+
     const [reports, setReports] = useState<ReportDTO[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    
+
     const [page, setPage] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
     const pageSize = 10;
@@ -55,7 +59,7 @@ export default function ReportsPage() {
     const [resolveNote, setResolveNote] = useState("");
     const [resolveAction, setResolveAction] = useState("NONE");
     const [isResolving, setIsResolving] = useState(false);
-    
+
     const [targetContent, setTargetContent] = useState<any>(null);
     const [isLoadingContent, setIsLoadingContent] = useState(false);
 
@@ -67,11 +71,12 @@ export default function ReportsPage() {
                 size: pageSize,
                 sort: ["createdAt,DESC"]
             };
-            
-            if (filterStatus !== "ALL") {
-                params.status = filterStatus;
-            }
-            
+
+            if (filterStatus !== "ALL") params.status = filterStatus;
+            if (filterType !== "ALL") params.type = filterType;
+            if (startDate) params.startDate = startDate;
+            if (endDate) params.endDate = endDate;
+
             const response = await reportService.getReports(params);
             setReports(response.data.content || []);
             setTotalPages(response.data.totalPages || 0);
@@ -81,7 +86,15 @@ export default function ReportsPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [filterStatus, page]);
+    }, [filterStatus, filterType, startDate, endDate, page]);
+
+    const resetFilters = () => {
+        setFilterStatus("ALL");
+        setFilterType("ALL");
+        setStartDate("");
+        setEndDate("");
+        setPage(0);
+    };
 
     useEffect(() => {
         fetchReports();
@@ -111,7 +124,7 @@ export default function ReportsPage() {
             let content = null;
             if (type === "POST") {
                 const res = await postService.getPostById(id);
-                content = res.data; 
+                content = res.data;
             } else if (type === "QUESTION") {
                 content = await questionService.getById(id);
             } else if (type === "ANSWER") {
@@ -127,7 +140,12 @@ export default function ReportsPage() {
 
     const handleResolve = async (status: ReportStatus, action: string) => {
         if (!selectedReport) return;
-        
+
+        if ((status === 'REJECTED' || action === 'USER_WARNED') && !resolveNote.trim()) {
+            toast.error("Vui lòng nhập ghi chú cho hành động này (Bắt buộc)");
+            return;
+        }
+
         setIsResolving(true);
         try {
             await reportService.resolveReport(selectedReport.id, {
@@ -135,10 +153,10 @@ export default function ReportsPage() {
                 actionTaken: action,
                 moderatorNote: resolveNote
             });
-            
+
             toast.success(`Đã xử lý báo cáo: ${status === 'RESOLVED' ? 'Đã giải quyết' : 'Đã từ chối'}`);
             setIsDetailOpen(false);
-            fetchReports(); 
+            fetchReports();
         } catch (error) {
             console.error(error);
             toast.error("Lỗi khi xử lý báo cáo");
@@ -166,12 +184,12 @@ export default function ReportsPage() {
             </div>
 
             <div className="space-y-4">
-                <div className="flex justify-between items-center bg-card p-4 rounded-lg border shadow-sm">
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">Trạng thái:</span>
+                <div className="bg-card p-4 rounded-lg border shadow-sm space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="space-y-2">
+                            <Label className="text-sm font-medium">Trạng thái</Label>
                             <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v); setPage(0); }}>
-                                <SelectTrigger className="w-[180px]">
+                                <SelectTrigger>
                                     <SelectValue placeholder="Trạng thái" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -182,10 +200,50 @@ export default function ReportsPage() {
                                 </SelectContent>
                             </Select>
                         </div>
+
+                        <div className="space-y-2">
+                            <Label className="text-sm font-medium">Loại nội dung</Label>
+                            <Select value={filterType} onValueChange={(v) => { setFilterType(v); setPage(0); }}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Loại nội dung" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="ALL">Tất cả</SelectItem>
+                                    <SelectItem value="POST">Bài viết</SelectItem>
+                                    <SelectItem value="QUESTION">Câu hỏi</SelectItem>
+                                    <SelectItem value="ANSWER">Câu trả lời</SelectItem>
+                                    <SelectItem value="COMMENT">Bình luận</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label className="text-sm font-medium">Từ ngày</Label>
+                            <Input
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => { setStartDate(e.target.value); setPage(0); }}
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label className="text-sm font-medium">Đến ngày</Label>
+                            <Input
+                                type="date"
+                                value={endDate}
+                                onChange={(e) => { setEndDate(e.target.value); setPage(0); }}
+                            />
+                        </div>
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => fetchReports()} disabled={isLoading}>
-                        Làm mới
-                    </Button>
+
+                    <div className="flex justify-end gap-2">
+                        <Button variant="outline" onClick={resetFilters} disabled={isLoading}>
+                            Đặt lại
+                        </Button>
+                        <Button onClick={() => fetchReports()} disabled={isLoading}>
+                            Làm mới
+                        </Button>
+                    </div>
                 </div>
 
                 <div className="rounded-md border bg-card shadow-sm">
@@ -309,7 +367,7 @@ export default function ReportsPage() {
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <div className="grid md:grid-cols-2 gap-6">
                                 <div className="space-y-4">
                                     <Card>
@@ -331,14 +389,14 @@ export default function ReportsPage() {
                                         <CardContent className="pt-4">
                                             {isLoadingContent ? (
                                                 <div className="flex justify-center p-4">
-                                                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
                                                 </div>
                                             ) : (selectedReport.targetTitle || selectedReport.targetBody || targetContent) ? (
                                                 <div className="space-y-3">
                                                     {(targetContent?.title || selectedReport.targetTitle) && (
                                                         <h4 className="font-bold text-lg mb-2">{targetContent?.title || selectedReport.targetTitle}</h4>
                                                     )}
-                                                    
+
                                                     <div className="text-sm p-3 rounded-md border bg-background max-h-[400px] overflow-y-auto">
                                                         {targetContent?.body ? (
                                                             <div className="prose dark:prose-invert max-w-none text-sm [&>p]:mb-2 [&>ul]:list-disc [&>ul]:pl-4 [&>ol]:list-decimal [&>ol]:pl-4">
@@ -352,11 +410,11 @@ export default function ReportsPage() {
                                                             </div>
                                                         )}
                                                     </div>
-                                                    
+
                                                     {targetContent?.attachments && targetContent.attachments.length > 0 && (
                                                         <div className="mt-3 pt-3 border-t">
                                                             <Label className="text-xs font-medium text-muted-foreground mb-2 flex items-center">
-                                                                <ImageIcon className="w-3 h-3 mr-1"/> Tệp đính kèm ({targetContent.attachments.length})
+                                                                <ImageIcon className="w-3 h-3 mr-1" /> Tệp đính kèm ({targetContent.attachments.length})
                                                             </Label>
                                                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                                                                 {targetContent.attachments.map((att: any) => (
@@ -364,17 +422,17 @@ export default function ReportsPage() {
                                                                         {(att.fileType === "IMAGE" || att.fileType === "image") ? (
                                                                             <a href={att.storageUrl} target="_blank" rel="noopener noreferrer" className="block">
                                                                                 <div className="aspect-video relative">
-                                                                                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                                                    <img 
-                                                                                        src={att.storageUrl} 
-                                                                                        alt={att.fileName} 
+                                                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                                                    <img
+                                                                                        src={att.storageUrl}
+                                                                                        alt={att.fileName}
                                                                                         className="w-full h-full object-cover"
                                                                                     />
                                                                                 </div>
                                                                             </a>
                                                                         ) : (
                                                                             <a href={att.storageUrl} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center p-4 h-full min-h-[80px] hover:bg-muted/50 text-center">
-                                                                                <FileText className="w-6 h-6 text-muted-foreground mb-1"/>
+                                                                                <FileText className="w-6 h-6 text-muted-foreground mb-1" />
                                                                                 <span className="text-[10px] text-muted-foreground truncate w-full max-w-full px-1" title={att.fileName}>
                                                                                     {att.fileName}
                                                                                 </span>
@@ -389,12 +447,12 @@ export default function ReportsPage() {
                                             ) : (
                                                 <div className="flex flex-col space-y-3">
                                                     <div className="flex items-center text-sm text-yellow-600 italic p-2 border border-yellow-200 bg-yellow-50 rounded">
-                                                        <AlertTriangle className="w-4 h-4 mr-2"/>
+                                                        <AlertTriangle className="w-4 h-4 mr-2" />
                                                         Không thể tải nội dung đầy đủ (hoặc nội dung đã bị xóa). Dưới đây là thông tin lưu trữ tại thời điểm báo cáo:
                                                     </div>
                                                     <div className="mt-2 space-y-2">
-                                                         {selectedReport.targetTitle && <h4 className="font-bold">{selectedReport.targetTitle}</h4>}
-                                                         <div className="text-sm p-2 border rounded bg-muted/30 whitespace-pre-wrap">{selectedReport.targetBody}</div>
+                                                        {selectedReport.targetTitle && <h4 className="font-bold">{selectedReport.targetTitle}</h4>}
+                                                        <div className="text-sm p-2 border rounded bg-muted/30 whitespace-pre-wrap">{selectedReport.targetBody}</div>
                                                     </div>
                                                 </div>
                                             )}
@@ -411,8 +469,8 @@ export default function ReportsPage() {
                                         <CardContent className="pt-4 space-y-4">
                                             <div className="space-y-2">
                                                 <Label>Hành động áp dụng</Label>
-                                                <Select 
-                                                    value={resolveAction} 
+                                                <Select
+                                                    value={resolveAction}
                                                     onValueChange={setResolveAction}
                                                     disabled={selectedReport.status !== "PENDING"}
                                                 >
@@ -431,11 +489,11 @@ export default function ReportsPage() {
                                                     * Hành động này sẽ được áp dụng ngay lập tức khi bạn xác nhận.
                                                 </p>
                                             </div>
-                                            
+
                                             <div className="space-y-2">
                                                 <Label>Ghi chú của Moderator (Bắt buộc khi từ chối/cảnh báo)</Label>
-                                                <Textarea 
-                                                    value={resolveNote} 
+                                                <Textarea
+                                                    value={resolveNote}
                                                     onChange={(e) => setResolveNote(e.target.value)}
                                                     placeholder="Nhập lý do xử lý hoặc lý do từ chối..."
                                                     className="h-32"
@@ -452,23 +510,23 @@ export default function ReportsPage() {
                     <DialogFooter className="gap-2 sm:gap-2">
                         {selectedReport?.status === "PENDING" ? (
                             <>
-                                <Button 
-                                    variant="outline" 
+                                <Button
+                                    variant="outline"
                                     className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
                                     onClick={() => handleResolve("REJECTED", "NO_VIOLATION")}
                                     disabled={isResolving}
                                 >
-                                    <XCircle className="w-4 h-4 mr-2"/>
+                                    <XCircle className="w-4 h-4 mr-2" />
                                     Từ chối báo cáo (Không vi phạm)
                                 </Button>
-                                <Button 
+                                <Button
                                     onClick={() => handleResolve("RESOLVED", resolveAction)}
                                     disabled={isResolving}
                                     className="bg-green-600 hover:bg-green-700"
                                 >
                                     {isResolving ? "Đang xử lý..." : (
                                         <>
-                                            <CheckCircle className="w-4 h-4 mr-2"/>
+                                            <CheckCircle className="w-4 h-4 mr-2" />
                                             Xác nhận vi phạm & Xử lý
                                         </>
                                     )}

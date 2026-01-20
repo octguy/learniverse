@@ -79,7 +79,7 @@ export default function AllTagsPage() {
 
             {loading ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {Array.from({length: 12}).map((_, i) => (
+                    {Array.from({ length: 12 }).map((_, i) => (
                         <Card key={i} className="h-full border-border/60 shadow-sm">
                            <CardHeader>
                                <Skeleton className="h-5 w-24 mb-2" />
@@ -144,7 +144,7 @@ export default function AllTagsPage() {
                       </div>
                       <h3 className="text-lg font-semibold text-foreground">Không tìm thấy chủ đề nào</h3>
                       <p className="text-muted-foreground mt-1 max-w-sm mx-auto">
-                        Chúng tôi không tìm thấy chủ đề phù hợp với "{query}". Hãy thử tìm kiếm với từ khóa khác.
+                        Chúng tôi không tìm thấy chủ đề phù hợp với &quot;{query}&quot;. Hãy thử tìm kiếm với từ khóa khác.
                       </p>
                       <Button 
                          variant="outline" 

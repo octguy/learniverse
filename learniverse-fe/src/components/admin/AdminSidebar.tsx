@@ -13,9 +13,10 @@ import {
   X,
   BookOpen,
   Megaphone,
-} from "lucide-react"; 
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface AdminSidebarProps {
   open: boolean;
@@ -24,7 +25,7 @@ interface AdminSidebarProps {
 
 export default function AdminSidebar({ open, setOpen }: AdminSidebarProps) {
   const pathname = usePathname();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
 
   const menuItems = [
     { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
@@ -47,12 +48,14 @@ export default function AdminSidebar({ open, setOpen }: AdminSidebarProps) {
       {/* Sidebar Header */}
       <div className="h-16 flex items-center justify-between px-4 border-b border-sidebar-border">
         <div className={cn("flex items-center gap-2", !open && "md:hidden")}>
-          {/* Logo giả lập hoặc dùng Image của bạn */}
-          <div className="h-8 w-8 rounded bg-primary flex items-center justify-center text-primary-foreground font-bold">
-            L
-          </div>
-          <span className="font-bold text-lg text-sidebar-foreground">
-            Admin
+          <Avatar className="h-8 w-8">
+            <AvatarImage src={user?.avatarUrl || ""} alt={user?.username || "Admin"} />
+            <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+              {(user?.username || "AD").slice(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <span className="font-bold text-lg text-sidebar-foreground truncate max-w-[150px]" title={user?.username || "Admin"}>
+            {user?.username || "Admin"}
           </span>
         </div>
         <button

@@ -13,6 +13,7 @@ import {
   Pencil,
   X,
   MoreVertical,
+  Smile,
 } from "lucide-react";
 import { format, isSameDay } from "date-fns";
 import { chatService } from "@/lib/api/chatService";
@@ -29,7 +30,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { toast } from "sonner";
+import { EmojiPicker } from "@/components/ui/emoji-picker";
 
 interface Props {
   chat: Chat;
@@ -73,6 +80,8 @@ const ChatWindow = ({
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [isGroupInfoOpen, setIsGroupInfoOpen] = useState(false);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Mark messages as read when chat is opened
   useEffect(() => {
@@ -361,7 +370,11 @@ const ChatWindow = ({
   };
 
   const fmtTime = (iso: string) => format(new Date(iso), "HH:mm");
-  const fmtDate = (d: Date) => format(d, "MMM d, yyyy").toUpperCase(); // OCT 4, 2025
+  const fmtDate = (d: Date) => format(d, "MMM d, yyyy").toUpperCase();
+
+  const handleEmojiSelect = (emoji: { native: string }) => {
+    setMessageInput(prev => prev + emoji.native);
+  };
   const full = (iso: string) => format(new Date(iso), "HH:mm • dd/MM/yyyy");
 
   return (
@@ -715,7 +728,30 @@ const ChatWindow = ({
             >
               <Paperclip className="w-5 h-5" />
             </Button>
+
+            {/* Emoji Picker */}
+            <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                >
+                  <Smile className="w-5 h-5" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                className="w-auto p-0 border-none"
+                side="top"
+                align="start"
+                sideOffset={10}
+              >
+                <EmojiPicker onEmojiSelect={handleEmojiSelect} />
+              </PopoverContent>
+            </Popover>
+
             <Input
+              ref={inputRef}
               value={messageInput}
               onChange={(e) => setMessageInput(e.target.value)}
               placeholder={editingMessage ? "Nhập nội dung mới..." : "Nhập tin nhắn..."}

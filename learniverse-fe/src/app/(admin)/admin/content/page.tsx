@@ -3,22 +3,22 @@
 import { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Search, MoreHorizontal, Loader2, Trash2, Eye } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
     Select,
@@ -28,11 +28,11 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog";
 import { adminContentService } from "@/lib/api/adminContentService";
 import { AdminPostView } from "@/components/admin/AdminPostView";
@@ -59,37 +59,37 @@ function getStatusBadge(status?: ContentStatus) {
 }
 
 export default function ContentManagementPage() {
-  const [activeTab, setActiveTab] = useState<"questions" | "posts">("posts");
+    const [activeTab, setActiveTab] = useState<"questions" | "posts">("posts");
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">
-            Quản lý nội dung
-          </h2>
-          <p className="text-muted-foreground">
-            Quản lý các bài viết và câu hỏi trên hệ thống.
-          </p>
+    return (
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h2 className="text-3xl font-bold tracking-tight">
+                        Quản lý nội dung
+                    </h2>
+                    <p className="text-muted-foreground">
+                        Quản lý các bài viết và câu hỏi trên hệ thống.
+                    </p>
+                </div>
+            </div>
+
+            <Tabs defaultValue="posts" value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
+                <TabsList className="mb-4">
+                    <TabsTrigger value="posts">Bài viết (Posts)</TabsTrigger>
+                    <TabsTrigger value="questions">Câu hỏi (Questions)</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="posts">
+                    <PostTable active={activeTab === "posts"} />
+                </TabsContent>
+
+                <TabsContent value="questions">
+                    <QuestionTable active={activeTab === "questions"} />
+                </TabsContent>
+            </Tabs>
         </div>
-      </div>
-
-      <Tabs defaultValue="posts" value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="posts">Bài viết (Posts)</TabsTrigger>
-          <TabsTrigger value="questions">Câu hỏi (Questions)</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="posts">
-          <PostTable active={activeTab === "posts"} />
-        </TabsContent>
-
-        <TabsContent value="questions">
-          <QuestionTable active={activeTab === "questions"} />
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
+    );
 }
 
 function QuestionTable({ active }: { active: boolean }) {
@@ -114,7 +114,7 @@ function QuestionTable({ active }: { active: boolean }) {
                 keyword: debouncedSearch,
                 sort: ["createdAt,desc"]
             });
-            
+
             setData(res.content || []);
             setTotalPages(res.totalPages || 0);
         } catch (error) {
@@ -143,25 +143,25 @@ function QuestionTable({ active }: { active: boolean }) {
             toast.success("Đã xóa câu hỏi");
             loadData();
         } catch (error) {
-             toast.error("Xóa thất bại");
+            toast.error("Xóa thất bại");
         }
     };
 
     return (
         <div className="space-y-4">
-             <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <div className="relative w-64">
                         <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input 
-                            placeholder="Tìm kiếm câu hỏi..." 
-                            className="pl-8" 
+                        <Input
+                            placeholder="Tìm kiếm câu hỏi..."
+                            className="pl-8"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
                 </div>
-                 <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
                     <Select value={status} onValueChange={(v) => setStatus(v as any)}>
                         <SelectTrigger className="w-[180px]">
                             <SelectValue placeholder="Trạng thái" />
@@ -174,14 +174,14 @@ function QuestionTable({ active }: { active: boolean }) {
                             <SelectItem value="DELETED">Đã xóa</SelectItem>
                         </SelectContent>
                     </Select>
-                 </div>
+                </div>
             </div>
 
             <div className="rounded-md border bg-card">
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="w-[400px]">Tiêu đề</TableHead>
+                            <TableHead>Tiêu đề</TableHead>
                             <TableHead>Tác giả</TableHead>
                             <TableHead>Trạng thái</TableHead>
                             <TableHead>Thống kê</TableHead>
@@ -191,7 +191,7 @@ function QuestionTable({ active }: { active: boolean }) {
                     </TableHeader>
                     <TableBody>
                         {loading ? (
-                             <TableRow>
+                            <TableRow>
                                 <TableCell colSpan={5} className="h-24 text-center">
                                     <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                                 </TableCell>
@@ -205,7 +205,7 @@ function QuestionTable({ active }: { active: boolean }) {
                         ) : (
                             data.map((item) => (
                                 <TableRow key={item.id}>
-                                    <TableCell>
+                                    <TableCell className="max-w-[300px]">
                                         <div className="flex flex-col gap-1">
                                             <Link href={`/questions/${item.slug}`} className="font-medium hover:underline text-primary line-clamp-1" target="_blank">
                                                 {item.title}
@@ -245,7 +245,7 @@ function QuestionTable({ active }: { active: boolean }) {
                     </TableBody>
                 </Table>
             </div>
-             <div className="flex items-center justify-end space-x-2 py-4">
+            <div className="flex items-center justify-end space-x-2 py-4">
                 <Button
                     variant="outline"
                     size="sm"
@@ -267,7 +267,7 @@ function QuestionTable({ active }: { active: boolean }) {
                 </Button>
             </div>
 
-            <ConfirmDialog 
+            <ConfirmDialog
                 open={isConfirmOpen}
                 onOpenChange={setIsConfirmOpen}
                 title="Xác nhận xóa câu hỏi"
@@ -308,7 +308,7 @@ function PostTable({ active }: { active: boolean }) {
                 keyword: debouncedSearch,
                 sort: ["createdAt,desc"]
             });
-            
+
             setData(res.content || []);
             setTotalPages(res.totalPages || 0);
         } catch (error) {
@@ -337,7 +337,7 @@ function PostTable({ active }: { active: boolean }) {
             toast.success("Đã xóa bài viết");
             loadData();
         } catch (error) {
-             toast.error("Xóa thất bại");
+            toast.error("Xóa thất bại");
         }
     };
 
@@ -345,7 +345,7 @@ function PostTable({ active }: { active: boolean }) {
         setLoadingDetail(true);
         try {
             const post = await adminContentService.getPost(id);
-            if(post) {
+            if (post) {
                 setSelectedPost(post);
                 setIsViewOpen(true);
             }
@@ -360,21 +360,21 @@ function PostTable({ active }: { active: boolean }) {
 
     return (
         <div className="space-y-4">
-             <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <div className="relative w-64">
                         <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input 
-                            placeholder="Tìm kiếm bài viết..." 
-                            className="pl-8" 
+                        <Input
+                            placeholder="Tìm kiếm bài viết..."
+                            className="pl-8"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
                     {loadingDetail && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
                 </div>
-                 <div className="flex items-center gap-2">
-                     <Select value={status} onValueChange={(v) => setStatus(v as any)}>
+                <div className="flex items-center gap-2">
+                    <Select value={status} onValueChange={(v) => setStatus(v as any)}>
                         <SelectTrigger className="w-[180px]">
                             <SelectValue placeholder="Trạng thái" />
                         </SelectTrigger>
@@ -386,25 +386,25 @@ function PostTable({ active }: { active: boolean }) {
                             <SelectItem value="DELETED">Đã xóa</SelectItem>
                         </SelectContent>
                     </Select>
-                 </div>
+                </div>
             </div>
 
             <div className="rounded-md border bg-card">
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="w-[400px]">Tiêu đề</TableHead>
+                            <TableHead>Tiêu đề</TableHead>
                             <TableHead>Tác giả</TableHead>
                             <TableHead>Trạng thái</TableHead>
                             <TableHead>Thống kê</TableHead>
-                             <TableHead>Nhóm</TableHead>
+                            <TableHead>Nhóm</TableHead>
                             <TableHead>Ngày đăng</TableHead>
                             <TableHead className="text-right">Hành động</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {loading ? (
-                             <TableRow>
+                            <TableRow>
                                 <TableCell colSpan={6} className="h-24 text-center">
                                     <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                                 </TableCell>
@@ -418,7 +418,7 @@ function PostTable({ active }: { active: boolean }) {
                         ) : (
                             data.map((item) => (
                                 <TableRow key={item.id}>
-                                    <TableCell>
+                                    <TableCell className="max-w-[300px]">
                                         <div className="flex flex-col gap-1">
                                             <span className="font-medium text-foreground line-clamp-1">
                                                 {item.title}
@@ -442,7 +442,7 @@ function PostTable({ active }: { active: boolean }) {
                                             <div>{item.commentCount} comments</div>
                                         </div>
                                     </TableCell>
-                                     <TableCell>
+                                    <TableCell>
                                         {item.groupName ? <Badge variant="outline">{item.groupName}</Badge> : "-"}
                                     </TableCell>
                                     <TableCell className="text-sm text-muted-foreground">
@@ -461,7 +461,7 @@ function PostTable({ active }: { active: boolean }) {
                     </TableBody>
                 </Table>
             </div>
-             <div className="flex items-center justify-end space-x-2 py-4">
+            <div className="flex items-center justify-end space-x-2 py-4">
                 <Button
                     variant="outline"
                     size="sm"
@@ -485,23 +485,23 @@ function PostTable({ active }: { active: boolean }) {
 
             <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
                 <DialogContent className="max-w-[70vw] sm:max-w-[70vw] w-full h-[75vh] p-0 flex flex-col bg-background border shadow-lg overflow-hidden">
-                     <DialogHeader className="sr-only">
+                    <DialogHeader className="sr-only">
                         <DialogTitle>Chi tiết bài viết</DialogTitle>
-                         <DialogDescription>
+                        <DialogDescription>
                             Chi tiết bài viết
                         </DialogDescription>
                     </DialogHeader>
                     {selectedPost ? (
-                         <div className="flex-1 w-full h-full overflow-hidden">
-                             <AdminPostView post={selectedPost} />
+                        <div className="flex-1 w-full h-full overflow-hidden">
+                            <AdminPostView post={selectedPost} />
                         </div>
                     ) : (
-                         <div className="flex justify-center p-8 bg-background rounded-md"><Loader2 className="animate-spin" /></div>
+                        <div className="flex justify-center p-8 bg-background rounded-md"><Loader2 className="animate-spin" /></div>
                     )}
                 </DialogContent>
             </Dialog>
 
-            <ConfirmDialog 
+            <ConfirmDialog
                 open={isConfirmOpen}
                 onOpenChange={setIsConfirmOpen}
                 title="Xác nhận xóa bài viết"
@@ -547,7 +547,7 @@ function ActionsMenu({
                         <Eye className="mr-2 h-4 w-4" /> Xem chi tiết
                     </DropdownMenuItem>
                 )}
-                
+
                 <DropdownMenuItem className="text-destructive" onClick={onDelete}>
                     <Trash2 className="mr-2 h-4 w-4" /> Xóa
                 </DropdownMenuItem>

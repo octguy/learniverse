@@ -2,12 +2,14 @@
 
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
+import { useAuth } from "@/context/AuthContext"
 
 interface WelcomeStepProps {
     onNext?: () => void
 }
 
 export default function WelcomeOnboardingPage({ onNext }: WelcomeStepProps) {
+    const { user } = useAuth()
     return (
             <div
                 className="
@@ -24,7 +26,7 @@ export default function WelcomeOnboardingPage({ onNext }: WelcomeStepProps) {
                     {/* Greeting */}
                     <div className="w-full">
                         <p className="text-gray-600 italic mb-5 text-left text-base sm:text-lg">
-                            Xin chào <span className="font-semibold text-[#2D55FB]">Khải</span>!
+                            Xin chào <span className="font-semibold text-[#2D55FB]">{user?.username}</span>!
                         </p>
                         <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">
                             Welcome to <span className="text-[#2D55FB]">Learniverse</span>!

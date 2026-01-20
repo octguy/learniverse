@@ -25,7 +25,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                 try {
                     const storedUser = JSON.parse(storedUserStr);
 
-                    // Hydrate roles from token if missing in stored user
                     if ((!storedUser.role && !storedUser.roles) && storedToken) {
                         const decoded = parseJwt(storedToken);
                         if (decoded) {
@@ -33,7 +32,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                             if (Array.isArray(extractedRoles) && extractedRoles.length > 0) {
                                 storedUser.roles = extractedRoles;
                                 storedUser.role = extractedRoles.includes('ROLE_ADMIN') ? 'ROLE_ADMIN' : extractedRoles[0];
-                                // Update storage
                                 localStorage.setItem('user', JSON.stringify(storedUser));
                             } else if (typeof extractedRoles === 'string') {
                                 storedUser.roles = [extractedRoles];
@@ -94,8 +92,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         const expTime = decoded.exp * 1000;
         const currentTime = Date.now();
         const timeUntilExpire = expTime - currentTime;
-        
-        const bufferTime = 2 * 60 * 1000; 
+
+        const bufferTime = 2 * 60 * 1000;
         const delay = timeUntilExpire - bufferTime;
 
         const timeoutId = setTimeout(() => {
@@ -132,7 +130,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         try {
             const profile = await userProfileService.getMyProfile();
             avatarUrl = profile.avatarUrl;
-            
+
             if (profile.role) {
                 role = profile.role;
                 if (!profile.roles || profile.roles.length === 0) {
@@ -196,6 +194,33 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         const response = await authService.register(data);
         return response.data;
     };
+
+    useEffect(() => {
+        const fetchLatestProfile = async () => {
+            if (!accessToken) return;
+
+            try {
+                const profile = await userProfileService.getMyProfile();
+                setUser(prev => {
+                    if (!prev) return null;
+                    const updated = {
+                        ...prev,
+                        avatarUrl: profile.avatarUrl,
+                        username: profile.user?.username || prev.username,
+                        email: profile.user?.email || prev.email,
+                        role: profile.role || prev.role,
+                        roles: profile.roles || prev.roles || prev.roles
+                    };
+                    localStorage.setItem('user', JSON.stringify(updated));
+                    return updated;
+                });
+            } catch (error) {
+                console.error("Background profile sync failed:", error);
+            }
+        };
+
+        fetchLatestProfile();
+    }, [accessToken]);
 
     const value: AuthContextType = {
         user,

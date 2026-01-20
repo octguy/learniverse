@@ -122,6 +122,20 @@ export default function ProfileHeader({
                     </Button>
                 );
             case FriendStatus.PENDING:
+                if (isReceivedRequest) {
+                    return (
+                        <div className="flex gap-2">
+                            <Button onClick={() => handleFriendAction('ACCEPT')} className="bg-green-600 hover:bg-green-700">
+                                <UserCheck className="w-4 h-4 mr-2" />
+                                Chấp nhận
+                            </Button>
+                            <Button onClick={() => handleFriendAction('REJECT')} variant="outline" className="text-red-600 border-red-200 hover:bg-red-50">
+                                <UserX className="w-4 h-4 mr-2" />
+                                Từ chối
+                            </Button>
+                        </div>
+                    );
+                }
                 return (
                     <Button onClick={() => handleFriendAction('CANCEL')} variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-200">
                         <Send className="w-4 h-4 mr-2" />

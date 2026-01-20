@@ -148,12 +148,14 @@ public class AuthServiceImpl implements IAuthService {
         user.setStatus(UserStatus.ACTIVE);
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
+        user.setOnboarded(true);
 
         // Assign role
         Role role = roleRepository.findByName(UserRole.ROLE_ADMIN)
                 .orElseThrow(() -> new RuntimeException("Role not found"));
 
         user.addRole(role);
+        userRepository.save(user);
 
         AuthCredential authCredential = new AuthCredential();
         authCredential.setId(UUID.randomUUID());

@@ -129,6 +129,10 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             await websocketService.connect(accessToken);
           }
 
+          if (notificationSubscriptionRef.current) {
+            notificationSubscriptionRef.current();
+            notificationSubscriptionRef.current = null;
+          }
 
           notificationSubscriptionRef.current = websocketService.subscribeToNotifications(user.id, (notification) => {
             setUnreadNotificationsCount(prev => prev + 1);

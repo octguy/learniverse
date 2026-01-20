@@ -59,6 +59,10 @@ public class GroupMember extends BaseEntity {
 
     @PreUpdate
     protected void onUpdate() {
+        if (this.joinedAt == null) {
+            LocalDateTime now = LocalDateTime.now();
+            this.joinedAt = this.getCreatedAt() != null ? this.getCreatedAt() : now;
+        }
         this.setUpdatedAt(LocalDateTime.now());
     }
 }
