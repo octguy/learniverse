@@ -18,6 +18,7 @@ import { Post } from "@/types/post"
 import { SuggestedFriend } from "@/types/friend"
 import { friendService } from "@/lib/api/friendService"
 import { chatService } from "@/lib/api/chatService"
+import { shareService } from "@/lib/api/shareService"
 import { useAuth } from "@/context/AuthContext"
 import { toast } from "sonner"
 import { useDebounce } from "@/hooks/use-debounce"
@@ -25,9 +26,10 @@ import { useDebounce } from "@/hooks/use-debounce"
 interface SendPostDialogProps {
     post: Post
     setOpen: (open: boolean) => void
+    onSuccess?: () => void
 }
 
-export function SendPostDialog({ post, setOpen }: SendPostDialogProps) {
+export function SendPostDialog({ post, setOpen, onSuccess }: SendPostDialogProps) {
     const { user } = useAuth()
     const [friends, setFriends] = useState<SuggestedFriend[]>([])
     const [selectedFriends, setSelectedFriends] = useState<string[]>([])
@@ -124,6 +126,15 @@ export function SendPostDialog({ post, setOpen }: SendPostDialogProps) {
             })
 
             await Promise.all(sendPromises)
+
+            // Track share action
+            await shareService.trackShare({
+                originalContentId: post.id,
+                shareType: "DIRECT_MESSAGE"
+            })
+            if (onSuccess) {
+                onSuccess()
+            }
 
             toast.success(`Đã gửi cho ${selectedFriends.length} người bạn`)
             setOpen(false)

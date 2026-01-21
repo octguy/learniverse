@@ -117,6 +117,12 @@ function ChatContent() {
       const response = await chatService.getAllChats();
       if (response.data.status === "success") {
         const chatRooms = response.data.data;
+        chatRooms.sort((a, b) => {
+          const timeA = new Date(a.lastMessage?.sendAt || a.updatedAt || a.createdAt).getTime();
+          const timeB = new Date(b.lastMessage?.sendAt || b.updatedAt || b.createdAt).getTime();
+          return timeB - timeA;
+        });
+
         const chatsWithData = await Promise.all(
           chatRooms.map(async (room: ChatRoomDTO) => {
             let lastMessage = null;
@@ -208,6 +214,13 @@ function ChatContent() {
         const response = await chatService.getAllChats();
         if (response.data.status === "success") {
           const chatRooms = response.data.data;
+
+          // Sort by newest message/activity first
+          chatRooms.sort((a, b) => {
+            const timeA = new Date(a.lastMessage?.sendAt || a.updatedAt || a.createdAt).getTime();
+            const timeB = new Date(b.lastMessage?.sendAt || b.updatedAt || b.createdAt).getTime();
+            return timeB - timeA;
+          });
 
           // Convert to Chat format and fetch avatars for direct chats
           const chatsWithData = await Promise.all(
