@@ -484,7 +484,7 @@ function PostTable({ active }: { active: boolean }) {
             </div>
 
             <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
-                <DialogContent className="max-w-[70vw] sm:max-w-[70vw] w-full h-[75vh] p-0 flex flex-col bg-background border shadow-lg overflow-hidden">
+                <DialogContent className="max-w-[85vw] sm:max-w-[85vw] w-full h-[95vh] p-0 flex flex-col bg-background border shadow-lg overflow-hidden">
                     <DialogHeader className="sr-only">
                         <DialogTitle>Chi tiết bài viết</DialogTitle>
                         <DialogDescription>

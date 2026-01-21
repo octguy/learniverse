@@ -36,9 +36,10 @@ const initialState = {
   currentUserId: null,
 };
 
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
-export default function ChatPage() {
+function ChatContent() {
   const searchParams = useSearchParams();
   const targetUserId = searchParams.get("userId");
 
@@ -647,5 +648,17 @@ export default function ChatPage() {
         <WelcomeScreen />
       )}
     </div>
+  );
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex flex-1 items-center justify-center h-screen">
+        <Loader2 className="w-10 h-10 animate-spin text-blue-500" />
+      </div>
+    }>
+      <ChatContent />
+    </Suspense>
   );
 }
