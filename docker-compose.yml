@@ -6,14 +6,18 @@ services:
       POSTGRES_DB: learniverse
       POSTGRES_USER: ${SPRING_DATASOURCE_USERNAME}
       POSTGRES_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
-    ports:
-      - "5432:5432"
+    expose:
+      - 5432
+    #! Note: uncomment below to expose postgres to host to allow debugging
+    # ports:
+    #   - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - learniverse_network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${SPRING_DATASOURCE_USERNAME} -d learniverse"]
+      start_period: 2s
       interval: 10s
       timeout: 5s
       retries: 5
@@ -63,13 +67,21 @@ services:
     image: honguyenminh/learniverse-commentscan:latest
     build:
       context: ./learniverse-commentscan
+      args:
+        - FORCE_CPU=1
       dockerfile: Dockerfile
 
     container_name: learniverse-commentscan
-    ports:
-      - "8000:8000"
+    expose:
+      - 8000
     networks:
       - learniverse_network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
 networks:
   learniverse_network:

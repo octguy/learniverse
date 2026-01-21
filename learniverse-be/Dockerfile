@@ -1,7 +1,7 @@
 # Adapted from: https://docs.spring.io/spring-boot/reference/packaging/container-images/dockerfiles.html
 
 # BUILD STAGE
-FROM gradle:9.2.0-jdk17-alpine AS build
+FROM gradle:9.2.0-jdk17 AS build
 COPY --chown=gradle:gradle . /home/gradle/src
 WORKDIR /home/gradle/src
 RUN gradle bootJar --no-daemon
@@ -12,7 +12,7 @@ RUN cp /home/gradle/src/build/libs/*.jar /output/application.jar
 RUN java -Djarmode=tools -jar application.jar extract --layers --destination extracted
 
 # RUN STAGE
-FROM eclipse-temurin:17.0.17_10-jre-alpine
+FROM eclipse-temurin:17.0.17_10-jre
 
 ENV SERVER_PORT=8080
 
