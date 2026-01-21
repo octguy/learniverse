@@ -58,15 +58,30 @@ export function TopTags() {
   );
 }
 
+import { userProfileService } from "@/lib/api/userProfileService";
+
 export function RecentUsers() {
-  const [users, setUsers] = useState<NewUserResponse[]>([]);
+  const [users, setUsers] = useState<(NewUserResponse & { avatarUrl?: string })[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchUsers = async () => {
       try {
         const response = await adminService.getNewestUsers(0);
-        setUsers(response.content.slice(0, 5)); // Take top 5
+        const topUsers = response.content.slice(0, 5);
+
+        const usersWithProfiles = await Promise.all(
+          topUsers.map(async (user) => {
+            try {
+              const profile = await userProfileService.getUserProfile(user.id);
+              return { ...user, avatarUrl: profile.avatarUrl };
+            } catch (err) {
+              return user;
+            }
+          })
+        );
+
+        setUsers(usersWithProfiles);
       } catch (error) {
         console.error("Failed to fetch recent users:", error);
       } finally {
@@ -94,7 +109,7 @@ export function RecentUsers() {
                 <div className="flex items-center gap-3">
                   <Avatar className="h-9 w-9">
                     <AvatarImage
-                      src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${u.email}`}
+                      src={u.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.email}`}
                     />
                     <AvatarFallback>{u.username[0]?.toUpperCase()}</AvatarFallback>
                   </Avatar>

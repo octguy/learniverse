@@ -1,7 +1,7 @@
 import apiService from "@/lib/apiService";
 import { UserProfileResponse, UpdateProfileRequest } from "@/types/userProfile";
 import { UserTag } from "@/types/userTag";
-import {ApiResponse} from "@/types/api";
+import { ApiResponse, PageResponse } from "@/types/api";
 
 const BASE_URL = "/user_profile";
 
@@ -69,5 +69,11 @@ export const userProfileService = {
             headers: { "Content-Type": "multipart/form-data" },
         });
         return res.data;
+    },
+
+    search: async (query: string, page = 0, size = 10) => {
+        return apiService.get<ApiResponse<PageResponse<UserProfileResponse>>>(`${BASE_URL}/search`, {
+            params: { search: query, page, size }
+        });
     }
 };

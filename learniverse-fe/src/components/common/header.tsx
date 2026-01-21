@@ -14,8 +14,9 @@ import { NotificationBell } from '@/components/notification/NotificationBell';
 import { useRef, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDebounce } from '@/hooks/use-debounce';
-import { friendService } from '@/lib/api/friendService';
+import { userProfileService } from '@/lib/api/userProfileService';
 import { SuggestedFriend } from '@/types/friend';
+import { PageResponse } from '@/types/api';
 
 import {
   DropdownMenu,
@@ -52,12 +53,14 @@ export function Header() {
     const searchFriends = async () => {
       if (debouncedSearchTerm.trim()) {
         try {
-          const response = await friendService.searchFriends(debouncedSearchTerm);
-          const data = response.data || response;
-          // Handle both array directly or wrapped in data field just in case
-          const results = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
+          const response = await userProfileService.search(debouncedSearchTerm, 0, 5);
+          // @ts-ignore
+          const data = (response.data || response) as PageResponse<any>;
+          const results = data.content || (data as any).data?.content || [];
 
-          setSearchResults(results);
+          const uniqueResults = Array.from(new Map(results.map((item: any) => [item.id || item.userId, item])).values()) as SuggestedFriend[];
+
+          setSearchResults(uniqueResults);
           if (results.length > 0) setShowResults(true);
         } catch (error) {
           console.error("Search failed", error);
@@ -161,7 +164,7 @@ export function Header() {
             <Home className="w-5 h-5" />
             <span className="text-xs">Home</span>
           </Link>
-          
+
           <Link href="/friend" className="flex flex-col items-center text-gray-600 hover:text-primary">
             <div className="relative">
               <Users className="w-5 h-5" />

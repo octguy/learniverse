@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { friendService } from '@/lib/api/friendService';
 import { Friend, SuggestedFriend } from '@/types/friend';
-import { Loader2, UserCheck, UserX, UserPlus } from 'lucide-react';
+import { Loader2, UserCheck, UserX, UserPlus, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 
@@ -95,9 +95,16 @@ function FriendList() {
                         </Link>
                         <p className="text-xs text-muted-foreground truncate">@{friend.username}</p>
                     </div>
-                    <Button variant="ghost" size="icon" onClick={() => handleUnfriend(friend.userId)} title="Hủy kết bạn">
-                        <UserX className="h-5 w-5 text-muted-foreground hover:text-red-500" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                        <Link href={`/chat?userId=${friend.userId}`}>
+                            <Button variant="ghost" size="icon" title="Nhắn tin">
+                                <MessageCircle className="h-5 w-5 text-muted-foreground hover:text-blue-500" />
+                            </Button>
+                        </Link>
+                        <Button variant="ghost" size="icon" onClick={() => handleUnfriend(friend.userId)} title="Hủy kết bạn">
+                            <UserX className="h-5 w-5 text-muted-foreground hover:text-red-500" />
+                        </Button>
+                    </div>
                 </div>
             ))}
         </div>

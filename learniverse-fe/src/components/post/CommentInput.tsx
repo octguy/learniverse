@@ -115,7 +115,9 @@ export function CommentInput({
                 } else {
                     const response = await friendService.searchFriends(mentionQuery);
                     // @ts-ignore
-                    data = response.data?.data || response.data || [];
+                    const rawData = response.data || response;
+                    // @ts-ignore
+                    data = rawData.content || rawData.data?.content || rawData.data || [];
                 }
 
                 if (Array.isArray(data)) {
