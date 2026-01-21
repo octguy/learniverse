@@ -246,29 +246,32 @@ function splitAttachments(attachments: QuestionAttachment[]) {
 }
 
 /**
- * Downloads a file from a cross-origin URL with the correct filename.
- * Fetches the file as a blob and triggers a download with the proper name.
+ * Downloads a file from Cloudinary with the correct filename.
+ * Uses Cloudinary's fl_attachment transformation to force download with custom filename.
  */
-async function downloadFile(url: string, fileName: string) {
-    try {
-        const response = await fetch(url)
-        const blob = await response.blob()
-        const blobUrl = window.URL.createObjectURL(blob)
-        
-        const link = document.createElement("a")
-        link.href = blobUrl
-        link.download = fileName
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-        
-        // Cleanup blob URL
-        window.URL.revokeObjectURL(blobUrl)
-    } catch (error) {
-        console.error("Failed to download file:", error)
-        // Fallback: open in new tab
-        window.open(url, "_blank")
+function downloadFile(url: string, fileName: string) {
+    // For Cloudinary URLs, insert fl_attachment transformation to force download with correct filename
+    // URL format: https://res.cloudinary.com/{cloud}/raw/upload/v{version}/{path}
+    // We need to insert fl_attachment:{filename} after /upload/
+    
+    let downloadUrl = url
+    
+    if (url.includes('res.cloudinary.com') && url.includes('/upload/')) {
+        // Encode the filename for URL (handle special characters)
+        const encodedFileName = encodeURIComponent(fileName.replace(/\.[^.]+$/, '')) // Remove extension for fl_attachment
+        // Insert fl_attachment parameter after /upload/
+        downloadUrl = url.replace('/upload/', `/upload/fl_attachment:${encodedFileName}/`)
     }
+    
+    // Create a temporary link and trigger download
+    const link = document.createElement("a")
+    link.href = downloadUrl
+    link.download = fileName
+    link.target = "_blank"
+    link.rel = "noopener noreferrer"
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
 }
 
 export default function QuestionDetailPage() {
@@ -1260,33 +1263,17 @@ export default function QuestionDetailPage() {
                                 </p>
                                 <div className="flex flex-wrap gap-3">
                                     {attachments.documents.map((attachment) => (
-                                        <div
+                                        <button
+                                            type="button"
                                             key={attachment.id}
-                                            className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2"
+                                            onClick={() => downloadFile(attachment.storageUrl, attachment.fileName)}
+                                            className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 hover:bg-accent cursor-pointer text-left transition-colors"
                                         >
                                             <FileText className="size-5 text-primary" />
                                             <span className="text-sm font-medium text-foreground max-w-[200px] truncate">
                                                 {attachment.fileName}
                                             </span>
-                                            <div className="flex items-center gap-1 ml-2">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setPdfPreview({ url: attachment.storageUrl, fileName: attachment.fileName })}
-                                                    className="p-1.5 rounded-md hover:bg-primary/10 text-primary transition-colors"
-                                                    title="Xem trước"
-                                                >
-                                                    <Eye className="size-4" />
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => downloadFile(attachment.storageUrl, attachment.fileName)}
-                                                    className="p-1.5 rounded-md hover:bg-primary/10 text-primary transition-colors"
-                                                    title="Tải xuống"
-                                                >
-                                                    <Download className="size-4" />
-                                                </button>
-                                            </div>
-                                        </div>
+                                        </button>
                                     ))}
                                 </div>
                             </div>
@@ -1786,43 +1773,17 @@ export default function QuestionDetailPage() {
                                                         </p>
                                                         <div className="flex flex-wrap gap-2">
                                                             {splitted.documents.map((attachment) => (
-                                                                <div
+                                                                <button
+                                                                    type="button"
                                                                     key={attachment.id}
-                                                                    className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-1.5"
+                                                                    onClick={() => downloadFile(attachment.storageUrl, attachment.fileName)}
+                                                                    className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-1.5 hover:bg-accent cursor-pointer text-left transition-colors"
                                                                 >
                                                                     <FileText className="size-4 text-primary" />
                                                                     <span className="text-xs font-medium max-w-[180px] truncate">
                                                                         {attachment.fileName}
                                                                     </span>
-                                                                    <div className="flex items-center gap-1 ml-1">
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() =>
-                                                                                setPdfPreview({
-                                                                                    url: attachment.storageUrl,
-                                                                                    fileName: attachment.fileName,
-                                                                                })
-                                                                            }
-                                                                            className="p-1 rounded-md hover:bg-primary/10 text-primary transition-colors"
-                                                                            title="Xem trước"
-                                                                        >
-                                                                            <Eye className="size-3.5" />
-                                                                        </button>
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() =>
-                                                                                downloadFile(
-                                                                                    attachment.storageUrl,
-                                                                                    attachment.fileName
-                                                                                )
-                                                                            }
-                                                                            className="p-1 rounded-md hover:bg-primary/10 text-primary transition-colors"
-                                                                            title="Tải xuống"
-                                                                        >
-                                                                            <Download className="size-3.5" />
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
+                                                                </button>
                                                             ))}
                                                         </div>
                                                     </div>

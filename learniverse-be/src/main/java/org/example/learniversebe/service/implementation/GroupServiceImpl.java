@@ -381,7 +381,7 @@ public class GroupServiceImpl implements IGroupService {
     @Transactional(readOnly = true)
     public PageResponse<GroupMemberResponse> getGroupMembers(UUID groupId, Pageable pageable) {
         findGroupOrFail(groupId);
-        Page<GroupMember> memberPage = groupMemberRepository.findByGroupId(groupId, pageable);
+        Page<GroupMember> memberPage = groupMemberRepository.findActiveByGroupId(groupId, pageable);
         return groupMapper.memberPageToPageResponse(memberPage);
     }
 
