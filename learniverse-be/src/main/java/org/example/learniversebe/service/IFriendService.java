@@ -1,8 +1,11 @@
 package org.example.learniversebe.service;
 
+import org.example.learniversebe.dto.response.PageResponse;
 import org.example.learniversebe.dto.response.UserProfileResponse;
 import org.example.learniversebe.enums.FriendStatus;
 import org.example.learniversebe.model.Friend;
+import org.springframework.data.domain.Pageable;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -18,7 +21,7 @@ public interface IFriendService {
     List<UserProfileResponse> getSentFriendRequests();    // Sent
     List<UserProfileResponse> getSuggestedFriends(int limit); // Suggest friend
 
-    List<UserProfileResponse> searchFriends(String keyword);
+    PageResponse<UserProfileResponse> searchFriends(String keyword, Pageable pageable);
 
     List<UserProfileResponse> getOtherUserFriends(UUID userId);
 

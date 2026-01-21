@@ -2,6 +2,8 @@ package org.example.learniversebe.repository;
 
 import org.example.learniversebe.model.User;
 import org.example.learniversebe.model.UserProfile;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -15,7 +17,7 @@ public interface UserProfileRepository extends JpaRepository<UserProfile, UUID> 
     List<UserProfile> findByUserIdIn(@Param("userIds") List<UUID> userIds);
 
     @Query(value = """
-    SELECT
+    SELECT DISTINCT
         u.id             AS user_id,
         u.username       AS username,
         up.id            AS profile_id,
@@ -27,15 +29,15 @@ public interface UserProfileRepository extends JpaRepository<UserProfile, UUID> 
         up.answered_question_count AS answered_question_count
     FROM friend f
     JOIN "user" u
-      ON u.id = CASE
-          WHEN f.user_id_1 = :currentUserId THEN f.user_id_2
-          ELSE f.user_id_1
-      END
+      ON (
+           (f.user_id_1 = :currentUserId AND u.id = f.user_id_2)
+        OR (f.user_id_2 = :currentUserId AND u.id = f.user_id_1)
+      )
     LEFT JOIN user_profile up
       ON up.user_id = u.id
     WHERE f.status = 'ACCEPTED'
       AND (
-            (up.id IS NOT NULL AND up.display_name IS NOT NULL 
+            (up.id IS NOT NULL AND up.display_name IS NOT NULL\s
                 AND LOWER(up.display_name) LIKE LOWER(CONCAT('%', :keyword, '%')))
          OR (up.id IS NOT NULL AND up.display_name IS NULL
                 AND LOWER(u.username) LIKE LOWER(CONCAT('%', :keyword, '%')))
@@ -43,9 +45,33 @@ public interface UserProfileRepository extends JpaRepository<UserProfile, UUID> 
                 AND LOWER(u.username) LIKE LOWER(CONCAT('%', :keyword, '%')))
       )
     """, nativeQuery = true)
-    List<Object[]> searchFriendsRaw(
+    Page<Object[]> searchFriendsRaw(
             @Param("currentUserId") UUID currentUserId,
-            @Param("keyword") String keyword
+            @Param("keyword") String keyword,
+            Pageable pageable
+    );
+
+@Query("""
+SELECT DISTINCT u
+FROM User u
+LEFT JOIN u.userProfile up
+WHERE u.deletedAt IS NULL
+  AND NOT EXISTS (
+      SELECT 1
+      FROM RoleUser ru
+      JOIN ru.role r
+      WHERE ru.user = u
+        AND r.name = 'ADMIN'
+  )
+  AND (
+        (up IS NOT NULL
+        AND LOWER(up.displayName) LIKE LOWER(CONCAT('%', :search, '%')))
+     OR LOWER(u.username) LIKE LOWER(CONCAT('%', :search, '%'))
+  )
+""")
+    Page<User> searchUserExcludeAdmin(
+            @Param("search") String search,
+            Pageable pageable
     );
 
 
