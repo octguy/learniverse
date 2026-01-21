@@ -358,8 +358,7 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
 
   const parseDate = (dateString: string) => {
     if (!dateString) return new Date();
-    const cleanDate = dateString.split('.')[0];
-    const date = new Date(cleanDate);
+    const date = new Date(dateString);
     if (!isNaN(date.getTime())) return date;
     return new Date();
   }
