@@ -53,14 +53,10 @@ export default function SettingsPage() {
             <h1 className="text-2xl font-bold mb-6">Cài đặt</h1>
 
             <Tabs defaultValue="security" className="w-full">
-                <TabsList className="mb-6 grid w-full grid-cols-2 lg:w-[400px]">
+                <TabsList className="mb-6 grid w-full grid-cols-1 lg:w-[400px]">
                     <TabsTrigger value="security" className="gap-2">
                         <Lock className="w-4 h-4" />
                         Bảo mật
-                    </TabsTrigger>
-                    <TabsTrigger value="general" disabled className="gap-2">
-                        <ShieldCheck className="w-4 h-4" />
-                        Chung
                     </TabsTrigger>
                 </TabsList>
 

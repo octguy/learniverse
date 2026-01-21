@@ -124,7 +124,7 @@ export function Header() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
                 type="text"
-                placeholder="Tìm kiếm bài viết, người dùng, nhóm..."
+                placeholder="Tìm kiếm bài viết, người dùng, ..."
                 className="pl-10 w-full"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -162,7 +162,7 @@ export function Header() {
         <div className="flex items-center justify-end space-x-7">
           <Link href="/home" className="flex flex-col items-center text-gray-600 hover:text-primary">
             <Home className="w-5 h-5" />
-            <span className="text-xs">Home</span>
+            <span className="text-xs">Trang chủ</span>
           </Link>
 
           <Link href="/friend" className="flex flex-col items-center text-gray-600 hover:text-primary">
@@ -174,11 +174,11 @@ export function Header() {
                 </span>
               )}
             </div>
-            <span className="text-xs">Network</span>
+            <span className="text-xs">Bạn bè</span>
           </Link>
           <Link href="/questions" className="flex flex-col items-center text-gray-600 hover:text-primary">
             <BadgeQuestionMark className="w-5 h-5" />
-            <span className="text-xs">Question</span>
+            <span className="text-xs">Hỏi đáp</span>
           </Link>
           <Link href="/chat" className="flex flex-col items-center text-gray-600 hover:text-primary">
             <div className="relative">
@@ -189,7 +189,7 @@ export function Header() {
                 </span>
               )}
             </div>
-            <span className="text-xs">Chat</span>
+            <span className="text-xs">Tin nhắn</span>
           </Link>
           <NotificationBell />
 
@@ -206,7 +206,7 @@ export function Header() {
                     <AvatarImage src={user.avatarUrl} alt={user.username} />
                     <AvatarFallback>{user.username?.charAt(0).toUpperCase()}</AvatarFallback>
                   </Avatar>
-                  <span className="text-xs">Me</span>
+                  <span className="text-xs">Tôi</span>
                 </div>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-[200px]">
@@ -254,7 +254,7 @@ export function Header() {
               <Avatar className="w-6 h-6">
                 <AvatarFallback>?</AvatarFallback>
               </Avatar>
-              <span className="text-xs">Login</span>
+              <span className="text-xs">Đăng nhập</span>
             </Link>
           )}
         </div>
