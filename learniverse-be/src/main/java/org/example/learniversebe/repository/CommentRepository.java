@@ -37,6 +37,7 @@ public interface CommentRepository extends JpaRepository<Comment, UUID> {
             "AND c.commentableId = :commentableId " +
             "AND c.parent IS NULL " +
             "AND c.deletedAt IS NULL " +
+            "AND c.isVisible = TRUE " +
             "ORDER BY c.createdAt DESC")
     Page<Comment> findTopLevelComments(
             @Param("type") ReactableType type,
@@ -52,15 +53,24 @@ public interface CommentRepository extends JpaRepository<Comment, UUID> {
     List<Comment> findRepliesByParentId(@Param("parentId") UUID parentId);
 
 
-    // Tìm comment gốc
-    Page<Comment> findByCommentableTypeAndCommentableIdAndParentIsNullOrderByCreatedAtAsc(ReactableType commentableType, UUID commentableId, Pageable pageable);
+    // Tìm comment gốc (top-level comments for an entity)
+    @Query("SELECT c FROM Comment c WHERE c.commentableType = :type " +
+            "AND c.commentableId = :commentableId " +
+            "AND c.parent IS NULL " +
+            "AND c.deletedAt IS NULL " +
+            "AND c.isVisible = TRUE " +
+            "ORDER BY c.createdAt ASC")
+    Page<Comment> findByCommentableTypeAndCommentableIdAndParentIsNullOrderByCreatedAtAsc(
+            @Param("type") ReactableType commentableType, 
+            @Param("commentableId") UUID commentableId, 
+            Pageable pageable);
 
     // Tìm các replies cho một comment cha
     @Query("SELECT c FROM Comment c WHERE c.parent.id = :parentId " +
             "AND c.deletedAt IS NULL " +
-            "AND c.isVisible = true " +
+            "AND c.isVisible = TRUE " +
             "ORDER BY c.createdAt ASC")
-    Page<Comment> findByParentIdOrderByCreatedAtAsc(UUID parentId, Pageable pageable);
+    Page<Comment> findByParentIdOrderByCreatedAtAsc(@Param("parentId") UUID parentId, Pageable pageable);
 
     List<Comment> findByParentId(UUID parentId);
 
@@ -68,11 +78,11 @@ public interface CommentRepository extends JpaRepository<Comment, UUID> {
     @Query("SELECT c FROM Comment c WHERE c.commentableType = :type " +
             "AND c.commentableId = :id " +
             "AND c.deletedAt IS NULL " +
-            "AND c.isVisible = true " +
+            "AND c.isVisible = TRUE " +
             "ORDER BY c.createdAt DESC")
     Page<Comment> findByCommentableTypeAndCommentableId(
-            ReactableType commentableType,
-            UUID commentableId,
+            @Param("type") ReactableType commentableType,
+            @Param("id") UUID commentableId,
             Pageable pageable
     );
 

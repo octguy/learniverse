@@ -217,4 +217,57 @@ public class NotificationServiceImpl implements INotificationService {
             log.error("Lỗi khi gửi thông báo realtime qua WebSocket", e);
         }
     }
+
+    @Override
+    @Transactional
+    public void notifyModeratorsOfAutoFlag(UUID reportId, String contentType, String contentPreview) {
+        log.info("Notifying moderators about auto-flagged {} content", contentType);
+
+        List<User> moderators = userRepository.findAllModeratorsAndAdmins();
+
+        String previewText = contentPreview.length() > 100 
+            ? contentPreview.substring(0, 100) + "..." 
+            : contentPreview;
+
+        String message = String.format(
+            "[Hệ thống AI] Phát hiện %s có thể vi phạm quy định. Nội dung: \"%s\"",
+            contentType.equals("COMMENT") ? "bình luận" : "câu trả lời",
+            previewText
+        );
+
+        for (User moderator : moderators) {
+            createNotification(
+                moderator.getId(),
+                null, // System notification, no sender
+                NotificationType.CONTENT_AUTO_FLAGGED,
+                message,
+                reportId,
+                "REPORT"
+            );
+        }
+
+        log.info("Sent auto-flag notifications to {} moderators/admins", moderators.size());
+    }
+
+    @Override
+    @Transactional
+    public void notifyContentRestored(User contentAuthor, String contentType, User moderator) {
+        if (contentAuthor == null) return;
+
+        String message = String.format(
+            "%s của bạn đã được quản trị viên xem xét và khôi phục. Cảm ơn bạn đã kiên nhẫn!",
+            contentType.equals("COMMENT") ? "Bình luận" : "Câu trả lời"
+        );
+
+        createNotification(
+            contentAuthor.getId(),
+            moderator != null ? moderator.getId() : null,
+            NotificationType.CONTENT_RESTORED,
+            message,
+            null,
+            contentType
+        );
+
+        log.info("Sent content restored notification to user: {}", contentAuthor.getUsername());
+    }
 }

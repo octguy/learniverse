@@ -310,6 +310,10 @@ export default function QuestionDetailPage() {
     // Bookmark popover states
     const [collectionName, setCollectionName] = useState("")
     const [isBookmarkPopoverOpen, setIsBookmarkPopoverOpen] = useState(false)
+    // Answer pagination state for infinite scroll
+    const [answerPage, setAnswerPage] = useState(0)
+    const [hasMoreAnswers, setHasMoreAnswers] = useState(false)
+    const [isLoadingMoreAnswers, setIsLoadingMoreAnswers] = useState(false)
 
     const answerFormRef = useRef<HTMLDivElement | null>(null)
     const answerTextareaRef = useRef<HTMLTextAreaElement | null>(null)
@@ -321,6 +325,8 @@ export default function QuestionDetailPage() {
         let cancelled = false
         const run = async () => {
             setState({ status: "loading", question: null, error: null })
+            setAnswerPage(0)
+            setHasMoreAnswers(false)
             try {
                 const data = await questionService.getBySlug(slug)
                 if (cancelled) return
@@ -339,6 +345,11 @@ export default function QuestionDetailPage() {
                     attachments: data.attachments ?? [],
                     answers: data.answers ?? [],
                 }
+
+                // Check if there are more answers to load (backend returns 10 initially)
+                const loadedCount = normalized.answers.length
+                const totalCount = data.answerCount ?? 0
+                setHasMoreAnswers(loadedCount < totalCount)
 
                 setState({ status: "ready", question: normalized, error: null })
             } catch (error) {
@@ -634,7 +645,7 @@ export default function QuestionDetailPage() {
                 ? error.response?.data?.message ??
                   "Không thể gửi câu trả lời ngay lúc này."
                 : "Không thể gửi câu trả lời ngay lúc này."
-            setAnswerError(message)
+            toast.error(message)
         } finally {
             setIsSubmittingAnswer(false)
         }
@@ -801,6 +812,35 @@ export default function QuestionDetailPage() {
                 const { [answerId]: _removed, ...rest } = prev
                 return rest
             })
+        }
+    }
+
+    const handleLoadMoreAnswers = async () => {
+        if (!state.question || isLoadingMoreAnswers || !hasMoreAnswers) return
+
+        setIsLoadingMoreAnswers(true)
+        try {
+            const nextPage = answerPage + 1
+            const moreAnswers = await answerService.getForQuestion(state.question.id, nextPage, 10)
+            
+            setState((prev) => {
+                if (!prev.question) return prev
+                return {
+                    ...prev,
+                    question: {
+                        ...prev.question,
+                        answers: [...prev.question.answers, ...moreAnswers.content],
+                    },
+                }
+            })
+            
+            setAnswerPage(nextPage)
+            setHasMoreAnswers(!moreAnswers.last)
+        } catch (error) {
+            console.error("Error loading more answers:", error)
+            toast.error("Không thể tải thêm câu trả lời")
+        } finally {
+            setIsLoadingMoreAnswers(false)
         }
     }
 
@@ -1792,6 +1832,29 @@ export default function QuestionDetailPage() {
                                     </article>
                                 )
                             })}
+                            
+                            {/* Load More Button */}
+                            {hasMoreAnswers && (
+                                <div className="flex justify-center pt-4">
+                                    <Button
+                                        variant="outline"
+                                        onClick={handleLoadMoreAnswers}
+                                        disabled={isLoadingMoreAnswers}
+                                        className="gap-2"
+                                    >
+                                        {isLoadingMoreAnswers ? (
+                                            <>
+                                                <Loader2 className="size-4 animate-spin" />
+                                                Đang tải...
+                                            </>
+                                        ) : (
+                                            <>
+                                                Xem thêm câu trả lời
+                                            </>
+                                        )}
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <div className="rounded-lg border border-dashed bg-muted/40 px-4 py-3 text-sm text-muted-foreground">

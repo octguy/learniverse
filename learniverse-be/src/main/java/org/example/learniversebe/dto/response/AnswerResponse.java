@@ -38,6 +38,9 @@ public class AnswerResponse {
     @Schema(description = "Đánh dấu là câu trả lời được chấp nhận")
     private Boolean isAccepted;
 
+    @Schema(description = "Có được hiện hay không (false nếu bị auto-flag)")
+    private Boolean isVisible;
+
     @Schema(description = "Thời gian tạo")
     private LocalDateTime createdAt;
 

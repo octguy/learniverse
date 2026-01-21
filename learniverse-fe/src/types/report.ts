@@ -2,7 +2,8 @@ import { PageResponse } from "./api";
 
 export type ReportType = 'POST' | 'QUESTION' | 'ANSWER' | 'COMMENT';
 export type ReportStatus = 'PENDING' | 'RESOLVED' | 'REJECTED';
-export type ReportReason = 'OTHER' | 'INAPPROPRIATE' | 'HARASSMENT' | 'TOXIC' | 'SPAM' | 'DUPLICATE' | 'OFF_TOPIC' | 'COPYRIGHT';
+export type ReportReason = 'OTHER' | 'INAPPROPRIATE' | 'HARASSMENT' | 'TOXIC' | 'SPAM' | 'DUPLICATE' | 'OFF_TOPIC' | 'COPYRIGHT' | 'SYSTEM_AUTO_FLAG';
+export type ReportActionTaken = 'NONE' | 'CONTENT_DELETED' | 'USER_WARNED' | 'USER_SUSPENDED' | 'USER_BANNED' | 'NO_VIOLATION' | 'CONTENT_RESTORED';
 
 export interface Reporter {
     id: string;

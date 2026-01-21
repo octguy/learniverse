@@ -62,4 +62,20 @@ export const answerService = {
         )
         return unwrap(response.data)
     },
+
+    /**
+     * Get paginated answers for a question (used for infinite scroll)
+     */
+    async getForQuestion(questionId: string, page: number = 0, size: number = 10) {
+        const response = await apiService.get<ApiResponse<{
+            content: QuestionAnswer[]
+            totalElements: number
+            totalPages: number
+            number: number
+            last: boolean
+        }>>(
+            `${BASE_PATH}/question/${questionId}?page=${page}&size=${size}`
+        )
+        return unwrap(response.data)
+    },
 }

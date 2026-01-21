@@ -240,6 +240,7 @@ public class ReportServiceImpl implements IReportService {
             case USER_WARNED -> notifyUserWarning(targetAuthor, report, moderator);
             case USER_SUSPENDED -> suspendUser(targetAuthor, report, moderator);
             case USER_BANNED -> banUser(targetAuthor, report, moderator);
+            case CONTENT_RESTORED -> restoreContent(report, targetAuthor, moderator);
             default -> log.warn("Unknown action: {}", action);
         }
     }
@@ -345,6 +346,41 @@ public class ReportServiceImpl implements IReportService {
                 message,
                 report.getId(),
                 "REPORT");
+    }
+
+    /**
+     * Khôi phục nội dung bị auto-flag (đặt isVisible = true)
+     */
+    private void restoreContent(Report report, User targetAuthor, User moderator) {
+        log.info("Restoring auto-flagged content for report {} - type: {}, id: {}",
+                report.getId(), report.getReportableType(), report.getReportableId());
+
+        String contentType = "";
+
+        switch (report.getReportableType()) {
+            case COMMENT -> {
+                commentRepository.findById(report.getReportableId()).ifPresent(comment -> {
+                    comment.setIsVisible(true);
+                    commentRepository.save(comment);
+                    log.info("Comment {} visibility restored", report.getReportableId());
+                });
+                contentType = "COMMENT";
+            }
+            case ANSWER -> {
+                answerRepository.findById(report.getReportableId()).ifPresent(answer -> {
+                    answer.setIsVisible(true);
+                    answerRepository.save(answer);
+                    log.info("Answer {} visibility restored", report.getReportableId());
+                });
+                contentType = "ANSWER";
+            }
+            default -> log.warn("Content restore not supported for type: {}", report.getReportableType());
+        }
+
+        // Notify the content author that their content has been restored
+        if (targetAuthor != null && !contentType.isEmpty()) {
+            notificationService.notifyContentRestored(targetAuthor, contentType, moderator);
+        }
     }
 
     // ==================== HELPER METHODS ====================

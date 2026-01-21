@@ -50,6 +50,9 @@ public class Answer extends BaseEntity {
     @Column(nullable = false)
     private Boolean isAccepted = false;
 
+    @Column(name = "is_visible", nullable = false)
+    private Boolean isVisible = true;
+
     @OneToOne(mappedBy = "acceptedAnswer")
     private Content acceptedInQuestion;
 
