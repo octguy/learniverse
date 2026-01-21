@@ -67,12 +67,6 @@ public class UserProfileController {
         return service.viewProfile(userId);
     }
 
-    @Operation(summary = "Get user profile by user ID")
-    @GetMapping("/{userId}")
-    public UserProfileResponse getUserProfile(@PathVariable UUID userId) {
-        return service.viewProfile(userId);
-    }
-
     @Operation(summary = "Search user by username or display name (result exclude ADMIN)")
     @GetMapping("/search")
     public ResponseEntity<ApiResponse<PageResponse<UserProfileResponse>>> searchUser(
@@ -83,4 +77,10 @@ public class UserProfileController {
         PageResponse<UserProfileResponse> users = service.searchUserExcludeAdmin(pageable, search);
         return ResponseEntity.ok(new ApiResponse<>(HttpStatus.OK, "Search users fetched successfully", users, null));
     }
+    @Operation(summary = "Get user profile by user ID")
+    @GetMapping("/{userId}")
+    public UserProfileResponse getUserProfile(@PathVariable UUID userId) {
+        return service.viewProfile(userId);
+    }
+
 }

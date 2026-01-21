@@ -411,10 +411,10 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
                 <AvatarFallback>{author.username?.charAt(0)?.toUpperCase()}</AvatarFallback>
               </Avatar>
               <div className="min-w-0 flex-1">
-                <p className="font-semibold text-sm leading-none truncate hover:underline">
+                <p className="font-semibold text-sm leading-normal truncate hover:underline py-1">
                   {author.username}
                 </p>
-                <div className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
+                <div className="text-xs text-muted-foreground flex items-center gap-1">
                   <span>
                     {!isNaN(postDate.getTime()) ? (
                       formatDistanceToNow(postDate, { addSuffix: true, locale: vi })
@@ -782,7 +782,11 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
           </DropdownMenu>
 
           <Dialog open={isSendDialogOpen} onOpenChange={setIsSendDialogOpen}>
-            {isSendDialogOpen && <SendPostDialog post={post} setOpen={setIsSendDialogOpen} />}
+            {isSendDialogOpen && <SendPostDialog 
+              post={post} 
+              setOpen={setIsSendDialogOpen} 
+              onSuccess={() => setShareCount(prev => prev + 1)}
+            />}
           </Dialog>
 
         </div>
