@@ -9,6 +9,8 @@ import org.example.learniversebe.enums.AttachmentType;
 import org.example.learniversebe.enums.ContentType;
 import org.example.learniversebe.enums.ReactableType;
 import org.example.learniversebe.enums.VotableType;
+import org.example.learniversebe.service.AutoFlagContentService;
+import org.example.learniversebe.service.AutoFlagReportService;
 import org.example.learniversebe.exception.BadRequestException;
 import org.example.learniversebe.exception.ResourceNotFoundException;
 import org.example.learniversebe.exception.UnauthorizedException;
@@ -18,6 +20,7 @@ import org.example.learniversebe.repository.*;
 import org.example.learniversebe.service.IAnswerService;
 import org.example.learniversebe.service.IInteractionService;
 import org.example.learniversebe.service.INotificationService;
+import org.example.learniversebe.service.ContentModerationService;
 import org.example.learniversebe.util.ServiceHelper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
@@ -44,6 +47,9 @@ public class AnswerServiceImpl implements IAnswerService {
     private final INotificationService notificationService;
     private final VoteRepository voteRepository;
     private final ReactionRepository reactionRepository;
+    private final ContentModerationService moderationService;
+    private final AutoFlagReportService autoFlagReportService;
+    private final AutoFlagContentService autoFlagContentService;
 
     @Value("${app.answer.edit.limit-minutes:30}")
     private long answerEditLimitMinutes;
@@ -56,7 +62,10 @@ public class AnswerServiceImpl implements IAnswerService {
                              @Lazy IInteractionService interactionService,
                              INotificationService notificationService,
                              VoteRepository voteRepository,
-                             ReactionRepository reactionRepository
+                             ReactionRepository reactionRepository,
+                             ContentModerationService moderationService,
+                             AutoFlagReportService autoFlagReportService,
+                             AutoFlagContentService autoFlagContentService
     ) {
         this.answerRepository = answerRepository;
         this.contentRepository = contentRepository;
@@ -67,6 +76,9 @@ public class AnswerServiceImpl implements IAnswerService {
         this.notificationService = notificationService;
         this.voteRepository = voteRepository;
         this.reactionRepository = reactionRepository;
+        this.moderationService = moderationService;
+        this.autoFlagReportService = autoFlagReportService;
+        this.autoFlagContentService = autoFlagContentService;
     }
 
 
@@ -83,12 +95,31 @@ public class AnswerServiceImpl implements IAnswerService {
             throw new BadRequestException("Cannot add answer to content type: " + question.getContentType());
         }
 
+        // Check content safety using AI moderation
+        boolean isSafe = moderationService.isContentSafe(request.getBody());
+        if (!isSafe) {
+            log.warn("Answer flagged by AI as unsafe. Author: {}", author.getId());
+        }
+
         Answer answer = answerMapper.createAnswerRequestToAnswer(request);
         answer.setAuthor(author);
         answer.setQuestion(question);
+        answer.setIsVisible(isSafe); // Hide if flagged
+
+        // If content is flagged, save hidden answer in its own transaction,
+        // create report, notify moderators, and return error
+        if (!isSafe) {
+            Answer savedAnswer = autoFlagContentService.saveHiddenAnswer(answer);
+            Report report = autoFlagReportService.createForAnswer(savedAnswer);
+            notificationService.notifyModeratorsOfAutoFlag(report.getId(), "ANSWER", savedAnswer.getBody());
+            
+            // Throw exception so user gets error response, not 200 OK
+            throw new BadRequestException("Câu trả lời của bạn đã bị gỡ do vi phạm tiêu chuẩn cộng đồng. Quản trị viên sẽ xem xét và khôi phục nếu đây là nhận diện sai.");
+        }
 
         Answer savedAnswer = answerRepository.save(answer);
-        log.info("Answer created with ID: {} for question ID: {} by user: {}", savedAnswer.getId(), question.getId(), author.getUsername());
+        log.info("Answer created with ID: {} for question ID: {} by user: {}, isVisible: {}", 
+            savedAnswer.getId(), question.getId(), author.getUsername(), isSafe);
 
         question.setAnswerCount(question.getAnswerCount() + 1);
         contentRepository.save(question);
@@ -109,7 +140,7 @@ public class AnswerServiceImpl implements IAnswerService {
             throw new ResourceNotFoundException("Question not found with id: " + questionId);
         }
 
-        Page<Answer> answerPage = answerRepository.findByQuestionIdOrderByIsAcceptedDescVoteScoreDescCreatedAtAsc(questionId, pageable);
+        Page<Answer> answerPage = answerRepository.findByQuestionIdAndIsVisibleTrueOrderByIsAcceptedDescVoteScoreDescCreatedAtAsc(questionId, pageable);
         PageResponse<AnswerResponse> responsePage = answerMapper.answerPageToAnswerPageResponse(answerPage);
 
         // Lấy trạng thái tương tác cho từng answer trong trang hiện tại

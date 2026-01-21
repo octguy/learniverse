@@ -246,29 +246,32 @@ function splitAttachments(attachments: QuestionAttachment[]) {
 }
 
 /**
- * Downloads a file from a cross-origin URL with the correct filename.
- * Fetches the file as a blob and triggers a download with the proper name.
+ * Downloads a file from Cloudinary with the correct filename.
+ * Uses Cloudinary's fl_attachment transformation to force download with custom filename.
  */
-async function downloadFile(url: string, fileName: string) {
-    try {
-        const response = await fetch(url)
-        const blob = await response.blob()
-        const blobUrl = window.URL.createObjectURL(blob)
-        
-        const link = document.createElement("a")
-        link.href = blobUrl
-        link.download = fileName
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-        
-        // Cleanup blob URL
-        window.URL.revokeObjectURL(blobUrl)
-    } catch (error) {
-        console.error("Failed to download file:", error)
-        // Fallback: open in new tab
-        window.open(url, "_blank")
+function downloadFile(url: string, fileName: string) {
+    // For Cloudinary URLs, insert fl_attachment transformation to force download with correct filename
+    // URL format: https://res.cloudinary.com/{cloud}/raw/upload/v{version}/{path}
+    // We need to insert fl_attachment:{filename} after /upload/
+    
+    let downloadUrl = url
+    
+    if (url.includes('res.cloudinary.com') && url.includes('/upload/')) {
+        // Encode the filename for URL (handle special characters)
+        const encodedFileName = encodeURIComponent(fileName.replace(/\.[^.]+$/, '')) // Remove extension for fl_attachment
+        // Insert fl_attachment parameter after /upload/
+        downloadUrl = url.replace('/upload/', `/upload/fl_attachment:${encodedFileName}/`)
     }
+    
+    // Create a temporary link and trigger download
+    const link = document.createElement("a")
+    link.href = downloadUrl
+    link.download = fileName
+    link.target = "_blank"
+    link.rel = "noopener noreferrer"
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
 }
 
 export default function QuestionDetailPage() {
@@ -310,6 +313,10 @@ export default function QuestionDetailPage() {
     // Bookmark popover states
     const [collectionName, setCollectionName] = useState("")
     const [isBookmarkPopoverOpen, setIsBookmarkPopoverOpen] = useState(false)
+    // Answer pagination state for infinite scroll
+    const [answerPage, setAnswerPage] = useState(0)
+    const [hasMoreAnswers, setHasMoreAnswers] = useState(false)
+    const [isLoadingMoreAnswers, setIsLoadingMoreAnswers] = useState(false)
 
     const answerFormRef = useRef<HTMLDivElement | null>(null)
     const answerTextareaRef = useRef<HTMLTextAreaElement | null>(null)
@@ -321,6 +328,8 @@ export default function QuestionDetailPage() {
         let cancelled = false
         const run = async () => {
             setState({ status: "loading", question: null, error: null })
+            setAnswerPage(0)
+            setHasMoreAnswers(false)
             try {
                 const data = await questionService.getBySlug(slug)
                 if (cancelled) return
@@ -339,6 +348,11 @@ export default function QuestionDetailPage() {
                     attachments: data.attachments ?? [],
                     answers: data.answers ?? [],
                 }
+
+                // Check if there are more answers to load (backend returns 10 initially)
+                const loadedCount = normalized.answers.length
+                const totalCount = data.answerCount ?? 0
+                setHasMoreAnswers(loadedCount < totalCount)
 
                 setState({ status: "ready", question: normalized, error: null })
             } catch (error) {
@@ -634,7 +648,7 @@ export default function QuestionDetailPage() {
                 ? error.response?.data?.message ??
                   "Không thể gửi câu trả lời ngay lúc này."
                 : "Không thể gửi câu trả lời ngay lúc này."
-            setAnswerError(message)
+            toast.error(message)
         } finally {
             setIsSubmittingAnswer(false)
         }
@@ -801,6 +815,35 @@ export default function QuestionDetailPage() {
                 const { [answerId]: _removed, ...rest } = prev
                 return rest
             })
+        }
+    }
+
+    const handleLoadMoreAnswers = async () => {
+        if (!state.question || isLoadingMoreAnswers || !hasMoreAnswers) return
+
+        setIsLoadingMoreAnswers(true)
+        try {
+            const nextPage = answerPage + 1
+            const moreAnswers = await answerService.getForQuestion(state.question.id, nextPage, 10)
+            
+            setState((prev) => {
+                if (!prev.question) return prev
+                return {
+                    ...prev,
+                    question: {
+                        ...prev.question,
+                        answers: [...prev.question.answers, ...moreAnswers.content],
+                    },
+                }
+            })
+            
+            setAnswerPage(nextPage)
+            setHasMoreAnswers(!moreAnswers.last)
+        } catch (error) {
+            console.error("Error loading more answers:", error)
+            toast.error("Không thể tải thêm câu trả lời")
+        } finally {
+            setIsLoadingMoreAnswers(false)
         }
     }
 
@@ -1220,33 +1263,17 @@ export default function QuestionDetailPage() {
                                 </p>
                                 <div className="flex flex-wrap gap-3">
                                     {attachments.documents.map((attachment) => (
-                                        <div
+                                        <button
+                                            type="button"
                                             key={attachment.id}
-                                            className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2"
+                                            onClick={() => downloadFile(attachment.storageUrl, attachment.fileName)}
+                                            className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 hover:bg-accent cursor-pointer text-left transition-colors"
                                         >
                                             <FileText className="size-5 text-primary" />
                                             <span className="text-sm font-medium text-foreground max-w-[200px] truncate">
                                                 {attachment.fileName}
                                             </span>
-                                            <div className="flex items-center gap-1 ml-2">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setPdfPreview({ url: attachment.storageUrl, fileName: attachment.fileName })}
-                                                    className="p-1.5 rounded-md hover:bg-primary/10 text-primary transition-colors"
-                                                    title="Xem trước"
-                                                >
-                                                    <Eye className="size-4" />
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => downloadFile(attachment.storageUrl, attachment.fileName)}
-                                                    className="p-1.5 rounded-md hover:bg-primary/10 text-primary transition-colors"
-                                                    title="Tải xuống"
-                                                >
-                                                    <Download className="size-4" />
-                                                </button>
-                                            </div>
-                                        </div>
+                                        </button>
                                     ))}
                                 </div>
                             </div>
@@ -1746,43 +1773,17 @@ export default function QuestionDetailPage() {
                                                         </p>
                                                         <div className="flex flex-wrap gap-2">
                                                             {splitted.documents.map((attachment) => (
-                                                                <div
+                                                                <button
+                                                                    type="button"
                                                                     key={attachment.id}
-                                                                    className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-1.5"
+                                                                    onClick={() => downloadFile(attachment.storageUrl, attachment.fileName)}
+                                                                    className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-1.5 hover:bg-accent cursor-pointer text-left transition-colors"
                                                                 >
                                                                     <FileText className="size-4 text-primary" />
                                                                     <span className="text-xs font-medium max-w-[180px] truncate">
                                                                         {attachment.fileName}
                                                                     </span>
-                                                                    <div className="flex items-center gap-1 ml-1">
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() =>
-                                                                                setPdfPreview({
-                                                                                    url: attachment.storageUrl,
-                                                                                    fileName: attachment.fileName,
-                                                                                })
-                                                                            }
-                                                                            className="p-1 rounded-md hover:bg-primary/10 text-primary transition-colors"
-                                                                            title="Xem trước"
-                                                                        >
-                                                                            <Eye className="size-3.5" />
-                                                                        </button>
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() =>
-                                                                                downloadFile(
-                                                                                    attachment.storageUrl,
-                                                                                    attachment.fileName
-                                                                                )
-                                                                            }
-                                                                            className="p-1 rounded-md hover:bg-primary/10 text-primary transition-colors"
-                                                                            title="Tải xuống"
-                                                                        >
-                                                                            <Download className="size-3.5" />
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
+                                                                </button>
                                                             ))}
                                                         </div>
                                                     </div>
@@ -1792,6 +1793,29 @@ export default function QuestionDetailPage() {
                                     </article>
                                 )
                             })}
+                            
+                            {/* Load More Button */}
+                            {hasMoreAnswers && (
+                                <div className="flex justify-center pt-4">
+                                    <Button
+                                        variant="outline"
+                                        onClick={handleLoadMoreAnswers}
+                                        disabled={isLoadingMoreAnswers}
+                                        className="gap-2"
+                                    >
+                                        {isLoadingMoreAnswers ? (
+                                            <>
+                                                <Loader2 className="size-4 animate-spin" />
+                                                Đang tải...
+                                            </>
+                                        ) : (
+                                            <>
+                                                Xem thêm câu trả lời
+                                            </>
+                                        )}
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <div className="rounded-lg border border-dashed bg-muted/40 px-4 py-3 text-sm text-muted-foreground">

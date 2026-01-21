@@ -79,5 +79,13 @@ public class AnswerController {
         return ResponseEntity.ok(response);
     }
 
-    // Lưu ý: getAnswersForQuestion đã được tích hợp vào getQuestionById.
+    @GetMapping("/question/{questionId}")
+    @Operation(summary = "Get answers for a question", description = "Retrieves a paginated list of answers for a specific question. Used for infinite scroll.")
+    public ResponseEntity<ApiResponse<PageResponse<AnswerResponse>>> getAnswersForQuestion(
+            @PathVariable UUID questionId,
+            @ParameterObject @PageableDefault(size = 10, sort = {"isAccepted", "voteScore"}, direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
+        PageResponse<AnswerResponse> answerPage = answerService.getAnswersForQuestion(questionId, pageable);
+        ApiResponse<PageResponse<AnswerResponse>> response = new ApiResponse<>(HttpStatus.OK, "Answers retrieved successfully", answerPage, null);
+        return ResponseEntity.ok(response);
+    }
 }

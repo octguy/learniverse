@@ -25,7 +25,11 @@ public interface GroupMemberRepository extends JpaRepository<GroupMember, UUID> 
     // Check if user is member and not banned
     boolean existsByGroupIdAndUserIdAndIsBannedFalse(UUID groupId, UUID userId);
 
-    // Get all members of a group
+    // Get all members of a group (excluding banned)
+    @Query("SELECT gm FROM GroupMember gm WHERE gm.group.id = :groupId AND gm.isBanned = false")
+    Page<GroupMember> findActiveByGroupId(@Param("groupId") UUID groupId, Pageable pageable);
+    
+    // Get all members of a group (including banned - for internal use)
     Page<GroupMember> findByGroupId(UUID groupId, Pageable pageable);
 
     // Get all groups for a user (my groups)

@@ -497,6 +497,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                 answer.setQuestion(question);
                 answer.setAuthor(author);
                 answer.setBody(sampleAnswer());
+                answer.setIsVisible(true);
                 answers.add(answer);
                 allAnswers.add(answer);
                 usedAuthors.add(author.getId());
@@ -595,6 +596,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                 comment.setCommentableType(ReactableType.CONTENT);
                 comment.setCommentableId(post.getId());
                 comment.setBody(sampleComment());
+                comment.setIsVisible(true);
                 comments.add(comment);
             }
             post.setCommentCount(COMMENTS_PER_POST);
@@ -695,7 +697,11 @@ public class DemoDataSeeder implements CommandLineRunner {
                 
                 report.setReportableType(reportableType);
                 report.setReportableId(reportableId);
-                report.setReason(ReportReason.values()[random.nextInt(ReportReason.values().length)]);
+                // Exclude SYSTEM_AUTO_FLAG as that's for AI-generated reports only
+                ReportReason[] userReasons = java.util.Arrays.stream(ReportReason.values())
+                        .filter(r -> r != ReportReason.SYSTEM_AUTO_FLAG)
+                        .toArray(ReportReason[]::new);
+                report.setReason(userReasons[random.nextInt(userReasons.length)]);
                 report.setDescription("Báo cáo tự động để kiểm thử");
                 reports.add(report);
                 created++;

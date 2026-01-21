@@ -80,7 +80,7 @@ public class QuestionController {
     @Operation(summary = "Get a single question by ID", description = "Retrieves detailed information for a single question, including a paginated list of answers.")
     public ResponseEntity<ApiResponse<QuestionResponse>> getQuestionById(
             @PathVariable UUID questionId,
-            @ParameterObject @PageableDefault(size = 5, sort = {"isAccepted", "voteScore"}, direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable answerPageable) {
+            @ParameterObject @PageableDefault(size = 10, sort = {"isAccepted", "voteScore"}, direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable answerPageable) {
         QuestionResponse question = questionService.getQuestionById(questionId, answerPageable);
         ApiResponse<QuestionResponse> response = new ApiResponse<>(HttpStatus.OK, "Question retrieved successfully", question, null);
         return ResponseEntity.ok(response);
@@ -90,7 +90,7 @@ public class QuestionController {
     @Operation(summary = "Get a single question by slug", description = "Retrieves a question using its URL-friendly slug, including a paginated list of answers.")
     public ResponseEntity<ApiResponse<QuestionResponse>> getQuestionBySlug(
             @PathVariable String slug,
-            @ParameterObject @PageableDefault(size = 5, sort = {"isAccepted", "voteScore"}, direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable answerPageable) {
+            @ParameterObject @PageableDefault(size = 10, sort = {"isAccepted", "voteScore"}, direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable answerPageable) {
         QuestionResponse question = questionService.getQuestionBySlug(slug, answerPageable);
         ApiResponse<QuestionResponse> response = new ApiResponse<>(HttpStatus.OK, "Question retrieved successfully", question, null);
         return ResponseEntity.ok(response);

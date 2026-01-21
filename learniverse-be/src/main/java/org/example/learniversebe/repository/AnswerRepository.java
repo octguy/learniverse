@@ -14,12 +14,18 @@ import java.util.UUID;
 
 @Repository
 public interface AnswerRepository extends JpaRepository<Answer, UUID> {
-    // Tìm câu trả lời cho một câu hỏi, sắp xếp theo điểm vote hoặc isAccepted trước
-    Page<Answer> findByQuestionIdOrderByIsAcceptedDescVoteScoreDescCreatedAtAsc(UUID questionId, Pageable pageable);
+    // Public query - filter by isVisible = true to hide auto-flagged answers
+    Page<Answer> findByQuestionIdAndIsVisibleTrueOrderByIsAcceptedDescVoteScoreDescCreatedAtAsc(UUID questionId, Pageable pageable);
+    
+    // Internal query (includes hidden answers, for admin use)
+    Page<Answer> findByQuestionId(UUID questionId, Pageable pageable);
 
-    List<Answer> findByAuthorId(UUID authorId);
+    // Author queries - filter by isVisible = true for public access
+    @Query("SELECT a FROM Answer a WHERE a.author.id = :authorId AND a.deletedAt IS NULL AND a.isVisible = TRUE")
+    List<Answer> findByAuthorId(@Param("authorId") UUID authorId);
 
-    Page<Answer> findByAuthorIdOrderByCreatedAtDesc(UUID authorId, Pageable pageable);
+    @Query("SELECT a FROM Answer a WHERE a.author.id = :authorId AND a.deletedAt IS NULL AND a.isVisible = TRUE ORDER BY a.createdAt DESC")
+    Page<Answer> findByAuthorIdOrderByCreatedAtDesc(@Param("authorId") UUID authorId, Pageable pageable);
 
     @Query("SELECT a.id FROM Answer a WHERE a.question.id = :questionId AND a.deletedAt IS NULL")
     List<UUID> findAllIdsByQuestionId(@Param("questionId") UUID questionId);

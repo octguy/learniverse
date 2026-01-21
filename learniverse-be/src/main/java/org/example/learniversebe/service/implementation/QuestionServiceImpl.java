@@ -309,7 +309,7 @@ public class QuestionServiceImpl implements IQuestionService {
         setInteractionStatusForCurrentUser(response, content.getId());
 
         // Lấy danh sách câu trả lời phân trang
-        Page<Answer> answerPage = answerRepository.findByQuestionIdOrderByIsAcceptedDescVoteScoreDescCreatedAtAsc(questionId, answerPageable);
+        Page<Answer> answerPage = answerRepository.findByQuestionIdAndIsVisibleTrueOrderByIsAcceptedDescVoteScoreDescCreatedAtAsc(questionId, answerPageable);
         PageResponse<AnswerResponse> answerPageResponse = answerMapper.answerPageToAnswerPageResponse(answerPage);
         // Gán vào response (hoặc client tự gọi API lấy answer riêng)
         response.setAnswers(answerPageResponse.getContent()); // Chỉ gán content của trang answer vào response chính
@@ -333,7 +333,7 @@ public class QuestionServiceImpl implements IQuestionService {
         setInteractionStatusForCurrentUser(response, content.getId());
 
         // Lấy danh sách câu trả lời phân trang
-        Page<Answer> answerPage = answerRepository.findByQuestionIdOrderByIsAcceptedDescVoteScoreDescCreatedAtAsc(content.getId(), answerPageable);
+        Page<Answer> answerPage = answerRepository.findByQuestionIdAndIsVisibleTrueOrderByIsAcceptedDescVoteScoreDescCreatedAtAsc(content.getId(), answerPageable);
         PageResponse<AnswerResponse> answerPageResponse = answerMapper.answerPageToAnswerPageResponse(answerPage);
         // Set interaction status for each answer
         UUID currentUserId = serviceHelper.getCurrentUserId();
