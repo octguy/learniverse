@@ -89,4 +89,10 @@ public interface UserRepository extends JpaRepository<User, UUID> {
      */
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.roleUsers ru LEFT JOIN FETCH ru.role WHERE u.id = :userId")
     Optional<User> findByIdWithRoles(@Param("userId") UUID userId);
+
+    /**
+     * Find all users with ADMIN or MODERATOR roles for auto-flag notifications
+     */
+    @Query("SELECT DISTINCT u FROM User u JOIN u.roleUsers ru JOIN ru.role r WHERE r.name IN ('ROLE_ADMIN', 'ROLE_MODERATOR') AND u.deletedAt IS NULL")
+    List<User> findAllModeratorsAndAdmins();
 }

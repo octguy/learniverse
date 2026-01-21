@@ -38,7 +38,13 @@ export default function GroupsPage() {
     const [activeTab, setActiveTab] = useState<"discover" | "my">("discover")
     const [groups, setGroups] = useState<GroupSummary[]>([])
     const [isLoading, setIsLoading] = useState(true)
+    const [isLoadingMore, setIsLoadingMore] = useState(false)
     const [searchQuery, setSearchQuery] = useState("")
+    
+    // Pagination state
+    const [page, setPage] = useState(0)
+    const [hasMore, setHasMore] = useState(true)
+    const PAGE_SIZE = 12
 
     // Create group dialog
     const [isCreateOpen, setIsCreateOpen] = useState(false)
@@ -56,28 +62,53 @@ export default function GroupsPage() {
     })
 
     useEffect(() => {
-        loadGroups()
+        // Reset pagination when tab changes
+        setPage(0)
+        setGroups([])
+        setHasMore(true)
+        loadGroups(0, false)
     }, [activeTab, isAuthenticated])
 
     useEffect(() => {
         loadTags()
     }, [])
 
-    const loadGroups = async () => {
-        setIsLoading(true)
+    const loadGroups = async (pageNum: number = 0, append: boolean = false) => {
+        if (append) {
+            setIsLoadingMore(true)
+        } else {
+            setIsLoading(true)
+        }
         try {
+            let response
             if (activeTab === "my" && isAuthenticated) {
-                const response = await groupService.getMyGroups()
-                setGroups(response.content || [])
+                response = await groupService.getMyGroups({ page: pageNum, size: PAGE_SIZE })
             } else {
-                const response = await groupService.getPublicGroups({ query: searchQuery })
-                setGroups(response.content || [])
+                response = await groupService.getPublicGroups({ query: searchQuery, page: pageNum, size: PAGE_SIZE })
+            }
+            
+            const newGroups = response.content || []
+            setHasMore(!response.last)
+            
+            if (append) {
+                setGroups(prev => [...prev, ...newGroups])
+            } else {
+                setGroups(newGroups)
             }
         } catch (error) {
             console.error("Failed to load groups:", error)
             toast.error("Không thể tải danh sách nhóm")
         } finally {
             setIsLoading(false)
+            setIsLoadingMore(false)
+        }
+    }
+
+    const loadMore = () => {
+        if (!isLoadingMore && hasMore) {
+            const nextPage = page + 1
+            setPage(nextPage)
+            loadGroups(nextPage, true)
         }
     }
 
@@ -91,7 +122,10 @@ export default function GroupsPage() {
     }
 
     const handleSearch = () => {
-        loadGroups()
+        setPage(0)
+        setGroups([])
+        setHasMore(true)
+        loadGroups(0, false)
     }
 
     const handleCreateGroup = async () => {
@@ -389,6 +423,9 @@ export default function GroupsPage() {
                     <GroupList
                         groups={groups}
                         isLoading={isLoading}
+                        isLoadingMore={isLoadingMore}
+                        hasMore={hasMore}
+                        onLoadMore={loadMore}
                         onJoin={handleJoinGroup}
                         isAuthenticated={isAuthenticated}
                     />
@@ -398,6 +435,9 @@ export default function GroupsPage() {
                     <GroupList
                         groups={groups}
                         isLoading={isLoading}
+                        isLoadingMore={isLoadingMore}
+                        hasMore={hasMore}
+                        onLoadMore={loadMore}
                         onJoin={handleJoinGroup}
                         isAuthenticated={isAuthenticated}
                         showMyGroups
@@ -412,12 +452,18 @@ export default function GroupsPage() {
 function GroupList({
     groups,
     isLoading,
+    isLoadingMore = false,
+    hasMore = false,
+    onLoadMore,
     onJoin,
     isAuthenticated,
     showMyGroups = false,
 }: {
     groups: GroupSummary[]
     isLoading: boolean
+    isLoadingMore?: boolean
+    hasMore?: boolean
+    onLoadMore?: () => void
     onJoin: (groupId: string) => void
     isAuthenticated: boolean
     showMyGroups?: boolean
@@ -447,70 +493,93 @@ function GroupList({
     }
 
     return (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {groups.map((group) => (
-                <Card key={group.id} className="overflow-hidden transition-shadow hover:shadow-md bg-transparent border">
-                    <CardContent className="py-0 px-4 flex h-full flex-col gap-2">
-                        <div className="flex items-start gap-3">
-                            <Avatar className="size-12">
-                                <AvatarImage src={group.avatarUrl || undefined} />
-                                <AvatarFallback>
-                                    {group.name.charAt(0).toUpperCase()}
-                                </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 space-y-1">
-                                <Link href={`/groups/${group.slug}`}>
-                                    <CardTitle className="line-clamp-1 text-lg hover:text-primary">
-                                        {group.name}
-                                    </CardTitle>
-                                </Link>
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <Users className="size-3" />
-                                    <span>{group.memberCount} thành viên</span>
+        <div className="space-y-6">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {groups.map((group) => (
+                    <Card key={group.id} className="overflow-hidden transition-shadow hover:shadow-md bg-transparent border">
+                        <CardContent className="py-0 px-4 flex h-full flex-col gap-2">
+                            <div className="flex items-start gap-3">
+                                <Avatar className="size-12">
+                                    <AvatarImage src={group.avatarUrl || undefined} />
+                                    <AvatarFallback>
+                                        {group.name.charAt(0).toUpperCase()}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1 space-y-1">
+                                    <Link href={`/groups/${group.slug}`}>
+                                        <CardTitle className="line-clamp-1 text-lg hover:text-primary">
+                                            {group.name}
+                                        </CardTitle>
+                                    </Link>
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                        <Users className="size-3" />
+                                        <span>{group.memberCount} thành viên</span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        {group.description && (
-                            <CardDescription className="line-clamp-2">
-                                {group.description}
-                            </CardDescription>
-                        )}
-
-                        {group.tags && group.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mb-2">
-                                {group.tags.map((tag) => (
-                                    <Badge key={tag.id} variant="secondary" className="text-xs">
-                                        {tag.name}
-                                    </Badge>
-                                ))}
-                            </div>
-                        )}
-
-                        <div className="mt-auto">
-                            {group.isMember ? (
-                                <Button variant="outline" className="w-full" asChild>
-                                    <Link href={`/groups/${group.slug}`}>
-                                        Đã tham gia
-                                    </Link>
-                                </Button>
-                            ) : group.hasPendingRequest ? (
-                                <Button variant="outline" className="w-full" disabled>
-                                    Đã gửi yêu cầu
-                                </Button>
-                            ) : (
-                                <Button
-                                    className="w-full"
-                                    onClick={() => onJoin(group.id)}
-                                    disabled={!isAuthenticated}
-                                >
-                                    Tham gia
-                                </Button>
+                            {group.description && (
+                                <CardDescription className="line-clamp-2">
+                                    {group.description}
+                                </CardDescription>
                             )}
-                        </div>
-                    </CardContent>
-                </Card>
-            ))}
+
+                            {group.tags && group.tags.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mb-2">
+                                    {group.tags.map((tag) => (
+                                        <Badge key={tag.id} variant="secondary" className="text-xs">
+                                            {tag.name}
+                                        </Badge>
+                                    ))}
+                                </div>
+                            )}
+
+                            <div className="mt-auto">
+                                {group.isMember ? (
+                                    <Button variant="outline" className="w-full" asChild>
+                                        <Link href={`/groups/${group.slug}`}>
+                                            Đã tham gia
+                                        </Link>
+                                    </Button>
+                                ) : group.hasPendingRequest ? (
+                                    <Button variant="outline" className="w-full" disabled>
+                                        Đã gửi yêu cầu
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        className="w-full"
+                                        onClick={() => onJoin(group.id)}
+                                        disabled={!isAuthenticated}
+                                    >
+                                        Tham gia
+                                    </Button>
+                                )}
+                            </div>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+            
+            {/* Load More Button */}
+            {hasMore && onLoadMore && (
+                <div className="flex justify-center pt-4">
+                    <Button 
+                        variant="outline" 
+                        onClick={onLoadMore} 
+                        disabled={isLoadingMore}
+                        className="min-w-[200px]"
+                    >
+                        {isLoadingMore ? (
+                            <>
+                                <Loader2 className="mr-2 size-4 animate-spin" />
+                                Đang tải...
+                            </>
+                        ) : (
+                            "Xem thêm"
+                        )}
+                    </Button>
+                </div>
+            )}
         </div>
     )
 }

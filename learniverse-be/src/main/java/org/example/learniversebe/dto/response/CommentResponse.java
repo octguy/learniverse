@@ -1,6 +1,7 @@
 package org.example.learniversebe.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.persistence.Column;
 import lombok.Builder;
 import lombok.Data;
 import org.example.learniversebe.enums.CommentableType;
@@ -40,6 +41,9 @@ public class CommentResponse {
 
     @Schema(description = "Số lượt reaction")
     private Integer reactionCount;
+
+    @Schema(description = "Có được hiện hay không")
+    private Boolean isVisible = true;
 
     @Schema(description = "Đã bị chỉnh sửa hay chưa")
     private Boolean isEdited;

@@ -11,5 +11,6 @@ public enum ReportReason {
     OFF_TOPIC,      // Không liên quan (off-topic)
     DUPLICATE,      // Trùng lặp
     TOXIC,          // Độc hại (toxic)
-    OTHER           // Khác
+    OTHER,          // Khác
+    SYSTEM_AUTO_FLAG
 }

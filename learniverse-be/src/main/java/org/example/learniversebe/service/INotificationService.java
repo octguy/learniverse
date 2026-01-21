@@ -64,4 +64,20 @@ public interface INotificationService {
     long getUnreadNotificationCount();
     void markAllAsRead();
     NotificationResponse markAsRead(UUID notificationId);
+
+    /**
+     * Notifies all moderators and admins when content is auto-flagged by AI moderation.
+     * @param reportId The ID of the auto-generated report.
+     * @param contentType The type of content (COMMENT or ANSWER).
+     * @param contentPreview A preview of the flagged content.
+     */
+    void notifyModeratorsOfAutoFlag(UUID reportId, String contentType, String contentPreview);
+
+    /**
+     * Notifies the content author when their auto-flagged content is restored.
+     * @param contentAuthor The author of the restored content.
+     * @param contentType The type of content (COMMENT or ANSWER).
+     * @param moderator The moderator who restored the content.
+     */
+    void notifyContentRestored(User contentAuthor, String contentType, User moderator);
 }

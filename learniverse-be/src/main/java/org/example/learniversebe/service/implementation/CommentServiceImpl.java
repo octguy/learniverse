@@ -7,12 +7,16 @@ import org.example.learniversebe.dto.response.CommentResponse;
 import org.example.learniversebe.dto.response.PageResponse;
 import org.example.learniversebe.enums.ReactableType;
 import org.example.learniversebe.enums.ReactionType;
+import org.example.learniversebe.enums.ReportReason;
+import org.example.learniversebe.enums.ReportStatus;
 import org.example.learniversebe.exception.BadRequestException;
 import org.example.learniversebe.exception.ResourceNotFoundException;
 import org.example.learniversebe.exception.UnauthorizedException;
 import org.example.learniversebe.mapper.CommentMapper;
 import org.example.learniversebe.model.*;
 import org.example.learniversebe.repository.*;
+import org.example.learniversebe.service.AutoFlagContentService;
+import org.example.learniversebe.service.AutoFlagReportService;
 import org.example.learniversebe.service.ContentModerationService;
 import org.example.learniversebe.service.ContentVisibilityService;
 import org.example.learniversebe.service.ICommentService;
@@ -44,6 +48,9 @@ public class CommentServiceImpl implements ICommentService {
 //    private final IInteractionService interactionService; // Inject InteractionService
      private final INotificationService notificationService;
     private final ContentVisibilityService visibilityService;
+    private final ReportRepository reportRepository;
+    private final AutoFlagReportService autoFlagReportService;
+    private final AutoFlagContentService autoFlagContentService;
 
     @Value("${app.comment.edit.limit-minutes:15}") // Giới hạn sửa comment, ví dụ 15 phút
     private long commentEditLimitMinutes;
@@ -61,8 +68,11 @@ public class CommentServiceImpl implements ICommentService {
                               ReactionRepository reactionRepository,
                               ContentModerationService moderationService,
                               INotificationService notificationService,
-                              ContentVisibilityService visibilityService
-        ) {
+                              ContentVisibilityService visibilityService, 
+                              ReportRepository reportRepository,
+                              AutoFlagReportService autoFlagReportService,
+                              AutoFlagContentService autoFlagContentService
+    ) {
         this.commentRepository = commentRepository;
         this.contentRepository = contentRepository;
         this.answerRepository = answerRepository;
@@ -74,6 +84,9 @@ public class CommentServiceImpl implements ICommentService {
         this.moderationService = moderationService;
         this.notificationService = notificationService;
         this.visibilityService = visibilityService;
+        this.reportRepository = reportRepository;
+        this.autoFlagReportService = autoFlagReportService;
+        this.autoFlagContentService = autoFlagContentService;
     }
 
     @Override
@@ -81,9 +94,9 @@ public class CommentServiceImpl implements ICommentService {
     public CommentResponse addComment(CreateCommentRequest request) {
         log.info("Adding comment to {} with ID: {}", request.getCommentableType(), request.getCommentableId());
         User author = serviceHelper.getCurrentUser();
-        if (!moderationService.isContentSafe(request.getBody())) {
-            log.info(request.getBody());
-            throw new BadRequestException("Bình luận của bạn chứa ngôn từ không phù hợp hoặc vi phạm tiêu chuẩn cộng đồng.");
+        boolean isSafe = moderationService.isContentSafe(request.getBody());
+        if (!isSafe) {
+            log.warn("Comment flagged by AI as unsafe. Author: {}", author.getId());
         }
 
         Comment parentComment = null;
@@ -110,7 +123,20 @@ public class CommentServiceImpl implements ICommentService {
         Comment comment = commentMapper.createCommentRequestToComment(request);
         comment.setAuthor(author);
         comment.setParent(parentComment);
+        comment.setIsVisible(isSafe);
         // @PrePersist sẽ set ID và timestamps
+
+        // If content is flagged, save it hidden in its own transaction,
+        // create report, notify moderators, and return error
+        if (!isSafe) {
+            Comment savedComment = autoFlagContentService.saveHiddenComment(comment);
+            Report report = autoFlagReportService.createForComment(savedComment);
+            // Notify moderators about the auto-flagged content
+            notificationService.notifyModeratorsOfAutoFlag(report.getId(), "COMMENT", savedComment.getBody());
+
+            // Throw exception so user gets error response, not 200 OK
+            throw new BadRequestException("Bình luận của bạn đã bị gỡ do vi phạm tiêu chuẩn cộng đồng. Quản trị viên sẽ xem xét và khôi phục nếu đây là nhận diện sai.");
+        }
 
         // 3. Lưu Comment
         Comment savedComment = commentRepository.save(comment);
@@ -314,45 +340,47 @@ public class CommentServiceImpl implements ICommentService {
     /** Cập nhật comment count trên Content hoặc Answer */
     private void updateCommentableCommentCount(ReactableType type, UUID id, int delta) {
         switch (type) {
-            case CONTENT:
-                contentRepository.findById(id).ifPresent(c -> {
-                    c.setCommentCount(Math.max(0, c.getCommentCount() + delta));
-                    contentRepository.save(c);
-                });
-                break;
-            case ANSWER:
-                // Answer entity hiện chưa có commentCount, nếu cần thì thêm vào
-                break;
-            case COMMENT:
-                // Không làm gì khi comment vào COMMENT
-                break;
+            case CONTENT -> contentRepository.findById(id).ifPresent(c -> {
+                c.setCommentCount(Math.max(0, c.getCommentCount() + delta));
+                contentRepository.save(c);
+            });
+            case ANSWER, COMMENT -> {
+                // No-op for now (Answer/Comment doesn't store commentCount)
+            }
         }
     }
 
     /** Xử lý tạo Mention entities */
     private void processMentions(Comment comment, User mentioner, Set<UUID> mentionedUserIds) {
-        if (mentionedUserIds != null && !mentionedUserIds.isEmpty()) {
-            List<User> mentionedUsers = userRepository.findAllById(mentionedUserIds);
-            Set<Mention> mentions = new HashSet<>();
-            LocalDateTime now = LocalDateTime.now();
-            for (User mentionedUser : mentionedUsers) {
-                // Không tự mention chính mình
-                if (!mentionedUser.getId().equals(mentioner.getId())) {
-                    Mention mention = new Mention();
-                    mention.setComment(comment);
-                    mention.setMentionedUser(mentionedUser);
-                    mention.setMentionedBy(mentioner);
-                    mention.setCreatedAt(now);
-                    mention.setUpdatedAt(now);
-                    mentions.add(mention);
+        if (mentionedUserIds == null || mentionedUserIds.isEmpty()) {
+            return;
+        }
 
-                    // TODO: Gửi notification cho mentionedUser
-                    // notificationService.notifyMention(...)
-                }
-            }
-            if (!mentions.isEmpty()) {
-                mentionRepository.saveAll(mentions);
-            }
+        List<User> mentionedUsers = userRepository.findAllById(mentionedUserIds);
+        if (mentionedUsers.isEmpty()) {
+            return;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        List<Mention> mentions = new ArrayList<>();
+        Set<User> notifyUsers = new HashSet<>();
+
+        for (User mentionedUser : mentionedUsers) {
+            if (mentionedUser.getId().equals(mentioner.getId())) continue;
+
+            Mention mention = new Mention();
+            mention.setComment(comment);
+            mention.setMentionedUser(mentionedUser);
+            mention.setMentionedBy(mentioner);
+            mention.setCreatedAt(now);
+            mention.setUpdatedAt(now);
+            mentions.add(mention);
+            notifyUsers.add(mentionedUser);
+        }
+
+        if (!mentions.isEmpty()) {
+            mentionRepository.saveAll(mentions);
+            notificationService.notifyMentionedUsers(notifyUsers, mentioner, comment);
         }
     }
 
@@ -424,4 +452,5 @@ public class CommentServiceImpl implements ICommentService {
             case COMMENT -> null; // Không cần xử lý vì đã có parentComment
         };
     }
+
 }

@@ -17,9 +17,7 @@ import java.util.UUID;
  * Hỗ trợ báo cáo cho: POST, QUESTION, ANSWER, COMMENT
  */
 @Entity
-@Table(name = "reports", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"reporter_id", "reportable_type", "reportable_id"})
-})
+@Table(name = "reports")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -30,10 +28,10 @@ public class Report extends BaseEntity {
     private UUID id;
 
     /**
-     * Người báo cáo
+     * Người báo cáo (null nếu là báo cáo tự động từ hệ thống)
      */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "reporter_id", nullable = false)
+    @JoinColumn(name = "reporter_id", nullable = true)
     private User reporter;
 
     /**

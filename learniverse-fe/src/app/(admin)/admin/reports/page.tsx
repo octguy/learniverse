@@ -271,16 +271,23 @@ export default function ReportsPage() {
                                 reports.map((report) => (
                                     <TableRow key={report.id}>
                                         <TableCell>
-                                            <Badge variant="outline">{report.reportableType}</Badge>
+                                            <Badge variant="outline">
+                                                {report.reportableType}
+                                                {report.reason === 'SYSTEM_AUTO_FLAG' && (
+                                                    <span className="ml-1 text-orange-500">🤖</span>
+                                                )}
+                                            </Badge>
                                         </TableCell>
                                         <TableCell className="font-medium max-w-[200px] truncate" title={report.description}>
-                                            <div>{report.reason}</div>
+                                            <div className={report.reason === 'SYSTEM_AUTO_FLAG' ? 'text-orange-600 font-semibold' : ''}>
+                                                {report.reason === 'SYSTEM_AUTO_FLAG' ? 'AI Auto-Flag' : report.reason}
+                                            </div>
                                             <div className="text-xs text-muted-foreground truncate">{report.description}</div>
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex flex-col">
-                                                <span>{report.reporter?.username || "Unknown"}</span>
-                                                <span className="text-xs text-muted-foreground">ID: {report.reporter?.id.substring(0, 8)}...</span>
+                                                <span>{report.reporter?.username || (report.reason === 'SYSTEM_AUTO_FLAG' ? 'Hệ thống AI' : 'Unknown')}</span>
+                                                {report.reporter?.id && <span className="text-xs text-muted-foreground">ID: {report.reporter.id.substring(0, 8)}...</span>}
                                             </div>
                                         </TableCell>
                                         <TableCell>{formatDate(report.createdAt)}</TableCell>
@@ -345,10 +352,26 @@ export default function ReportsPage() {
 
                     {selectedReport && (
                         <div className="grid gap-6 py-4">
+                            {/* Auto-flag warning banner */}
+                            {selectedReport.reason === 'SYSTEM_AUTO_FLAG' && (
+                                <div className="flex items-center gap-3 p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+                                    <span className="text-2xl">🤖</span>
+                                    <div>
+                                        <div className="font-semibold text-orange-700 dark:text-orange-400">Báo cáo tự động bởi AI</div>
+                                        <div className="text-sm text-orange-600 dark:text-orange-500">
+                                            Nội dung này đã bị ẩn tự động do hệ thống AI phát hiện có thể vi phạm. 
+                                            Vui lòng xem xét và chọn &quot;Khôi phục nội dung&quot; nếu đây là nhận diện sai.
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-muted/20 rounded-lg">
                                 <div className="space-y-1">
                                     <Label className="text-muted-foreground text-xs uppercase">Người báo cáo</Label>
-                                    <div className="font-medium">{selectedReport.reporter?.username}</div>
+                                    <div className="font-medium">
+                                        {selectedReport.reporter?.username || (selectedReport.reason === 'SYSTEM_AUTO_FLAG' ? '🤖 Hệ thống AI' : 'Unknown')}
+                                    </div>
                                 </div>
                                 <div className="space-y-1">
                                     <Label className="text-muted-foreground text-xs uppercase">Loại nội dung</Label>
@@ -356,7 +379,9 @@ export default function ReportsPage() {
                                 </div>
                                 <div className="space-y-1">
                                     <Label className="text-muted-foreground text-xs uppercase">Lý do</Label>
-                                    <div className="font-medium text-red-600">{selectedReport.reason}</div>
+                                    <div className={`font-medium ${selectedReport.reason === 'SYSTEM_AUTO_FLAG' ? 'text-orange-600' : 'text-red-600'}`}>
+                                        {selectedReport.reason === 'SYSTEM_AUTO_FLAG' ? 'AI Auto-Flag' : selectedReport.reason}
+                                    </div>
                                 </div>
                                 <div className="space-y-1">
                                     <Label className="text-muted-foreground text-xs uppercase">Trạng thái</Label>
@@ -479,6 +504,11 @@ export default function ReportsPage() {
                                                     </SelectTrigger>
                                                     <SelectContent>
                                                         <SelectItem value="NONE">Không hành động (Chỉ giải quyết)</SelectItem>
+                                                        {selectedReport.reason === 'SYSTEM_AUTO_FLAG' && (
+                                                            <SelectItem value="CONTENT_RESTORED" className="text-green-600">
+                                                                ✅ Khôi phục nội dung (AI nhận diện sai)
+                                                            </SelectItem>
+                                                        )}
                                                         <SelectItem value="USER_WARNED">Cảnh báo người dùng (Gửi thông báo)</SelectItem>
                                                         <SelectItem value="CONTENT_DELETED">Xóa nội dung vi phạm</SelectItem>
                                                         <SelectItem value="USER_SUSPENDED">Tạm khóa tài khoản</SelectItem>
@@ -486,7 +516,9 @@ export default function ReportsPage() {
                                                     </SelectContent>
                                                 </Select>
                                                 <p className="text-xs text-muted-foreground p-1">
-                                                    * Hành động này sẽ được áp dụng ngay lập tức khi bạn xác nhận.
+                                                    {selectedReport.reason === 'SYSTEM_AUTO_FLAG' 
+                                                        ? '* Báo cáo này được tạo tự động bởi AI. Chọn "Khôi phục nội dung" nếu nội dung không vi phạm.'
+                                                        : '* Hành động này sẽ được áp dụng ngay lập tức khi bạn xác nhận.'}
                                                 </p>
                                             </div>
 

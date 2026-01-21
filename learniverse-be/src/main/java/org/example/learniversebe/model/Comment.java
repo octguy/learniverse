@@ -57,6 +57,9 @@ public class Comment extends BaseEntity {
     @Column(nullable = false)
     private Integer reactionCount = 0;
 
+    @Column(name = "is_visible", nullable = false)
+    private Boolean isVisible = true;
+
     @Column(nullable = false)
     private Boolean isEdited = false;
 

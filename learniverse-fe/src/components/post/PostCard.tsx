@@ -107,6 +107,35 @@ const REACTIONS_CONFIG = [
   },
 ]
 
+/**
+ * Downloads a file from Cloudinary with the correct filename.
+ * Uses Cloudinary's fl_attachment transformation to force download with custom filename.
+ */
+function downloadFile(url: string, fileName: string) {
+  // For Cloudinary URLs, insert fl_attachment transformation to force download with correct filename
+  // URL format: https://res.cloudinary.com/{cloud}/raw/upload/v{version}/{path}
+  // We need to insert fl_attachment:{filename} after /upload/
+  
+  let downloadUrl = url
+  
+  if (url.includes('res.cloudinary.com') && url.includes('/upload/')) {
+    // Encode the filename for URL (handle special characters)
+    const encodedFileName = encodeURIComponent(fileName.replace(/\.[^.]+$/, '')) // Remove extension for fl_attachment
+    // Insert fl_attachment parameter after /upload/
+    downloadUrl = url.replace('/upload/', `/upload/fl_attachment:${encodedFileName}/`)
+  }
+  
+  // Create a temporary link and trigger download
+  const link = document.createElement("a")
+  link.href = downloadUrl
+  link.download = fileName
+  link.target = "_blank"
+  link.rel = "noopener noreferrer"
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
 interface PostCardProps {
   post: Post
   onDelete?: (postId: string) => void
@@ -634,16 +663,18 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
             {displayOriginalPost.attachments && displayOriginalPost.attachments.filter(att => att.fileType === "PDF").length > 0 && (
               <div className="mt-2 flex flex-col gap-1">
                 {displayOriginalPost.attachments.filter(att => att.fileType === "PDF").map((pdf, index) => (
-                  <a
+                  <button
+                    type="button"
                     key={index}
-                    href={pdf.storageUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 rounded-md border p-2 text-xs text-blue-600 hover:bg-accent bg-background"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      downloadFile(pdf.storageUrl, pdf.fileName);
+                    }}
+                    className="flex items-center gap-2 rounded-md border p-2 text-xs text-blue-600 hover:bg-accent bg-background cursor-pointer text-left"
                   >
                     <FileText className="h-4 w-4" />
                     <span className="truncate">{pdf.fileName}</span>
-                  </a>
+                  </button>
                 ))}
               </div>
             )}
@@ -672,16 +703,15 @@ export function PostCard({ post, onDelete, initialCollectionName, showGroupName 
         {pdfs.length > 0 && (
           <div className="mt-4 flex flex-col gap-2">
             {pdfs.map((pdf) => (
-              <a
+              <button
+                type="button"
                 key={pdf.id}
-                href={pdf.storageUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 rounded-md border p-2 text-sm text-blue-600 hover:bg-accent"
+                onClick={() => downloadFile(pdf.storageUrl, pdf.fileName)}
+                className="flex items-center gap-2 rounded-md border p-2 text-sm text-blue-600 hover:bg-accent cursor-pointer text-left"
               >
                 <FileText className="h-5 w-5 flex-shrink-0" />
                 <span className="truncate">{pdf.fileName}</span>
-              </a>
+              </button>
             ))}
           </div>
         )}
