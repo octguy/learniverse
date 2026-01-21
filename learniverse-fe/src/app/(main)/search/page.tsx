@@ -30,6 +30,10 @@ function SearchContent() {
     const [loadingQuestions, setLoadingQuestions] = useState(false)
     const [loadingFriends, setLoadingFriends] = useState(false)
 
+    const [friendsPage, setFriendsPage] = useState(0)
+    const [hasMoreFriends, setHasMoreFriends] = useState(false)
+    const [loadingMoreFriends, setLoadingMoreFriends] = useState(false)
+
     useEffect(() => {
         if (!query) return
 
@@ -64,14 +68,14 @@ function SearchContent() {
             try {
                 const res = await userProfileService.search(query, 0, 20)
                 // @ts-ignore
-                const data = (res.data || res) as PageResponse<any>
-                const results = data.content || (data as any).data?.content || []
+                const data = (res.data && res.data.data) ? res.data.data : (res.data || res) as PageResponse<any>
+                const results = data.content || (data as any).content || []
 
                 // @ts-ignore
-                const uniqueResults = Array.from(new Map(results.map((item: any) => [item.id, item])).values());
-
+                setFriends(results)
+                setFriendsPage(0)
                 // @ts-ignore
-                setFriends(uniqueResults)
+                setHasMoreFriends(!data.last)
             } catch (error) {
                 console.error("Error searching friends:", error)
             } finally {
@@ -83,6 +87,28 @@ function SearchContent() {
         fetchQuestions()
         fetchFriends()
     }, [query])
+
+    const loadMoreFriends = async () => {
+        if (loadingMoreFriends || !hasMoreFriends) return
+        setLoadingMoreFriends(true)
+        const nextPage = friendsPage + 1
+        try {
+            const res = await userProfileService.search(query, nextPage, 20)
+            // @ts-ignore
+            const data = (res.data && res.data.data) ? res.data.data : (res.data || res) as PageResponse<any>
+            const results = data.content || (data as any).content || []
+
+            // @ts-ignore
+            setFriends(prev => [...prev, ...results])
+            setFriendsPage(nextPage)
+            // @ts-ignore
+            setHasMoreFriends(!data.last)
+        } catch (error) {
+            console.error("Error loading more friends:", error)
+        } finally {
+            setLoadingMoreFriends(false)
+        }
+    }
 
     if (!query) {
         return <div className="p-8 text-center text-gray-500">Vui lòng nhập từ khóa để tìm kiếm.</div>
@@ -145,6 +171,24 @@ function SearchContent() {
                                     </Button>
                                 </div>
                             ))}
+                            {(hasMoreFriends || loadingMoreFriends) && (
+                                <div className="flex justify-center pt-4">
+                                    <Button
+                                        variant="outline"
+                                        onClick={loadMoreFriends}
+                                        disabled={loadingMoreFriends}
+                                    >
+                                        {loadingMoreFriends ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                Đang tải...
+                                            </>
+                                        ) : (
+                                            "Xem thêm"
+                                        )}
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <div className="text-center p-8 text-gray-500">Không tìm thấy người dùng nào.</div>
