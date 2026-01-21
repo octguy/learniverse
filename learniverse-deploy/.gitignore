@@ -1,0 +1,5 @@
+.terraform
+*.tfplan
+*.tfvars
+certs/*
+!certs/.gitkeep
