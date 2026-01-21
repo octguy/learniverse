@@ -355,18 +355,18 @@ export default function CreatePostModalContent({
                     </div>
                     <div className="space-y-1.5">
                         <Label htmlFor="post-title" className="font-semibold">
-                            Title
+                            Tiêu đề
                         </Label>
                         <Input
                             id="post-title"
-                            placeholder="Summarize your post's topic."
+                            placeholder="Tóm tắt chủ đề bài viết của bạn"
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
                         />
                     </div>
                     <div className="space-y-1.5">
                         <Label htmlFor="post-content" className="font-semibold">
-                            Detail
+                            Nội dung
                         </Label>
                         <div className="border rounded-md">
                             <div className="flex items-center gap-1 p-1 border-b bg-gray-50 rounded-t-md flex-wrap">
@@ -384,7 +384,7 @@ export default function CreatePostModalContent({
                             <Textarea
                                 ref={textareaRef}
                                 id="post-content"
-                                placeholder="Share your in-depth knowledge and include images or LaTeX formulas."
+                                placeholder="Chia sẻ kiến thức của bạn, có thể bao gồm hình ảnh hoặc công thức LaTeX."
                                 className="min-h-[150px] w-full max-w-full border-none rounded-t-none px-2 shadow-none focus-visible:ring-0 resize-y whitespace-pre-wrap break-all"
                                 value={content}
                                 onChange={(e) => setContent(e.target.value)}
@@ -393,7 +393,7 @@ export default function CreatePostModalContent({
                     </div>
                     <div className="space-y-1.5">
                         <Label htmlFor="post-tags" className="font-semibold">
-                            Tags
+                            Thẻ (Tags)
                         </Label>
                         <TagMultiSelect
                             options={availableTags}

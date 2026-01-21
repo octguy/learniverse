@@ -95,7 +95,7 @@ export function NotificationBell() {
                             </span>
                         )}
                     </div>
-                    <span className="text-xs">Notifications</span>
+                    <span className="text-xs">Thông báo</span>
                 </div>
             </PopoverTrigger>
             <PopoverContent className="w-96 p-0 h-[450px] flex flex-col" align="end">
