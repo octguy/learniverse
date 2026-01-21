@@ -2,11 +2,14 @@ package org.example.learniversebe.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
+import org.example.learniversebe.dto.response.PageResponse;
 import org.example.learniversebe.dto.response.UserProfileResponse;
 import org.example.learniversebe.enums.FriendStatus;
 import org.example.learniversebe.model.ApiResponse;
 import org.example.learniversebe.model.Friend;
 import org.example.learniversebe.service.IFriendService;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -119,10 +122,11 @@ public class FriendController {
 
     @Operation(summary = "Search friend by display name")
     @GetMapping("/search")
-    public ResponseEntity<ApiResponse<List<UserProfileResponse>>> searchFriends(
-            @RequestParam String keyword) {
+    public ResponseEntity<ApiResponse<PageResponse<UserProfileResponse>>> searchFriends(
+            @ParameterObject Pageable pageable,
+            @RequestParam(required = false) String keyword) {
 
-        List<UserProfileResponse> result = friendService.searchFriends(keyword);
+        PageResponse<UserProfileResponse> result = friendService.searchFriends(keyword, pageable);
 
         return ResponseEntity.ok(
                 new ApiResponse<>(HttpStatus.OK, "Friend search successfully.", result, null)

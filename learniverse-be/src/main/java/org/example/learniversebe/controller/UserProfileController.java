@@ -1,12 +1,17 @@
 package org.example.learniversebe.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.example.learniversebe.dto.request.UserProfileRequest;
+import org.example.learniversebe.dto.response.PageResponse;
 import org.example.learniversebe.dto.response.UserProfileResponse;
+import org.example.learniversebe.model.ApiResponse;
 import org.example.learniversebe.model.CustomUserDetails;
 import org.example.learniversebe.service.IUserProfileService;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -29,9 +34,9 @@ public class UserProfileController {
     @Operation(summary = "Onboard profile")
     @PostMapping(value = "/onboard")
     public ResponseEntity<UserProfileResponse> onboardProfile(Authentication authentication,
-                                                              @RequestPart("data") @Valid UserProfileRequest data,
-                                                              @RequestParam(required = false) MultipartFile avatar,
-                                                              @RequestParam(required = false) MultipartFile cover
+          @RequestPart("data") @Valid UserProfileRequest data,
+          @RequestParam(required = false) MultipartFile avatar,
+          @RequestParam(required = false) MultipartFile cover
     ) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
         UUID userId = userDetails.getId();
@@ -66,5 +71,16 @@ public class UserProfileController {
     @GetMapping("/{userId}")
     public UserProfileResponse getUserProfile(@PathVariable UUID userId) {
         return service.viewProfile(userId);
+    }
+
+    @Operation(summary = "Search user by username or display name (result exclude ADMIN)")
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<PageResponse<UserProfileResponse>>> searchUser(
+            @Parameter(description = "Search query for email or username")
+            @RequestParam(required = false) String search,
+            @ParameterObject Pageable pageable
+    ){
+        PageResponse<UserProfileResponse> users = service.searchUserExcludeAdmin(pageable, search);
+        return ResponseEntity.ok(new ApiResponse<>(HttpStatus.OK, "Search users fetched successfully", users, null));
     }
 }
