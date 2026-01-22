@@ -18,6 +18,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Learniverse",
   description: "Start your study journey",
+  icons: {
+    icon: "/favicon_logo.png",
+  },
 };
 
 export default function RootLayout({
@@ -30,12 +33,12 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-      <AuthProvider>
-        <NotificationProvider>
-          {children}
-        </NotificationProvider>
-      </AuthProvider>
-      <Toaster position="top-right" richColors />
+        <AuthProvider>
+          <NotificationProvider>
+            {children}
+          </NotificationProvider>
+        </AuthProvider>
+        <Toaster position="top-right" richColors />
       </body>
     </html>
   );
