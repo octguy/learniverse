@@ -6,7 +6,7 @@ locals {
 module "ai_service" {
   source = "./modules/aca-service"
   name = "learniverse-commentscan"
-  image_url = "honguyenminh/learniverse-commentscan:latest"
+  image_url = "docker.io/honguyenminh/learniverse-commentscan:latest"
 
   container_app_environment_id = module.aca-infra.env-id
   resource_group_name = local.rg_name
@@ -49,7 +49,7 @@ module "backend_service" {
     REFRESH_TOKEN_EXPIRATION: var.env_refresh_token_exp
     RESET_PASSWORD_TOKEN_EXPIRATION: var.env_reset_password_token_exp
     VERIFICATION_CODE_EXPIRATION: var.env_verify_code_exp
-    AI_SERVICE_URL: "http://${module.ai_service.name}:8000"
+    AI_SERVICE_URL: "http://${module.ai_service.name}"
   }
   secrets = {
     SPRING_DATASOURCE_URL=module.postgres.connection_string_secret_id
