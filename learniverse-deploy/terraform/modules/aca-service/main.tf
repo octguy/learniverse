@@ -91,8 +91,4 @@ resource "azurerm_container_app" "go-services" {
     server = var.acr_login_server
     identity = var.acr_pull_identity_id
   }
-
-  lifecycle {
-    ignore_changes = [ secret ]
-  }
 }

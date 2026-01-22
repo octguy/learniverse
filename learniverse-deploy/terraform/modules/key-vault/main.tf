@@ -9,7 +9,7 @@ resource "azurerm_user_assigned_identity" "apps" {
 
 # random id
 resource "random_id" "random_keyvault_suffix" {
-  byte_length = 6
+  byte_length = 4
 }
 
 resource "azurerm_key_vault" "keyvault" {

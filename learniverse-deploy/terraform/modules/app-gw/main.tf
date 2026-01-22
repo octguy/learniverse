@@ -24,6 +24,8 @@ resource "azurerm_application_gateway" "app_gw" {
   resource_group_name = var.resource_group_name
   location = var.location
 
+  enable_http2 = true
+
   sku {
     name = "Standard_v2"
     tier = "Standard_v2"
@@ -82,6 +84,15 @@ resource "azurerm_application_gateway" "app_gw" {
     name = "backend-pool"
     fqdns = [var.backend_aca_fqdn]
   }
+  probe {
+    name = "backend-probe"
+    protocol = "Https"
+    host = local.backend_hostname
+    path = "/ws"
+    interval = 30
+    timeout = 30
+    unhealthy_threshold = 3
+  }
   backend_http_settings {
     name = "backend-http-settings"
     protocol = "Https"
@@ -90,6 +101,7 @@ resource "azurerm_application_gateway" "app_gw" {
     dedicated_backend_connection_enabled = false
     request_timeout = var.request_timeout
     pick_host_name_from_backend_address = true
+    probe_name = "backend-probe"
   }
   http_listener {
     name = "backend-listener"

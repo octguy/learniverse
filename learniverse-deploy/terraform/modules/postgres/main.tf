@@ -85,7 +85,7 @@ resource "azurerm_key_vault_secret" "postgres_connection_string" {
   depends_on = [azurerm_postgresql_flexible_server_database.dbs]
 }
 resource "azurerm_key_vault_secret" "postgres_username" {
-  name         = "${var.resource_prefix}-postgres-connection-string"
+  name         = "${var.resource_prefix}-postgres-username"
   key_vault_id = var.key_vault_id
   value        = var.admin_username
 
@@ -96,7 +96,7 @@ resource "azurerm_key_vault_secret" "postgres_username" {
   depends_on = [azurerm_postgresql_flexible_server_database.dbs]
 }
 resource "azurerm_key_vault_secret" "postgres_password" {
-  name         = "${var.resource_prefix}-postgres-connection-string"
+  name         = "${var.resource_prefix}-postgres-password"
   key_vault_id = var.key_vault_id
   value_wo        = var.admin_password
   value_wo_version = var.admin_password_version

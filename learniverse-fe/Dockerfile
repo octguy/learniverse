@@ -4,6 +4,9 @@
 FROM node:24-alpine AS deps
 WORKDIR /app
 
+#! Overwrite in prod
+ARG NEXT_PUBLIC_API_URL=http://localhost:8080/api/v1
+
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Copy package files
@@ -16,6 +19,7 @@ RUN npm ci
 FROM node:24-alpine AS builder
 WORKDIR /app
 
+ARG NEXT_PUBLIC_API_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Copy dependencies from deps stage

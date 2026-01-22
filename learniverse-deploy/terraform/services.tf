@@ -58,7 +58,7 @@ module "backend_service" {
     SPRING_JWT_SECRET_KEY=azurerm_key_vault_secret.jwt_secret_key.versionless_id
     SPRING_JWT_SECRET_KEY_EXPIRATION=azurerm_key_vault_secret.jwt_secret_key_exp.versionless_id
     SUPPORT_EMAIL: azurerm_key_vault_secret.support_email.versionless_id
-    SUPPORT_EMAIL_PASSWORD: azurerm_key_vault_secret.support_email_password.versionless_id
+    APP_PASSWORD: azurerm_key_vault_secret.support_email_password.versionless_id
     CLOUD_NAME: azurerm_key_vault_secret.cloud_name.versionless_id
     CLOUDINARY_API_KEY: azurerm_key_vault_secret.cloudinary_api_key.versionless_id
     CLOUDINARY_API_SECRET: azurerm_key_vault_secret.cloudinary_api_secret.versionless_id
@@ -92,6 +92,6 @@ module "frontend_service" {
   target_port_ingress = 8386
   transport = "auto"
   envs = {
-    NEXT_PUBLIC_API_URL: module.app-gw.frontend_public_hostname
+    API_URL: "https://${module.app-gw.backend_public_hostname}/api/v1"
   }
 }

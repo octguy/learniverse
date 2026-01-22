@@ -12,3 +12,6 @@ terraform init
 
 # Plan ACR only
 terraform plan -target module.acr -out=acr.tfplan
+
+# Apply
+terraform apply acr.tfplan

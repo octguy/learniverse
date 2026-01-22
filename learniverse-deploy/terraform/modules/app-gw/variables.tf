@@ -28,7 +28,7 @@ variable "backend_aca_fqdn" {
 }
 variable "backend_subdomain" {
   description = "Subdomain of the api endpoint."
-  default     = "api"
+  default     = "backend"
   type        = string
 }
 
@@ -38,7 +38,7 @@ variable "frontend_aca_fqdn" {
 }
 variable "frontend_subdomain" {
   description = "Subdomain of the frontend endpoint."
-  default     = "monitor"
+  default     = "frontend"
   type        = string
 }
 

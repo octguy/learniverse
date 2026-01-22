@@ -17,7 +17,7 @@ resource "azurerm_key_vault_secret" "jwt_secret_key_exp" {
   }
 }
 resource "azurerm_key_vault_secret" "support_email" {
-  name         = "jwt-secret-key-exp"
+  name         = "support-email"
   key_vault_id = module.key_vault.id
   value        = var.secret_support_email
 
@@ -26,7 +26,7 @@ resource "azurerm_key_vault_secret" "support_email" {
   }
 }
 resource "azurerm_key_vault_secret" "support_email_password" {
-  name         = "jwt-secret-key-exp"
+  name         = "support-email-password"
   key_vault_id = module.key_vault.id
   value        = var.secret_support_email_password
 
@@ -35,7 +35,7 @@ resource "azurerm_key_vault_secret" "support_email_password" {
   }
 }
 resource "azurerm_key_vault_secret" "cloud_name" {
-  name         = "jwt-secret-key-exp"
+  name         = "cloud-name"
   key_vault_id = module.key_vault.id
   value        = var.secret_cloud_name
 
@@ -44,7 +44,7 @@ resource "azurerm_key_vault_secret" "cloud_name" {
   }
 }
 resource "azurerm_key_vault_secret" "cloudinary_api_key" {
-  name         = "jwt-secret-key-exp"
+  name         = "cloudinary-api-key"
   key_vault_id = module.key_vault.id
   value        = var.secret_cloudinary_api_key
 
@@ -53,7 +53,7 @@ resource "azurerm_key_vault_secret" "cloudinary_api_key" {
   }
 }
 resource "azurerm_key_vault_secret" "cloudinary_api_secret" {
-  name         = "jwt-secret-key-exp"
+  name         = "cloudinary-api-secret"
   key_vault_id = module.key_vault.id
   value        = var.secret_cloudinary_api_secret
 
@@ -62,7 +62,7 @@ resource "azurerm_key_vault_secret" "cloudinary_api_secret" {
   }
 }
 resource "azurerm_key_vault_secret" "cloudinary_folder" {
-  name         = "jwt-secret-key-exp"
+  name         = "cloudinary-folder"
   key_vault_id = module.key_vault.id
   value        = var.secret_cloudinary_folder
 

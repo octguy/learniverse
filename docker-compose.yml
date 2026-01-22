@@ -55,6 +55,8 @@ services:
     build:
       context: ./learniverse-fe
       dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=https://backend.honguyenminh.io.vn/api/v1
     container_name: learniverse-frontend
     ports:
       - "8386:8386"
