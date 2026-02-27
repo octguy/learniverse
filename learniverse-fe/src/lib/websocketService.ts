@@ -67,8 +67,13 @@ class WebSocketService {
     // Create new connection promise
     this.connectionPromise = new Promise((resolve, reject) => {
       this.isConnecting = true;
+      // Use NEXT_PUBLIC_WS_URL if set, otherwise derive from NEXT_PUBLIC_API_URL,
+      // or fall back to localhost for development
       const wsUrl =
-        process.env.NEXT_PUBLIC_WS_URL || "http://localhost:8080/ws";
+        process.env.NEXT_PUBLIC_WS_URL ||
+        (process.env.NEXT_PUBLIC_API_URL
+          ? process.env.NEXT_PUBLIC_API_URL.replace("/api/v1", "/ws")
+          : "http://localhost:8080/ws");
       console.log("[WS] 🔌 Connecting to:", wsUrl);
       console.log("[WS] 🔑 Using token:", token.substring(0, 20) + "...");
 

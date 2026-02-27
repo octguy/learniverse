@@ -42,6 +42,7 @@ services:
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
       CLOUDINARY_FOLDER: ${CLOUDINARY_FOLDER}
+      FRONTEND_URL: ${FRONTEND_URL}
       AI_SERVICE_URL: http://learniverse-commentscan:8000
     ports:
       - "8080:8080"
@@ -56,7 +57,7 @@ services:
       context: ./learniverse-fe
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=https://backend.honguyenminh.io.vn/api/v1
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
     container_name: learniverse-frontend
     ports:
       - "8386:8386"

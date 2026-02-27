@@ -26,6 +26,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Value;
+
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -33,6 +35,9 @@ import java.util.*;
 @Slf4j
 @Service
 public class AuthServiceImpl implements IAuthService {
+
+    @Value("${app.frontend.url}")
+    private String frontendUrl;
 
     @Value("${spring.verification-code.expiration}")
     private Long expiration;
@@ -402,7 +407,7 @@ public class AuthServiceImpl implements IAuthService {
 
     private void sendForgetPasswordEmail(String email, String token) {
         String subject = "[Learniverse System] Password Reset Request";
-        String resetLink = "http://localhost:8386/reset-password?token=" + token;// Replace with your frontend URL
+        String resetLink = frontendUrl + "/reset-password?token=" + token;// Replace with your frontend URL
         String htmlMessage = "<!DOCTYPE html>"
                 + "<html lang=\"en\">"
                 + "<head>"
